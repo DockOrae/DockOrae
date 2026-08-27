@@ -784,6 +784,8 @@ export default {
     dockerDown: '不可用',
     dockerStatus: 'Docker',
     running: '运行中',
+    exited: '已退出',
+    stopped: '已停止',
     load15: '15 分钟负载',
     free: '可用',
     healthCritical: '资源使用率过高: {list}',

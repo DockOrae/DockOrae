@@ -783,6 +783,8 @@ export default {
     dockerDown: 'Unavailable',
     dockerStatus: 'Docker',
     running: 'Running',
+    exited: 'Exited',
+    stopped: 'Stopped',
     load15: '15-min load',
     free: 'Free',
     healthCritical: 'Resource usage critical: {list}',
