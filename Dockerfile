@@ -24,11 +24,16 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 # ================= Stage 3: 运行镜像(目标平台) =================
 FROM alpine:3.20
 ARG TARGETARCH
+ARG TARGETVARIANT
 RUN apk add --no-cache ca-certificates tini curl \
-    && case "$TARGETARCH" in \
+    && case "${TARGETARCH}${TARGETVARIANT}" in \
          amd64) A=x86_64 ;; \
          arm64) A=aarch64 ;; \
-         *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
+         386) A=i386 ;; \
+         armv7) A=armv7 ;; \
+         armv6) A=armv6 ;; \
+         s390x) A=s390x ;; \
+         *) echo "unsupported arch: ${TARGETARCH}${TARGETVARIANT}" >&2; exit 1 ;; \
        esac \
     && curl -fsSL "https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-linux-$A" -o /usr/local/bin/docker-compose \
     && chmod +x /usr/local/bin/docker-compose \
