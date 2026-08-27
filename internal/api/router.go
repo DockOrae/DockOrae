@@ -26,6 +26,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	// ---------- public ----------
 	api.GET("/health", H(systemHealth).Handler(st))
 	api.GET("/system/default-account", H(systemDefaultAccount).Handler(st))
+	api.GET("/system/wallpaper", H(wallpaperGet).Handler(st))
 	api.POST("/login", H(systemLogin).Handler(st))
 	api.POST("/login/totp", H(systemLoginTotp).Handler(st))
 
@@ -37,6 +38,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/profile", H(systemUpdateProfile).Handler(st))
 	p.POST("/avatar", H(systemUploadAvatar).Handler(st))
 	p.GET("/avatar/:file", H(systemServeAvatar).Handler(st))
+	p.POST("/system/wallpaper", H(wallpaperSave).Handler(st))
 	p.POST("/password", H(systemChangePassword).Handler(st))
 	p.POST("/totp/setup", H(systemTotpSetup).Handler(st))
 	p.POST("/totp/enable", H(systemTotpEnable).Handler(st))
@@ -45,6 +47,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.GET("/system/info", H(systemInfo).Handler(st))
 	p.GET("/system/host", H(monitorHost).Handler(st))
 	p.GET("/system/monitor", H(monitorMonitor).Handler(st))
+	p.GET("/system/public-ip", H(systemPublicIP).Handler(st))
 	p.GET("/system/registry-mirrors", H(monitorRegistryMirrors).Handler(st))
 	p.PUT("/system/registry-mirrors", H(monitorSaveRegistryMirrors).Handler(st))
 	p.POST("/system/restart-docker", H(monitorRestartDocker).Handler(st))

@@ -43,13 +43,12 @@
           <span v-if="expanded || pinned" class="nav-label">{{ t(item.labelKey) }}</span>
         </router-link>
 
-        <!-- 面板设置(点击展开子菜单:所有设置项,仿 3x-ui) -->
+        <!-- 面板设置(点击展开子菜单:所有设置项,仿 3x-ui;父级不高亮,只高亮选中的子项) -->
         <div class="menu-group">
           <button
             type="button"
             class="nav-item"
             :class="[
-              settingsOpen || isSettingsChild ? 'active' : '',
               !(expanded || pinned) ? 'is-collapsed' : '',
             ]"
             @click="toggleSettingsMenu"
@@ -74,23 +73,12 @@
         </div>
       </nav>
 
-      <!-- 底部:登出 + 版本(仿 3x-ui sider-utility) -->
+      <!-- 底部:登出(仿 3x-ui sider-utility;GitHub 入口顶栏已有,不重复) -->
       <div class="sider-footer">
         <button type="button" class="logout-item" :class="{ 'is-collapsed': !expanded }" @click="logout">
           <Icon name="logout" size="15" class="nav-icon" />
           <span v-if="expanded" class="nav-label">{{ t('nav.logout') }}</span>
         </button>
-        <a
-          href="https://github.com/MinimaxFlora/Docker_Manager_Go"
-          target="_blank"
-          rel="noopener"
-          class="sider-version"
-          :class="{ 'is-collapsed': !expanded }"
-          :title="t('app.version')"
-        >
-          <Icon name="github" size="13" filled />
-          <span v-if="expanded" class="version-text">{{ t('app.version') }}</span>
-        </a>
       </div>
     </div>
 
@@ -129,7 +117,7 @@
       >
         <Icon name="alert" size="15" class="shrink-0" />
         <span class="flex-1">{{ t('banner.changePwd') }}</span>
-        <router-link to="/settings" class="pwd-banner-link">
+        <router-link to="/settings#security" class="pwd-banner-link">
           {{ t('banner.goSettings') }}
         </router-link>
       </div>
@@ -484,28 +472,6 @@ function logout() {
 }
 .logout-item.is-collapsed .nav-label {
   display: none;
-}
-
-/* 版本徽章(仿 3x-ui sider-version) */
-.sider-version {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 2px;
-  padding: 7px 0;
-  border-radius: 8px;
-  color: var(--dm-muted);
-  font-size: 11.5px;
-  text-decoration: none;
-  transition: color 0.15s, background 0.15s;
-}
-.sider-version:hover {
-  color: var(--color-brand);
-  background: var(--dm-surface2);
-}
-.sider-version.is-collapsed {
-  padding: 8px 0;
 }
 
 /* ---------- 主区域 ---------- */

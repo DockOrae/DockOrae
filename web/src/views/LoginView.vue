@@ -1,7 +1,7 @@
 <template>
   <div :class="['login-app', { 'is-dark': isDark }]">
-    <!-- 背景图 + 遮罩(1Panel 风格) -->
-    <img src="/bg.jpg" alt="" class="login-bg" />
+    <!-- 背景图 + 遮罩(1Panel 风格;自定义壁纸优先,失败回退内置 bg.jpg) -->
+    <img :src="bgFailed ? '/bg.jpg' : '/api/system/wallpaper'" alt="" class="login-bg" @error="onBgError" />
     <div class="login-bg-overlay" />
     <!-- 右上角工具栏:主题切换 + 语言切换(仿 3x-ui) -->
     <div class="login-toolbar">
@@ -146,6 +146,11 @@ const langWrapRef = ref(null)
 const headlineIndex = ref(0)
 // 仅当 admin 仍是默认密码(未改密)时显示"默认账号"提示
 const showDefaultHint = ref(false)
+// 自定义壁纸加载失败 → 回退内置背景
+const bgFailed = ref(false)
+function onBgError() {
+  bgFailed.value = true
+}
 
 // 欢迎语轮播(仿 3x-ui:2 秒切换)
 const headlineWords = computed(() => [t('login.welcomeBack', { name: '' }).replace(/,\s*$/, ''), t('login.subtitle')])

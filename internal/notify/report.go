@@ -58,14 +58,14 @@ func sendPeriodicReport(st *settings.Store, dataDir string) {
 		path, err := backupData(dataDir)
 		if err != nil {
 			log.Printf("periodic backup failed: %v", err)
-			sendTelegram(s.TgBotToken, s.TgAdminChatId, title, body+"\n(数据库备份生成失败)")
+			sendTelegram(s, title, body+"\n(数据库备份生成失败)")
 			return
 		}
 		defer os.Remove(path)
-		sendTelegramDocument(s.TgBotToken, s.TgAdminChatId, title+"\n"+body, path)
+		sendTelegramDocument(s, title+"\n"+body, path)
 		return
 	}
-	sendTelegram(s.TgBotToken, s.TgAdminChatId, title, body)
+	sendTelegram(s, title, body)
 }
 
 // backupData 打包数据目录(数据库 + 配置)为 tar.gz,返回临时文件路径
@@ -121,13 +121,13 @@ func backupData(dataDir string) (string, error) {
 }
 
 // sendTelegramDocument 通过 Telegram Bot API 发送文档(数据库备份文件)
-func sendTelegramDocument(token, chatID, caption, filePath string) {
-	if token == "" || chatID == "" {
+func sendTelegramDocument(s *settings.Settings, caption, filePath string) {
+	if s.TgBotToken == "" || s.TgAdminChatId == "" {
 		return
 	}
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
-	_ = w.WriteField("chat_id", chatID)
+	_ = w.WriteField("chat_id", s.TgAdminChatId)
 	_ = w.WriteField("caption", caption)
 	fw, err := w.CreateFormFile("document", filepath.Base(filePath))
 	if err != nil {
@@ -145,7 +145,7 @@ func sendTelegramDocument(token, chatID, caption, filePath string) {
 	}
 	_ = w.Close()
 	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Post("https://api.telegram.org/bot"+token+"/sendDocument", w.FormDataContentType(), &b)
+	resp, err := client.Post(tgAPIBase(s)+"/bot"+s.TgBotToken+"/sendDocument", w.FormDataContentType(), &b)
 	if err != nil {
 		log.Printf("telegram document failed: %v", err)
 		return

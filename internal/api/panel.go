@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -87,9 +88,14 @@ func panelSettingsSave(c *gin.Context, st *state.AppState) error {
 
 // ---------------- 面板日志 (环形缓冲) ----------------
 
-// panelLogs 最近日志(仿 3x-ui LogModal)
+// panelLogs 最近日志(仿 3x-ui LogModal;?lines= 控制行数)
 func panelLogs(c *gin.Context, st *state.AppState) error {
 	lines := 500
+	if v := c.Query("lines"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 5000 {
+			lines = n
+		}
+	}
 	c.JSON(200, gin.H{"logs": LogRing.Lines(lines)})
 	return nil
 }

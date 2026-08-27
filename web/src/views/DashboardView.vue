@@ -1,322 +1,426 @@
 <template>
-  <div class="status-page">
-    <!-- 操作栏(仿 3x-ui OverviewActionBar) -->
-    <div class="action-bar">
-      <div class="ab-left">
-        <span class="ab-version">{{ t('app.version') }}</span>
-        <span class="ab-badge" :class="dockerOk ? 'ok' : 'err'">
-          <span class="ab-dot" />
-          {{ dockerOk ? t('status.dockerOk') : t('status.dockerDown') }}
-        </span>
-        <span class="ab-badge" :class="licenseActive ? 'pro' : 'free'">
-          {{ licenseActive ? t('license.pro') : t('license.community') }}
-        </span>
-      </div>
-      <div class="ab-right">
-        <button type="button" class="ab-btn" @click="openHistory">
-          <Icon name="stats" size="14" /> {{ t('status.systemHistory') }}
-        </button>
-        <button type="button" class="ab-btn" @click="openConfig">
-          <Icon name="edit" size="14" /> {{ t('status.config') }}
-        </button>
-        <button type="button" class="ab-btn" @click="openLogs">
-          <Icon name="terminal" size="14" /> {{ t('status.logs') }}
-        </button>
-        <button type="button" class="ab-btn" @click="openBackup">
-          <Icon name="download" size="14" /> {{ t('status.backup') }}
-        </button>
-        <button type="button" class="ab-btn" @click="panelRestart">
+  <div class="status-page ov-page">
+    <!-- ============ 操作栏(仿 3x-ui OverviewActionBar:状态胶囊 + 版本 + 分组按钮) ============ -->
+    <div class="ov-bar">
+      <span class="ov-state" :data-state="dockerOk ? 'running' : 'stop'">
+        <span class="ov-state-dot" :style="{ color: dockerOk ? '#34d399' : '#f87171' }" />
+        <span>{{ t('status.dockerStatus') }} · {{ dockerOk ? t('status.dockerOk') : t('status.dockerDown') }}</span>
+        <button v-if="host?.docker_version" type="button" class="ov-state-version ov-mono">{{ dockerVersion }}</button>
+      </span>
+      <span class="ab-badge" :class="licenseActive ? 'pro' : 'free'">
+        {{ licenseActive ? t('license.pro') : t('license.community') }}
+      </span>
+
+      <div class="ov-bar-actions">
+        <button type="button" class="ov-bar-btn primary" @click="panelRestart">
           <Icon name="restart" size="14" /> {{ t('status.restart') }}
         </button>
-        <button type="button" class="ab-btn" @click="refreshAll">
-          <Icon name="refresh" size="14" /> {{ t('common.refresh') }}
-        </button>
+        <span class="ov-bar-sep" />
+        <button type="button" class="ov-bar-btn" @click="openLogs"><Icon name="terminal" size="14" /> {{ t('status.logs') }}</button>
+        <button type="button" class="ov-bar-btn" @click="openConfig"><Icon name="edit" size="14" /> {{ t('status.config') }}</button>
+        <button type="button" class="ov-bar-btn" @click="openBackup"><Icon name="download" size="14" /> {{ t('status.backup') }}</button>
+        <span class="ov-bar-sep" />
+        <button type="button" class="ov-bar-btn" @click="openHistory"><Icon name="stats" size="14" /> {{ t('status.systemHistory') }}</button>
       </div>
     </div>
 
     <!-- 健康警告条(仿 3x-ui ov-health) -->
-    <div v-if="health" class="health-bar" :style="{ color: health.color }">
-      <span class="health-mark" :style="{ background: health.color }" />
+    <div v-if="health" class="ov-health" :style="{ color: health.color }">
+      <span class="ov-health-mark" />
       {{ health.text }}
     </div>
 
-    <!-- 统计入口:容器 / 运行中 / 镜像 / 卷 -->
-    <div class="stat-row">
-      <button type="button" class="stat-chip" @click="$router.push('/containers')">
-        <Icon name="container" size="15" /> {{ t('nav.containers') }}
-        <b>{{ counts.total }}</b>
-      </button>
-      <button type="button" class="stat-chip" @click="$router.push('/containers')">
-        <Icon name="play" size="15" /> {{ t('status.running') }}
-        <b class="ok">{{ counts.running }}</b>
-      </button>
-      <button type="button" class="stat-chip" @click="$router.push('/images')">
-        <Icon name="image" size="15" /> {{ t('nav.images') }}
-        <b>{{ counts.images }}</b>
-      </button>
-      <button type="button" class="stat-chip" @click="$router.push('/volumes')">
-        <Icon name="volume" size="15" /> {{ t('nav.volumes') }}
-        <b>{{ counts.volumes }}</b>
-      </button>
-    </div>
+    <hr class="ov-rule" />
 
-    <hr class="rule" />
-
-    <!-- 四张系统状态卡(仿 3x-ui VitalTile:环形 + 均值/峰值 + 趋势) -->
-    <div class="vitals">
-      <div class="vital-card">
-        <div class="vital-head">
-          <Icon name="cpu" size="16" class="vital-icon" />
-          <span class="vital-label">{{ t('dashboard.cpuUsage') }}</span>
+    <!-- ============ 四张状态卡(仿 3x-ui VitalTile:大数字 + detail + 均值/峰值 + 趋势) ============ -->
+    <div class="ov-vitals">
+      <div v-for="v in vitals" :key="v.label" class="card ov-tile">
+        <div class="ov-tile-head">
+          <span class="ov-tile-icon"><Icon :name="v.icon" size="15" /></span>
+          <span class="ov-kicker">{{ v.label }}</span>
         </div>
-        <CircularGauge
-          :value="mon.cpu_pct"
-          color="#ec4899"
-          :sub="cpuSub"
-        />
-        <div class="vital-foot">
-          <span>{{ t('dashboard.avg') }} <b>{{ avg(hist.cpu).toFixed(0) }}%</b></span>
-          <span>{{ t('dashboard.peak') }} <b>{{ peak(hist.cpu).toFixed(0) }}%</b></span>
+        <div class="ov-tile-value">
+          <span class="ov-tile-number">{{ v.percent.toFixed(1) }}</span>
+          <span class="ov-tile-unit">%</span>
         </div>
-        <div class="vital-spark">
-          <MiniChart :s1="hist.cpu" color1="#ec4899" :height="36" />
+        <div class="ov-tile-detail">{{ v.detail }}</div>
+        <div class="ov-tile-foot">
+          <span>{{ v.footLeft }}</span>
+          <span>{{ v.footRight }}</span>
         </div>
-      </div>
-
-      <div class="vital-card">
-        <div class="vital-head">
-          <Icon name="memory" size="16" class="vital-icon" />
-          <span class="vital-label">{{ t('dashboard.memUsage') }}</span>
-        </div>
-        <CircularGauge
-          :value="memPct"
-          color="#a78bfa"
-          :sub="memSub"
-        />
-        <div class="vital-foot">
-          <span>{{ t('dashboard.avg') }} <b>{{ avg(hist.mem).toFixed(0) }}%</b></span>
-          <span>{{ t('dashboard.peak') }} <b>{{ peak(hist.mem).toFixed(0) }}%</b></span>
-        </div>
-        <div class="vital-spark">
-          <MiniChart :s1="hist.mem" color1="#a78bfa" :height="36" />
-        </div>
-      </div>
-
-      <div class="vital-card">
-        <div class="vital-head">
-          <Icon name="stats" size="16" class="vital-icon" />
-          <span class="vital-label">{{ t('dashboard.load') }}</span>
-        </div>
-        <CircularGauge
-          :value="loadPct"
-          color="#fbbf24"
-          :display="load1 == null ? '-' : load1.toFixed(2)"
-          :unit="t('dashboard.loadUnit')"
-          :sub="loadText"
-        />
-        <div class="vital-foot">
-          <span>{{ t('dashboard.cores') }} <b>{{ host?.cpu_cores ?? '-' }}</b></span>
-          <span>{{ t('status.load15') }} <b>{{ load2 == null ? '-' : load2.toFixed(2) }}</b></span>
-        </div>
-        <div class="vital-spark">
-          <MiniChart :s1="hist.load" color1="#fbbf24" :height="36" />
-        </div>
-      </div>
-
-      <div class="vital-card">
-        <div class="vital-head">
-          <Icon name="drive" size="16" class="vital-icon" />
-          <span class="vital-label">{{ t('dashboard.diskUsage') }}</span>
-        </div>
-        <CircularGauge
-          :value="diskPct"
-          color="#34d399"
-          :sub="diskSub"
-        />
-        <div class="vital-foot">
-          <span>{{ t('status.free') }} <b>{{ freeDisk }}</b></span>
-          <span>{{ t('dashboard.avg') }} <b>{{ avg(hist.disk).toFixed(0) }}%</b></span>
-        </div>
-        <div class="vital-spark">
-          <MiniChart :s1="hist.disk" color1="#34d399" :height="36" />
+        <div class="ov-tile-chart">
+          <MiniChart :s1="v.data" :color1="v.color" :height="62" :fill="0.3" :stroke-width="1.5" :value-max="100" :ref-lines="meanRef(v.data, v.color)" />
         </div>
       </div>
     </div>
 
-    <!-- 中部:网络吞吐 + 容器 IO(仿 3x-ui ThroughputCard) -->
-    <div class="mid-row">
-      <div class="card mid-card">
-        <div class="card-head">
-          <Icon name="network" size="15" class="text-brand" />
-          <h3>{{ t('dashboard.network') }}</h3>
-          <div class="ml-auto flex items-center gap-3 text-[12px]">
-            <span class="legend"><i class="dot down" />{{ t('dashboard.down') }} <b class="info">{{ netRate.rx }}</b></span>
-            <span class="legend"><i class="dot up" />{{ t('dashboard.up') }} <b class="purple">{{ netRate.tx }}</b></span>
+    <!-- ============ 中部:网络吞吐(仿 3x-ui ThroughputCard)+ 容器卡(仿 ConnectionsCard) ============ -->
+    <div class="ov-mid">
+      <!-- 吞吐卡 -->
+      <div class="card ov-tile ov-wide">
+        <div class="ov-wide-head">
+          <div>
+            <div class="ov-kicker">{{ t('dashboard.overallSpeed') }}</div>
+            <div class="ov-sub">{{ t('dashboard.throughputSub') }} · {{ t('dashboard.peak') }} {{ netPeakText }}</div>
+          </div>
+          <div class="ov-wide-legend">
+            <div class="ov-legend-label">
+              <Icon name="arrowUp" size="12" class="text-brand" />
+              {{ t('dashboard.up') }}
+              <span class="ov-legend-num">{{ netRate.tx }}</span>
+            </div>
+            <div class="ov-legend-label">
+              <Icon name="arrowDown" size="12" class="text-muted" />
+              {{ t('dashboard.down') }}
+              <span class="ov-legend-num">{{ netRate.rx }}</span>
+            </div>
           </div>
         </div>
-        <div class="chart-box">
-          <MiniChart :s1="netHistory.rx" :s2="netHistory.tx" color1="#60a5fa" color2="#c084fc" :height="110" />
+        <div class="ov-wide-chart">
+          <MiniChart
+            :s1="netHistory.tx"
+            :s2="netHistory.rx"
+            color1="#ec4899"
+            color2="#8b93a7"
+            :height="170"
+            :fill="0.24"
+            :stroke-width="1.75"
+            :show-tooltip="true"
+            :labels="labels"
+            name1="↑"
+            name2="↓"
+            :y-formatter="fmtRate"
+            :ref-lines="netRefLines"
+          />
         </div>
-      </div>
-
-      <div class="card mid-card">
-        <div class="card-head">
-          <Icon name="drive" size="15" class="text-brand" />
-          <h3>{{ t('dashboard.io') }}</h3>
-          <div class="ml-auto flex items-center gap-3 text-[12px]">
-            <span class="legend"><i class="dot read" />{{ t('dashboard.read') }} <b class="ok">{{ ioRate.read }}</b></span>
-            <span class="legend"><i class="dot write" />{{ t('dashboard.write') }} <b class="warn">{{ ioRate.write }}</b></span>
+        <div class="ov-wide-foot">
+          <div>
+            <div class="ov-kicker">{{ t('dashboard.sent') }}</div>
+            <div class="ov-foot-value">{{ sentTotal }}</div>
           </div>
-        </div>
-        <div class="chart-box">
-          <MiniChart :s1="ioHistory.read" :s2="ioHistory.write" color1="#34d399" color2="#fbbf24" :height="110" />
-        </div>
-      </div>
-    </div>
-
-    <!-- 系统信息条(仿 3x-ui SystemStrip) -->
-    <div class="sys-strip">
-      <div class="sys-item"><Icon name="box" size="13" class="text-muted" /><span class="sys-label">{{ t('dashboard.hostname') }}</span><b>{{ host?.hostname || '-' }}</b></div>
-      <div class="sys-item"><Icon name="drive" size="13" class="text-muted" /><span class="sys-label">{{ t('dashboard.os') }}</span><b class="truncate">{{ host?.os || '-' }}</b></div>
-      <div class="sys-item"><Icon name="cpu" size="13" class="text-muted" /><span class="sys-label">{{ t('dashboard.kernel') }}</span><b class="truncate">{{ host?.kernel || '-' }}</b></div>
-      <div class="sys-item"><Icon name="clock" size="13" class="text-muted" /><span class="sys-label">{{ t('dashboard.uptime') }}</span><b>{{ uptimeText }}</b></div>
-      <div class="sys-item"><Icon name="stats" size="13" class="text-muted" /><span class="sys-label">{{ t('dashboard.serverTime') }}</span><b class="font-mono">{{ serverTimeText }}</b></div>
-      <div class="sys-item"><Icon name="cpu" size="13" class="text-muted" /><span class="sys-label">{{ t('dashboard.cpuModel') }}</span><b class="truncate">{{ host?.cpu_model || '-' }}</b></div>
-      <div class="sys-item"><Icon name="info" size="13" class="text-muted" /><span class="sys-label">{{ t('dashboard.arch') }}</span><b>{{ host?.arch || '-' }}</b></div>
-    </div>
-
-    <!-- 底部:运行中容器 + 最近事件 -->
-    <div class="bottom-row">
-      <div class="card xl:col-span-2">
-        <div class="card-head px-5 pt-4 pb-2">
-          <Icon name="container" size="16" class="text-brand" />
-          <h3>{{ t('dashboard.runningContainers') }}</h3>
-          <router-link to="/containers" class="ml-auto link text-[12px]">{{ t('dashboard.viewAll') }}</router-link>
-        </div>
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="th">{{ t('containers.thName') }}</th>
-              <th class="th">{{ t('containers.thImage') }}</th>
-              <th class="th">{{ t('containers.thPorts') }}</th>
-              <th class="th">{{ t('containers.thStatus') }}</th>
-              <th class="th w-24">{{ t('containers.thActions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in runningContainers" :key="c.Id" class="cursor-pointer" @click="$router.push('/containers/' + c.Id)">
-              <td class="td font-medium">{{ containerName(c) }}</td>
-              <td class="td text-muted">{{ c.Image }}</td>
-              <td class="td text-muted text-[12px]">{{ ports(c) }}</td>
-              <td class="td"><StatusBadge :state="c.State" /></td>
-              <td class="td" @click.stop>
-                <button class="btn btn-icon btn-sm" :title="c.State === 'running' ? t('common.stop') : t('common.start')" @click="quick(c)">
-                  <Icon :name="c.State === 'running' ? 'stop' : 'play'" size="13" />
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!runningContainers.length">
-              <td colspan="5" class="td text-center text-muted py-8">{{ t('dashboard.noRunningContainers') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card p-5 flex flex-col min-h-[220px]">
-        <div class="flex items-center gap-2 mb-4">
-          <Icon name="stats" size="16" class="text-brand" />
-          <h3>{{ t('dashboard.recentEvents') }}</h3>
-          <span class="ml-auto text-[11px]" :class="wsOn ? 'text-ok' : 'text-muted'">{{ wsOn ? t('dashboard.live') : t('dashboard.notConnected') }}</span>
-        </div>
-        <div class="flex-1 overflow-y-auto max-h-56 space-y-1.5 pr-1">
-          <div v-if="!events.length" class="text-[12px] text-muted">{{ t('dashboard.noEvents') }}</div>
-          <div v-for="(e, i) in events" :key="i" class="flex items-center gap-2.5 text-[12px]">
-            <span class="dot shrink-0" :style="{ background: e.color }" />
-            <span class="text-muted shrink-0 w-10">{{ e.label }}</span>
-            <span class="truncate text-text/90">{{ e.name }}</span>
-            <span class="ml-auto text-muted/70 shrink-0">{{ e.time }}</span>
+          <span class="ov-foot-sep" />
+          <div>
+            <div class="ov-kicker">{{ t('dashboard.received') }}</div>
+            <div class="ov-foot-value">{{ recvTotal }}</div>
+          </div>
+          <span class="ov-foot-sep" />
+          <div>
+            <div class="ov-kicker">{{ t('dashboard.avgWindow') }}</div>
+            <div class="ov-foot-value">
+              <span class="ov-foot-part">↑ {{ avgTx }}</span> <span class="ov-foot-part">↓ {{ avgRx }}</span>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- 磁盘 IO 卡(仿 3x-ui ConnectionsCard 风格) -->
+      <div class="card ov-tile ov-wide">
+        <div class="ov-wide-head">
+          <div>
+            <div class="ov-kicker">{{ t('dashboard.io') }}</div>
+            <div class="ov-sub">{{ t('dashboard.peak') }} {{ ioPeakText }}</div>
+          </div>
+          <div class="ov-wide-legend">
+            <div class="ov-legend-label">
+              <span class="ov-swatch" style="background: #34d399" />
+              {{ t('dashboard.read') }}
+              <span class="ov-legend-num">{{ ioRate.read }}</span>
+            </div>
+            <div class="ov-legend-label">
+              <span class="ov-swatch" style="background: #fbbf24" />
+              {{ t('dashboard.write') }}
+              <span class="ov-legend-num">{{ ioRate.write }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="ov-wide-chart">
+          <MiniChart
+            :s1="ioHistory.read"
+            :s2="ioHistory.write"
+            color1="#34d399"
+            color2="#fbbf24"
+            :height="170"
+            :fill="0.24"
+            :stroke-width="1.5"
+            :show-tooltip="true"
+            :labels="dockerLabels"
+            :y-formatter="fmtRate"
+            :ref-lines="ioRefLines"
+          />
+        </div>
+      </div>
     </div>
 
-    <!-- ============ 日志弹窗(仿 3x-ui LogModal) ============ -->
+    <!-- ============ Docker 统计三卡:容器 / 镜像 / 卷(仿 3x-ui ConnectionsCard 风格) ============ -->
+    <div class="ov-docker">
+      <!-- 容器卡(点击跳转容器列表,仿 3x-ui 卡片可点) -->
+      <div class="card ov-tile ov-wide clickable" @click="$router.push('/containers')">
+        <div class="ov-wide-head ov-wide-head-stack">
+          <div class="ov-kicker">{{ t('nav.containers') }}</div>
+          <div class="ov-conn-total">
+            <span class="ov-tile-number">{{ counts.total }}</span>
+            <span class="ov-tile-unit">{{ t('nav.containers') }}</span>
+          </div>
+        </div>
+        <div class="ov-conn-legend">
+          <div class="ov-legend-label">
+            <span class="ov-swatch" style="background: #34d399" />
+            {{ t('dashboard.running') }}
+            <span class="ov-legend-num">{{ counts.running }}</span>
+          </div>
+          <div class="ov-legend-label">
+            <span class="ov-swatch" style="background: #8b93a7" />
+            {{ t('dashboard.stopped') }}
+            <span class="ov-legend-num">{{ counts.total - counts.running }}</span>
+          </div>
+        </div>
+        <div class="ov-wide-chart">
+          <MiniChart
+            :s1="hist.containerCount"
+            color1="#34d399"
+            :height="110"
+            :fill="0.24"
+            :stroke-width="1.5"
+            :show-tooltip="true"
+            :labels="dockerLabels"
+            :y-formatter="fmtInt"
+            :ref-lines="meanRef(hist.containerCount, '#34d399')"
+          />
+        </div>
+      </div>
+
+      <!-- 镜像卡(点击跳转镜像列表) -->
+      <div class="card ov-tile ov-wide clickable" @click="$router.push('/images')">
+        <div class="ov-wide-head ov-wide-head-stack">
+          <div class="ov-kicker">{{ t('nav.images') }}</div>
+          <div class="ov-conn-total">
+            <span class="ov-tile-number">{{ counts.images }}</span>
+            <span class="ov-tile-unit">{{ t('nav.images') }}</span>
+          </div>
+        </div>
+        <div class="ov-conn-legend">
+          <div class="ov-legend-label">
+            <span class="ov-swatch" style="background: #60a5fa" />
+            {{ t('dashboard.totalSize') }}
+            <span class="ov-legend-num">{{ imageSizeText }}</span>
+          </div>
+          <div class="ov-legend-label">
+            <span class="ov-swatch" style="background: #c084fc" />
+            {{ t('dashboard.avgSize') }}
+            <span class="ov-legend-num">{{ imageAvgText }}</span>
+          </div>
+        </div>
+        <div class="ov-wide-chart">
+          <MiniChart
+            :s1="hist.imageCount"
+            color1="#60a5fa"
+            :height="110"
+            :fill="0.24"
+            :stroke-width="1.5"
+            :show-tooltip="true"
+            :labels="dockerLabels"
+            :y-formatter="fmtInt"
+            :ref-lines="meanRef(hist.imageCount, '#60a5fa')"
+          />
+        </div>
+      </div>
+
+      <!-- 卷卡(点击跳转卷列表) -->
+      <div class="card ov-tile ov-wide clickable" @click="$router.push('/volumes')">
+        <div class="ov-wide-head ov-wide-head-stack">
+          <div class="ov-kicker">{{ t('nav.volumes') }}</div>
+          <div class="ov-conn-total">
+            <span class="ov-tile-number">{{ counts.volumes }}</span>
+            <span class="ov-tile-unit">{{ t('nav.volumes') }}</span>
+          </div>
+        </div>
+        <div class="ov-conn-legend">
+          <div class="ov-legend-label">
+            <span class="ov-swatch" style="background: #34d399" />
+            {{ t('dashboard.mounted') }}
+            <span class="ov-legend-num">{{ mountedVolumes }}</span>
+          </div>
+          <div class="ov-legend-label">
+            <span class="ov-swatch" style="background: #8b93a7" />
+            {{ t('dashboard.unmounted') }}
+            <span class="ov-legend-num">{{ counts.volumes - mountedVolumes }}</span>
+          </div>
+        </div>
+        <div class="ov-wide-chart">
+          <MiniChart
+            :s1="hist.volumeCount"
+            color1="#fbbf24"
+            :height="110"
+            :fill="0.24"
+            :stroke-width="1.5"
+            :show-tooltip="true"
+            :labels="dockerLabels"
+            :y-formatter="fmtInt"
+            :ref-lines="meanRef(hist.volumeCount, '#fbbf24')"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 系统信息条(仿 3x-ui SystemStrip:3 列) ============ -->
+    <div class="card ov-strip">
+      <div class="ov-strip-grid">
+        <div class="ov-strip-cell">
+          <div class="ov-kicker ov-kicker-icon">
+            <Icon name="clock" size="13" />
+            {{ t('dashboard.uptime') }}
+          </div>
+          <div class="ov-strip-split">
+            <div>
+              <div class="ov-strip-sub">{{ t('dashboard.os') }}</div>
+              <div class="ov-strip-value">{{ uptimeText }}</div>
+            </div>
+            <span class="ov-strip-split-sep" />
+            <div>
+              <div class="ov-strip-sub">{{ t('dashboard.serverTime') }}</div>
+              <div class="ov-strip-value ov-mono time-v">{{ serverTimeText }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ov-strip-cell">
+          <div class="ov-kicker ov-kicker-icon">
+            <Icon name="box" size="13" />
+            {{ t('dashboard.panel') }}
+          </div>
+          <div class="ov-strip-split">
+            <div>
+              <div class="ov-strip-sub">{{ t('dashboard.memory') }}</div>
+              <div class="ov-strip-value">{{ panelMem }}</div>
+            </div>
+            <span class="ov-strip-split-sep" />
+            <div>
+              <div class="ov-strip-sub">{{ t('dashboard.threads') }}</div>
+              <div class="ov-strip-value">{{ panelThreads }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ov-strip-cell">
+          <div class="ov-kicker ov-kicker-icon">
+            <Icon name="globe" size="13" />
+            {{ t('dashboard.ipAddresses') }}
+            <button type="button" class="ip-toggle" :title="t('dashboard.toggleIpVisibility')" @click="showIp = !showIp">
+              <Icon :name="showIp ? 'eye' : 'eyeOff'" size="14" />
+            </button>
+          </div>
+          <div class="ov-ip" :class="{ 'ip-hidden': !showIp }">
+            <div class="ov-mono">{{ ipv4 || 'N/A' }}</div>
+            <div class="ov-mono ov-ip-v6">{{ ipv6 || 'N/A' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 日志弹窗(仿 3x-ui LogModal:行数 + 自动更新 + 下载) ============ -->
     <div v-if="logsOpen" class="modal-mask" @click.self="logsOpen = false">
-      <div class="modal-box w-full max-w-2xl">
+      <div class="modal-box w-full max-w-3xl">
         <div class="modal-head">
           <h3>{{ t('status.logs') }}</h3>
-          <button type="button" class="modal-close" @click="logsOpen = false"><Icon name="x" size="16" /></button>
+          <div class="flex items-center gap-2">
+            <button class="btn btn-ghost btn-sm" :title="t('common.refresh')" @click="loadLogs">
+              <Icon name="refresh" size="12" :class="{ 'animate-spin': logLoading }" />
+            </button>
+            <button type="button" class="modal-close" @click="logsOpen = false"><Icon name="x" size="16" /></button>
+          </div>
+        </div>
+        <div class="log-toolbar">
+          <select v-model="logRows" class="input !w-20 !h-8 text-[12px]" @change="loadLogs">
+            <option v-for="n in [20, 50, 100, 500, 1000]" :key="n" :value="n">{{ n }}</option>
+          </select>
+          <label class="log-check"><input type="checkbox" v-model="logAuto" /> {{ t('status.autoUpdate') }}</label>
+          <button class="btn btn-brand btn-sm ml-auto" @click="downloadLogs"><Icon name="download" size="12" /> {{ t('common.download') }}</button>
         </div>
         <pre class="logs-view">{{ logsText }}</pre>
-        <div class="modal-foot">
-          <button class="btn btn-ghost btn-sm" @click="loadLogs"><Icon name="refresh" size="12" /> {{ t('common.refresh') }}</button>
-        </div>
       </div>
     </div>
 
-    <!-- ============ 配置弹窗(仿 3x-ui ConfigModal) ============ -->
+    <!-- ============ 配置弹窗(仿 3x-ui ConfigModal:下载 + 复制) ============ -->
     <div v-if="configOpen" class="modal-mask" @click.self="configOpen = false">
       <div class="modal-box w-full max-w-2xl">
         <div class="modal-head">
           <h3>{{ t('status.config') }}</h3>
-          <div class="flex items-center gap-2">
-            <button class="btn btn-ghost btn-sm" @click="copyConfig">
-              <Icon name="copy" size="12" /> {{ t('common.copy') }}
-            </button>
-            <button type="button" class="modal-close" @click="configOpen = false"><Icon name="x" size="16" /></button>
-          </div>
+          <button type="button" class="modal-close" @click="configOpen = false"><Icon name="x" size="16" /></button>
         </div>
         <pre class="logs-view">{{ configText }}</pre>
+        <div class="modal-foot">
+          <button class="btn btn-ghost btn-sm" @click="downloadConfig"><Icon name="download" size="12" /> {{ t('common.download') }}</button>
+          <button class="btn btn-brand btn-sm" @click="copyConfig"><Icon name="copy" size="12" /> {{ t('common.copy') }}</button>
+        </div>
       </div>
     </div>
 
-    <!-- ============ 备份与恢复弹窗(仿 3x-ui BackupModal) ============ -->
+    <!-- ============ 备份与恢复弹窗(仿 3x-ui BackupModal:导出/导入列表) ============ -->
     <div v-if="backupOpen" class="modal-mask" @click.self="backupOpen = false">
       <div class="modal-box w-full max-w-md">
         <div class="modal-head">
           <h3>{{ t('status.backupTitle') }}</h3>
           <button type="button" class="modal-close" @click="backupOpen = false"><Icon name="x" size="16" /></button>
         </div>
-        <div class="space-y-4 p-5">
-          <button class="btn btn-brand w-full" @click="downloadBackup">
-            <Icon name="download" size="14" /> {{ t('status.downloadBackup') }}
-          </button>
-          <div
-            class="rounded-xl border-2 border-dashed border-line hover:border-brand/60 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 py-8 bg-surface2/40"
-            @click="backupInput?.click()"
-          >
-            <Icon name="upload" size="26" class="text-muted" />
-            <p class="text-[13px]">{{ t('status.restore') }}</p>
-            <p class="text-[11px] text-muted">{{ t('status.chooseBackupFile') }}</p>
-            <input ref="backupInput" type="file" accept=".tar.gz,.gz" class="hidden" @change="restoreBackup" />
+        <div class="backup-list">
+          <div class="backup-item">
+            <div class="backup-meta">
+              <div class="backup-title">{{ t('status.exportDatabase') }}</div>
+              <div class="backup-description">{{ t('status.exportDatabaseDesc') }}</div>
+            </div>
+            <button class="btn btn-brand" :title="t('status.exportDatabase')" @click="downloadBackup"><Icon name="download" size="14" /></button>
           </div>
-          <p class="text-[11px] text-muted">{{ t('status.restoreConfirm') }}</p>
+          <div class="backup-item">
+            <div class="backup-meta">
+              <div class="backup-title">{{ t('status.importDatabase') }}</div>
+              <div class="backup-description">{{ t('status.importDatabaseDesc') }}</div>
+            </div>
+            <button class="btn btn-brand" :title="t('status.importDatabase')" @click="backupInput?.click()"><Icon name="upload" size="14" /></button>
+          </div>
         </div>
+        <input ref="backupInput" type="file" accept=".tar.gz,.gz" class="hidden" @change="restoreBackup" />
+        <p class="text-[11px] text-muted px-5 pb-4">{{ t('status.restoreConfirm') }}</p>
       </div>
     </div>
 
-    <!-- ============ 系统历史弹窗(仿 3x-ui SystemHistoryModal) ============ -->
+    <!-- ============ 系统历史弹窗(仿 3x-ui SystemHistoryModal:Tabs + 图) ============ -->
     <div v-if="historyOpen" class="modal-mask" @click.self="historyOpen = false">
       <div class="modal-box w-full max-w-2xl">
         <div class="modal-head">
           <h3>{{ t('status.systemHistory') }}</h3>
           <button type="button" class="modal-close" @click="historyOpen = false"><Icon name="x" size="16" /></button>
         </div>
-        <div class="p-5 space-y-5">
-          <div>
-            <div class="flex items-center justify-between text-[12px] mb-1">
-              <span class="text-muted">{{ t('dashboard.cpuUsage') }}</span>
-              <span class="font-mono">{{ (mon.cpu_pct ?? 0).toFixed(1) }}%</span>
-            </div>
-            <MiniChart :s1="hist.cpu" color1="#ec4899" :height="60" />
+        <div class="h-tabs px-4 pt-3">
+          <button
+            v-for="tab in historyTabs"
+            :key="tab.key"
+            type="button"
+            class="h-tab"
+            :class="{ active: historyTab === tab.key }"
+            @click="historyTab = tab.key"
+          >
+            <Icon :name="tab.icon" size="13" class="inline mr-1 align-[-2px]" /> {{ t(tab.labelKey) }}
+          </button>
+        </div>
+        <div class="p-5">
+          <div class="flex items-center justify-between text-[12px] mb-2">
+            <span class="text-muted">{{ historyChart.title }}</span>
+            <span class="font-mono">{{ historyChart.current }}</span>
           </div>
-          <div>
-            <div class="flex items-center justify-between text-[12px] mb-1">
-              <span class="text-muted">{{ t('dashboard.memUsage') }}</span>
-              <span class="font-mono">{{ memPct.toFixed(1) }}%</span>
-            </div>
-            <MiniChart :s1="hist.mem" color1="#a78bfa" :height="60" />
-          </div>
+          <MiniChart
+            :s1="historyChart.s1"
+            :s2="historyChart.s2"
+            :color1="historyChart.color1"
+            :color2="historyChart.color2"
+            :height="200"
+            :fill="0.24"
+            :stroke-width="1.5"
+            :show-tooltip="true"
+            :labels="labels"
+            :y-formatter="historyChart.fmt"
+            :value-max="historyChart.valueMax"
+            :ref-lines="historyChart.refLines"
+          />
         </div>
       </div>
     </div>
@@ -324,14 +428,12 @@
 </template>
 
 <script setup>
-import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import StatusBadge from '../components/StatusBadge.vue'
-import CircularGauge from '../components/CircularGauge.vue'
 import MiniChart from '../components/MiniChart.vue'
 import Icon from '../components/Icon.vue'
-import { api, getToken, wsUrl } from '../api'
-import { containerName, humanPorts, formatBytes } from '../util'
+import { api, getToken } from '../api'
+import { formatBytes } from '../util'
 import { toastErr, toastOk } from '../toast'
 import { licenseActive } from '../store'
 
@@ -340,31 +442,31 @@ const { t } = useI18n()
 // ---------- 基础数据 ----------
 const containers = ref([])
 const images = ref(0)
+const imagesSize = ref(0)
 const volumes = ref(0)
+const mountedVolumes = ref(0)
 const host = ref(null)
 const dockerOk = ref(false)
+const dockerVersion = computed(() => (host.value?.docker_version ? 'v' + host.value.docker_version : '?'))
 
 // ---------- 监控 ----------
-const mon = ref({ cpu_pct: 0, mem: null, load: null, disk: null, net: { rx: 0, tx: 0 }, io: { read: 0, write: 0 } })
-const netHistory = ref({ rx: [], tx: [] })
-const ioHistory = ref({ read: [], write: [] })
-const hist = ref({ cpu: [], mem: [], load: [], disk: [] })
+const mon = ref({ cpu_pct: 0, mem: null, load: null, swap: null, disk: null, panel: null, publicIP: null, net: { rx: 0, tx: 0 }, io: { read: 0, write: 0 } })
+const netHistory = ref({ rx: [], tx: [] }) // 速率序列(B/s)
+const ioHistory = ref({ read: [], write: [] }) // 速率序列(B/s)
+const hist = ref({ cpu: [], mem: [], swap: [], disk: [], containerCount: [], imageCount: [], volumeCount: [] })
+const labels = ref([]) // 3s 采样时间标签(吞吐/IO)
+const dockerLabels = ref([]) // 15s 采样时间标签(容器/镜像/卷)
 const prevNet = ref(null)
 const prevIo = ref(null)
 const prevTs = ref(null)
 const netRate = ref({ rx: '0 B/s', tx: '0 B/s' })
 const ioRate = ref({ read: '0 B/s', write: '0 B/s' })
 let monTimer = null
+let dockerTimer = null
 let clockTimer = null
 
 let timeOffset = 0
 const serverTimeText = ref('-')
-
-// ---------- 事件 ----------
-const events = ref([])
-const wsOn = ref(false)
-let ws = null
-let deactivated = false
 
 const counts = computed(() => ({
   total: containers.value.length,
@@ -372,27 +474,19 @@ const counts = computed(() => ({
   images: images.value,
   volumes: volumes.value,
 }))
-const runningContainers = computed(() => containers.value.filter((c) => c.State === 'running').slice(0, 12))
-const ports = (c) => humanPorts(c.Ports)
 
-// ---------- 圆环计算 ----------
-const load1 = computed(() => (mon.value.load ? mon.value.load[0] : null))
-const load2 = computed(() => (mon.value.load ? mon.value.load[1] : null))
-const loadPct = computed(() => {
-  const l = load1.value
-  const cores = host.value?.cpu_cores || 1
-  if (l == null) return 0
-  return Math.min(100, (l / cores) * 100)
-})
-const loadText = computed(() => {
-  const l = mon.value.load
-  return l ? l.map((x) => x.toFixed(2)).join(' / ') : '-'
+// ---------- 计算值 ----------
+const swapPct = computed(() => mon.value.swap?.pct ?? 0)
+const swapSub = computed(() => {
+  const s = mon.value.swap
+  return s ? `${fmtBytes(s.used)} / ${fmtBytes(s.total)}` : '-'
 })
 const memPct = computed(() => mon.value.mem?.pct ?? 0)
 const memSub = computed(() => {
   const m = mon.value.mem
   return m ? `${fmtBytes(m.used)} / ${fmtBytes(m.total)}` : '-'
 })
+const memUsedText = computed(() => (mon.value.mem ? `${fmtBytes(mon.value.mem.used)} / ${fmtBytes(mon.value.mem.total)}` : '-'))
 const diskPct = computed(() => mon.value.disk?.pct ?? 0)
 const diskSub = computed(() => {
   const d = mon.value.disk
@@ -416,8 +510,60 @@ const uptimeText = computed(() => {
   if (h > 0) return `${h}${t('time.hoursShort')} ${m}${t('time.minShort')}`
   return `${m}${t('time.minShort')}`
 })
+const imageSizeText = computed(() => fmtBytes(imagesSize.value))
+const imageAvgText = computed(() => (images.value ? fmtBytes(imagesSize.value / images.value) : '-'))
+const panelMem = computed(() => (mon.value.panel ? fmtBytes(mon.value.panel.mem) : '-'))
+const panelThreads = computed(() => (mon.value.panel ? String(mon.value.panel.threads) : '-'))
+const sentTotal = computed(() => fmtBytes(mon.value.net?.tx ?? 0))
+const recvTotal = computed(() => fmtBytes(mon.value.net?.rx ?? 0))
+const avgTx = computed(() => fmtRate(avg(netHistory.value.tx)))
+const avgRx = computed(() => fmtRate(avg(netHistory.value.rx)))
+const netPeakText = computed(() => fmtRate(peak(netHistory.value.tx) > peak(netHistory.value.rx) ? peak(netHistory.value.tx) : peak(netHistory.value.rx)))
+const ioPeakText = computed(() => fmtRate(Math.max(peak(ioHistory.value.read), peak(ioHistory.value.write))))
 
-// ---------- 健康检查(仿 3x-ui:超阈值警告) ----------
+// ---------- 四张状态卡(仿 3x-ui VitalTile) ----------
+const vitals = computed(() => [
+  {
+    icon: 'cpu', label: t('dashboard.cpuUsage'), percent: mon.value.cpu_pct, color: '#ec4899',
+    detail: cpuSub.value, data: hist.value.cpu,
+    footLeft: `${t('dashboard.avg')} ${avg(hist.value.cpu).toFixed(0)}%`,
+    footRight: `${t('dashboard.peak')} ${peak(hist.value.cpu).toFixed(0)}%`,
+  },
+  {
+    icon: 'memory', label: t('dashboard.memUsage'), percent: memPct.value, color: '#a78bfa',
+    detail: memSub.value, data: hist.value.mem,
+    footLeft: `${t('dashboard.avg')} ${avg(hist.value.mem).toFixed(0)}%`,
+    footRight: `${t('dashboard.peak')} ${peak(hist.value.mem).toFixed(0)}%`,
+  },
+  {
+    icon: 'swap', label: t('dashboard.swap'), percent: swapPct.value, color: '#fbbf24',
+    detail: swapSub.value, data: hist.value.swap,
+    footLeft: `${t('dashboard.avg')} ${avg(hist.value.swap).toFixed(0)}%`,
+    footRight: `${t('dashboard.peak')} ${peak(hist.value.swap).toFixed(0)}%`,
+  },
+  {
+    icon: 'drive', label: t('dashboard.storage'), percent: diskPct.value, color: '#34d399',
+    detail: diskSub.value, data: hist.value.disk,
+    footLeft: `${t('status.free')} ${freeDisk.value}`,
+    footRight: `${t('dashboard.avg')} ${avg(hist.value.disk).toFixed(0)}%`,
+  },
+])
+
+// 均值参考线(仿 3x-ui VitalTile referenceLines)
+function meanRef(data, color) {
+  if (data.length < 2) return []
+  return [{ y: avg(data), dash: '3 4', color: 'color-mix(in srgb, var(--dm-muted) 55%, transparent)' }]
+}
+const netRefLines = computed(() => [
+  { y: parseRate(netRate.value.rx), color: '#8b93a7', dash: '2 4' },
+  { y: parseRate(netRate.value.tx), color: '#ec4899', dash: '2 4' },
+])
+const ioRefLines = computed(() => [
+  { y: parseRate(ioRate.value.read), color: '#34d399', dash: '2 4' },
+  { y: parseRate(ioRate.value.write), color: '#fbbf24', dash: '2 4' },
+])
+
+// ---------- 健康检查(仿 3x-ui:≥90 红 / ≥75 黄) ----------
 const health = computed(() => {
   const items = [
     { name: t('dashboard.cpuUsage'), value: mon.value.cpu_pct },
@@ -436,23 +582,30 @@ const health = computed(() => {
 })
 
 const fmtBytes = (n) => formatBytes(n, 1)
-const fmtRate = (n) => (n == null ? '-' : formatBytes(n, 1) + '/s')
+const fmtRate = (v) => (v == null ? '-' : formatBytes(v, 1) + '/s')
+const fmtInt = (v) => Math.round(v).toLocaleString()
 const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0)
 const peak = (arr) => (arr.length ? Math.max(...arr) : 0)
+function parseRate(s) {
+  const m = String(s).match(/^([\d.]+)/)
+  const unit = String(s).match(/([KMG]?B)\/s$/)
+  if (!m) return 0
+  const mult = unit ? { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 }[unit[1]] || 1 : 1
+  return Number(m[1]) * mult
+}
 
 // ---------- 加载 ----------
 async function loadBase() {
   try {
-    const [info, cs, imgs, vols] = await Promise.all([
-      api('/system/info'),
-      api('/containers'),
-      api('/images'),
-      api('/volumes'),
-    ])
+    const [cs, imgs, vols] = await Promise.all([api('/containers'), api('/images'), api('/volumes')])
     dockerOk.value = true
     containers.value = cs
     images.value = imgs.length
+    imagesSize.value = imgs.reduce((a, b) => a + (Number(b.Size) || 0), 0)
     volumes.value = vols.length
+    mountedVolumes.value = new Set(
+      (cs || []).flatMap((c) => (c.Mounts || []).filter((m) => m.Type === 'volume').map((m) => m.Name).filter(Boolean),
+    )).size
     if (!host.value) {
       try {
         const h = await api('/system/host')
@@ -460,6 +613,11 @@ async function loadBase() {
         if (h.server_time) timeOffset = h.server_time * 1000 - Date.now()
       } catch { /* ignore */ }
     }
+    // 容器/镜像/卷趋势(15s 节奏)
+    pushHistory(hist.value.containerCount, containers.value.length)
+    pushHistory(hist.value.imageCount, images.value)
+    pushHistory(hist.value.volumeCount, volumes.value)
+    pushLabel(dockerLabels.value)
   } catch {
     dockerOk.value = false
   }
@@ -472,15 +630,23 @@ async function loadMonitor() {
     if (prevTs.value && prevNet.value) {
       const dt = (now - prevTs.value) / 1000
       if (dt > 0) {
-        netRate.value.rx = fmtRate(Math.max(0, (m.net.rx - prevNet.value.rx) / dt))
-        netRate.value.tx = fmtRate(Math.max(0, (m.net.tx - prevNet.value.tx) / dt))
+        const rx = Math.max(0, (m.net.rx - prevNet.value.rx) / dt)
+        const tx = Math.max(0, (m.net.tx - prevNet.value.tx) / dt)
+        netRate.value.rx = fmtRate(rx)
+        netRate.value.tx = fmtRate(tx)
+        pushHistory(netHistory.value.rx, rx)
+        pushHistory(netHistory.value.tx, tx)
       }
     }
     if (prevTs.value && prevIo.value) {
       const dt = (now - prevTs.value) / 1000
       if (dt > 0) {
-        ioRate.value.read = fmtRate(Math.max(0, (m.io.read - prevIo.value.read) / dt))
-        ioRate.value.write = fmtRate(Math.max(0, (m.io.write - prevIo.value.write) / dt))
+        const rd = Math.max(0, (m.io.read - prevIo.value.read) / dt)
+        const wr = Math.max(0, (m.io.write - prevIo.value.write) / dt)
+        ioRate.value.read = fmtRate(rd)
+        ioRate.value.write = fmtRate(wr)
+        pushHistory(ioHistory.value.read, rd)
+        pushHistory(ioHistory.value.write, wr)
       }
     }
     prevNet.value = { rx: m.net.rx, tx: m.net.tx }
@@ -488,30 +654,40 @@ async function loadMonitor() {
     prevTs.value = now
 
     mon.value = m
-    pushHistory(netHistory.value.rx, m.net.rx)
-    pushHistory(netHistory.value.tx, m.net.tx)
-    pushHistory(ioHistory.value.read, m.io.read)
-    pushHistory(ioHistory.value.write, m.io.write)
     pushHistory(hist.value.cpu, m.cpu_pct)
     pushHistory(hist.value.mem, m.mem?.pct ?? 0)
-    pushHistory(hist.value.load, m.load?.[0] ?? 0)
+    pushHistory(hist.value.swap, m.swap?.pct ?? 0)
     pushHistory(hist.value.disk, m.disk?.pct ?? 0)
+    pushLabel(labels.value)
   } catch { /* ignore */ }
 }
 
 function pushHistory(arr, v) {
   arr.push(v)
-  if (arr.length > 60) arr.shift()
+  if (arr.length > 120) arr.shift()
 }
+function pushLabel(arr) {
+  arr.push(new Date(Date.now() + timeOffset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+  if (arr.length > 120) arr.shift()
+}
+
+// ---------- 公网 IP(仿 3x-ui status.publicIP:随 monitor 轮询携带,默认隐藏,眼睛切换) ----------
+const showIp = ref(false)
+const ipv4 = computed(() => mon.value.publicIP?.ipv4 || '')
+const ipv6 = computed(() => mon.value.publicIP?.ipv6 || '')
 
 function refreshAll() {
   loadBase()
   loadMonitor()
 }
 
-// ---------- 操作栏弹窗(仿 3x-ui) ----------
+// ---------- 操作栏弹窗(仿 3x-ui LogModal / ConfigModal / BackupModal) ----------
 const logsOpen = ref(false)
 const logsText = ref('')
+const logRows = ref(50)
+const logAuto = ref(false)
+const logLoading = ref(false)
+let logTimer = null
 const configOpen = ref(false)
 const configText = ref('')
 const backupOpen = ref(false)
@@ -523,13 +699,37 @@ function openLogs() {
   loadLogs()
 }
 async function loadLogs() {
+  logLoading.value = true
   try {
-    const r = await api('/system/logs')
+    const r = await api('/system/logs?lines=' + logRows.value)
     logsText.value = (r.logs || []).join('\n') || '-'
   } catch (e) {
     logsText.value = e.message
+  } finally {
+    logLoading.value = false
   }
 }
+function downloadLogs() {
+  const blob = new Blob([logsText.value], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'docker-manager.log'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+watch(logAuto, (v) => {
+  clearInterval(logTimer)
+  if (v && logsOpen.value) {
+    logTimer = setInterval(loadLogs, 5000)
+  }
+})
+watch(logsOpen, (v) => {
+  if (!v) {
+    clearInterval(logTimer)
+    logAuto.value = false
+  }
+})
 
 function openConfig() {
   configOpen.value = true
@@ -541,6 +741,15 @@ function openConfig() {
 }
 function copyConfig() {
   navigator.clipboard?.writeText(configText.value).then(() => toastOk(t('common.copied'))).catch(() => {})
+}
+function downloadConfig() {
+  const blob = new Blob([configText.value], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'config.json'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function openBackup() {
@@ -583,6 +792,59 @@ function openHistory() {
   historyOpen.value = true
 }
 
+const historyTab = ref('cpu')
+const historyTabs = [
+  { key: 'cpu', icon: 'cpu', labelKey: 'dashboard.cpuUsage' },
+  { key: 'mem', icon: 'memory', labelKey: 'dashboard.memUsage' },
+  { key: 'net', icon: 'network', labelKey: 'dashboard.network' },
+  { key: 'io', icon: 'drive', labelKey: 'dashboard.io' },
+  { key: 'disk', icon: 'stats', labelKey: 'dashboard.storage' },
+]
+const historyChart = computed(() => {
+  switch (historyTab.value) {
+    case 'mem':
+      return {
+        title: `${t('dashboard.memUsage')} / ${t('dashboard.swap')}`,
+        current: `${memPct.value.toFixed(1)}% / ${swapPct.value.toFixed(1)}%`,
+        s1: hist.value.mem, s2: hist.value.swap, color1: '#a78bfa', color2: '#fbbf24',
+        fmt: (v) => v.toFixed(1) + '%', valueMax: 100,
+        refLines: meanRef(hist.value.mem, '#a78bfa'),
+      }
+    case 'net':
+      return {
+        title: `${t('dashboard.up')} / ${t('dashboard.down')}`,
+        current: `${netRate.value.tx} / ${netRate.value.rx}`,
+        s1: netHistory.value.tx, s2: netHistory.value.rx, color1: '#ec4899', color2: '#8b93a7',
+        fmt: fmtRate, valueMax: null,
+        refLines: netRefLines.value,
+      }
+    case 'io':
+      return {
+        title: `${t('dashboard.read')} / ${t('dashboard.write')}`,
+        current: `${ioRate.value.read} / ${ioRate.value.write}`,
+        s1: ioHistory.value.read, s2: ioHistory.value.write, color1: '#34d399', color2: '#fbbf24',
+        fmt: fmtRate, valueMax: null,
+        refLines: ioRefLines.value,
+      }
+    case 'disk':
+      return {
+        title: t('dashboard.storage'),
+        current: `${diskPct.value.toFixed(1)}%`,
+        s1: hist.value.disk, s2: [], color1: '#34d399', color2: '',
+        fmt: (v) => v.toFixed(1) + '%', valueMax: 100,
+        refLines: meanRef(hist.value.disk, '#34d399'),
+      }
+    default:
+      return {
+        title: t('dashboard.cpuUsage'),
+        current: `${(mon.value.cpu_pct ?? 0).toFixed(1)}%`,
+        s1: hist.value.cpu, s2: [], color1: '#ec4899', color2: '',
+        fmt: (v) => v.toFixed(1) + '%', valueMax: 100,
+        refLines: meanRef(hist.value.cpu, '#ec4899'),
+      }
+  }
+})
+
 function panelRestart() {
   if (!confirm(t('status.restartConfirm'))) return
   api('/system/restart', { method: 'POST' })
@@ -590,63 +852,11 @@ function panelRestart() {
     .catch((e) => toastErr(e.message))
 }
 
-// ---------- 事件 WS ----------
-function connectEvents() {
-  try {
-    ws = new WebSocket(wsUrl('/ws/events'))
-    ws.onopen = () => (wsOn.value = true)
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data)
-        if (msg.type !== 'event') return
-        const d = msg.data
-        const color = EVENT_COLOR[d.action] || '#8b93a7'
-        events.value.unshift({
-          color,
-          label: t('events.' + d.action).startsWith('events.') ? d.action : t('events.' + d.action),
-          name: d.actor_attributes?.name || d.id || d.from || '-',
-          time: timeAgoI18n(d.time),
-        })
-        if (events.value.length > 30) events.value.pop()
-      } catch { /* ignore */ }
-    }
-    ws.onclose = () => {
-      wsOn.value = false
-      if (!deactivated) setTimeout(connectEvents, 3000)
-    }
-    ws.onerror = () => ws?.close()
-  } catch { /* ignore */ }
-}
-
-const EVENT_COLOR = {
-  start: '#34d399', stop: '#f87171', die: '#f87171', destroy: '#f87171', create: '#60a5fa',
-  restart: '#fbbf24', pause: '#fbbf24', unpause: '#60a5fa', kill: '#f87171', oom: '#f87171',
-  pull: '#fbbf24', push: '#60a5fa', rename: '#60a5fa', attach: '#8b93a7', detach: '#8b93a7',
-  exec_start: '#60a5fa', health_status: '#60a5fa',
-}
-
-function timeAgoI18n(ts) {
-  if (!ts) return '-'
-  const s = Math.floor(Date.now() / 1000) - ts
-  if (s < 60) return t('time.justNow')
-  if (s < 3600) return t('time.minutesAgo', { n: Math.floor(s / 60) })
-  if (s < 86400) return t('time.hoursAgo', { n: Math.floor(s / 3600) })
-  return t('time.daysAgo', { n: Math.floor(s / 86400) })
-}
-
-async function quick(c) {
-  try {
-    const action = c.State === 'running' ? 'stop' : 'start'
-    await api(`/containers/${c.Id}/${action}`, { method: 'POST' })
-    loadBase()
-  } catch (e) {
-    toastErr(e.message)
-  }
-}
-
+// ---------- 定时器 ----------
 function startTimers() {
   refreshAll()
   monTimer = setInterval(loadMonitor, 3000)
+  dockerTimer = setInterval(loadBase, 15000)
   clockTimer = setInterval(() => {
     serverTimeText.value = new Date(Date.now() + timeOffset).toLocaleTimeString()
   }, 1000)
@@ -654,58 +864,144 @@ function startTimers() {
 
 onMounted(() => {
   startTimers()
-  connectEvents()
 })
 onActivated(() => {
-  deactivated = false
   if (!monTimer) startTimers()
-  if (!ws) connectEvents()
 })
 onDeactivated(() => {
-  deactivated = true
   clearInterval(monTimer)
   monTimer = null
+  clearInterval(dockerTimer)
+  dockerTimer = null
   clearInterval(clockTimer)
   clockTimer = null
-  ws?.close()
-  ws = null
 })
 onBeforeUnmount(() => {
   clearInterval(monTimer)
+  clearInterval(dockerTimer)
   clearInterval(clockTimer)
-  ws?.close()
+  clearInterval(logTimer)
 })
 </script>
 
 <style scoped>
+/* ============ 3x-ui IndexPage ov-* 样式移植(变量映射到本面板主题) ============ */
 .status-page {
+  --ov-accent: var(--color-brand);
+  --ov-line: var(--dm-line);
+  --ov-label: var(--dm-muted);
+  --ov-faint: color-mix(in srgb, var(--dm-muted) 82%, transparent);
+  --ov-gap: 12px;
+  --ov-pad: 20px;
+}
+
+.ov-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--ov-gap);
 }
 
 /* ---------- 操作栏 ---------- */
-.action-bar {
+.ov-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
-.ab-left {
-  display: flex;
+.ov-state {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 4px 12px;
+  border: 1px solid var(--ov-line);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--dm-text);
+}
+.ov-state-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.ov-state[data-state='running'] .ov-state-dot::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  animation: ovPulse 1.6s infinite ease-out;
+}
+@keyframes ovPulse {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ov-state[data-state='running'] .ov-state-dot::after {
+    animation: none;
+  }
+}
+.ov-state-version {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ov-label);
+  transition: color 0.2s;
+}
+.ov-state-version:hover {
+  color: var(--ant-color-primary, var(--color-brand));
+}
+.ov-bar-actions {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   flex-wrap: wrap;
 }
-.ab-version {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--dm-surface2);
-  border: 1px solid var(--dm-line);
-  color: var(--dm-muted);
+@media (max-width: 768px) {
+  .ov-bar-actions {
+    margin-inline-start: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
 }
+.ov-bar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--ov-line);
+  margin: 0 4px;
+}
+.ov-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ov-label);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ov-bar-btn:hover {
+  color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 8%, transparent);
+}
+.ov-bar-btn.primary {
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+  color: var(--color-brand);
+  font-weight: 500;
+}
+.ov-bar-btn.primary:hover {
+  background: color-mix(in srgb, var(--color-brand) 12%, transparent);
+  border-color: var(--color-brand);
+}
+
 .ab-badge {
   display: inline-flex;
   align-items: center;
@@ -716,234 +1012,409 @@ onBeforeUnmount(() => {
   border: 1px solid var(--dm-line);
   background: var(--dm-surface2);
 }
-.ab-badge.ok { color: #34d399; }
-.ab-badge.err { color: #f87171; }
 .ab-badge.pro { color: #ec4899; }
 .ab-badge.free { color: var(--dm-muted); }
-.ab-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.ab-right {
-  margin-left: auto;
-}
-.ab-btn {
-  display: inline-flex;
+
+/* ---------- 健康条 / 分隔线 ---------- */
+.ov-health {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--dm-line);
-  background: var(--dm-surface);
-  color: var(--dm-muted);
+  gap: 8px;
   font-size: 12.5px;
-  cursor: pointer;
-  transition: all 0.15s;
 }
-.ab-btn:hover {
-  color: var(--color-brand);
-  border-color: var(--color-brand);
+.ov-health-mark {
+  width: 14px;
+  height: 1px;
+  background: currentColor;
+  flex: none;
 }
-
-/* ---------- 健康条 ---------- */
-.health-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  padding: 9px 14px;
-  border-radius: 10px;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
-}
-.health-mark {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.ov-rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: linear-gradient(to right, transparent, var(--ov-line) 48px, var(--ov-line) calc(100% - 48px), transparent);
 }
 
-/* ---------- 统计入口 ---------- */
-.stat-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+/* ---------- 通用 ---------- */
+.ov-kicker {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ov-label);
 }
-.stat-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--dm-line);
-  background: var(--dm-surface);
-  color: var(--dm-muted);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.stat-chip:hover {
-  border-color: var(--color-brand);
-  color: var(--dm-text);
-}
-.stat-chip b {
-  margin-left: auto;
-  font-size: 16px;
-  color: var(--dm-text);
-}
-.stat-chip b.ok { color: #34d399; }
-
-.rule {
-  border: none;
-  border-top: 1px solid var(--dm-line);
-  margin: 2px 0;
-}
-
-/* ---------- VitalTile 四卡 ---------- */
-.vitals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 12px;
-}
-.vital-card {
-  background: var(--dm-surface);
-  border: 1px solid var(--dm-line);
-  border-radius: 14px;
-  padding: 14px 16px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.vital-head {
+.ov-kicker-icon {
   display: flex;
   align-items: center;
   gap: 7px;
-  align-self: flex-start;
 }
-.vital-icon {
-  color: var(--color-brand);
+.ov-sub {
+  font-size: 12.5px;
+  margin-top: 4px;
+  color: var(--ov-faint);
 }
-.vital-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--dm-text);
-}
-.vital-foot {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  font-size: 11.5px;
-  color: var(--dm-muted);
-  padding: 2px 4px 0;
-}
-.vital-foot b {
-  color: var(--dm-text);
-  font-weight: 600;
-}
-.vital-spark {
-  width: 100%;
-  margin-top: 2px;
+.ov-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* ---------- 中部卡 ---------- */
-.mid-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 12px;
-}
 .card {
   background: var(--dm-surface);
   border: 1px solid var(--dm-line);
   border-radius: 14px;
 }
-.mid-card {
-  padding: 14px 16px;
+
+/* ---------- vitals 四卡 ---------- */
+.ov-vitals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ov-gap);
 }
-.card-head {
+@media (max-width: 1100px) {
+  .ov-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .ov-vitals { grid-template-columns: minmax(0, 1fr); }
+}
+.ov-tile {
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ov-tile.clickable {
+  cursor: pointer;
+}
+.ov-tile:hover {
+  border-color: color-mix(in srgb, var(--color-brand) 40%, var(--dm-line));
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+}
+.ov-tile-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
+  padding: 14px var(--ov-pad) 0;
+  color: var(--ov-accent);
 }
-.card-head h3 {
+.ov-tile-icon {
+  display: inline-flex;
+  font-size: 15px;
+}
+.ov-tile-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 12px var(--ov-pad) 0;
+}
+.ov-tile-number {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--dm-text);
+  font-variant-numeric: tabular-nums;
+}
+.ov-tile-unit {
+  font-size: 14px;
+  color: var(--ov-label);
+}
+.ov-tile-detail {
+  padding: 5px var(--ov-pad) 0;
+  font-size: 12px;
+  color: var(--ov-label);
+}
+.ov-tile-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px var(--ov-pad) 0;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ov-faint);
+}
+.ov-tile-chart {
+  margin-top: 6px;
+}
+
+/* ---------- 吞吐 + 容器(mid 2fr/1fr) ---------- */
+.ov-mid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--ov-gap);
+}
+@media (max-width: 1100px) {
+  .ov-mid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- Docker 三卡(镜像/卷/IO) ---------- */
+.ov-docker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ov-gap);
+}
+@media (max-width: 1100px) {
+  .ov-docker { grid-template-columns: minmax(0, 1fr); }
+}
+
+.ov-wide-head {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: var(--ov-pad) var(--ov-pad) 0;
+}
+.ov-wide-head-stack {
+  flex-direction: column;
+  gap: 0;
+}
+.ov-wide-legend {
+  margin-inline-start: auto;
+  display: flex;
+  gap: 22px;
+  text-align: end;
+}
+.ov-legend-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ov-label);
+}
+.ov-legend-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dm-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ov-conn-total {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 12px;
+}
+.ov-conn-legend {
+  display: flex;
+  gap: 16px;
+  padding: 16px var(--ov-pad) 0;
+}
+.ov-conn-legend > div {
+  flex: 1 1 0;
+}
+.ov-conn-legend .ov-legend-label {
+  justify-content: flex-start;
+}
+.ov-swatch {
+  width: 14px;
+  height: 2px;
+  flex: none;
+}
+.ov-wide-chart {
+  padding: 12px 8px 0;
+}
+.ov-wide-foot {
+  display: flex;
+  gap: 16px;
+  margin: 12px var(--ov-pad) 0;
+  padding: 14px 0 var(--ov-pad);
+  border-top: 1px solid var(--ov-line);
+}
+.ov-wide-foot > div {
+  flex: 1 1 0;
+}
+.ov-foot-sep {
+  width: 1px;
+  background: var(--ov-line);
+}
+.ov-foot-value {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 4px;
+  color: var(--dm-text);
+  font-variant-numeric: tabular-nums;
+}
+.ov-foot-part {
+  display: inline-block;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .ov-wide-foot {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ov-wide-foot .ov-foot-sep {
+    display: none;
+  }
+}
+
+/* ---------- 系统信息条(3 列) ---------- */
+.ov-strip-grid {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1.2fr) minmax(max-content, 1.2fr) minmax(0, 1.6fr);
+  gap: 16px;
+  padding: var(--ov-pad);
+}
+@media (max-width: 1439px) {
+  .ov-strip-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .ov-strip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .ov-strip-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 1440px) {
+  .ov-strip-cell + .ov-strip-cell {
+    border-inline-start: 1px solid var(--ov-line);
+    padding-inline-start: 16px;
+  }
+}
+.ov-strip-value {
+  font-size: 19px;
+  font-weight: 600;
+  margin-top: 6px;
+  color: var(--dm-text);
+  font-variant-numeric: tabular-nums;
+}
+.ov-strip-value.sm {
+  font-size: 15px;
+}
+.ov-strip-value.time-v {
+  font-size: 15px;
+}
+.ov-strip-split {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+.ov-strip-split-sep {
+  width: 1px;
+  background: var(--ov-line);
+  margin-top: 8px;
+}
+.ov-strip-sub {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 8px;
+  color: var(--ov-faint);
+}
+.ov-strip-sub + .ov-strip-value {
+  margin-top: 2px;
+}
+
+/* ---------- IP 地址(眼睛切换,仿 3x-ui) ---------- */
+.ip-toggle {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ov-faint);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.ip-toggle:hover {
+  color: var(--color-brand);
+}
+.ov-ip {
+  margin-top: 7px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  transition: filter 0.2s ease;
+}
+.ov-ip-v6 {
+  margin-top: 3px;
+  color: var(--ov-label);
+}
+.ip-hidden {
+  filter: blur(6px);
+}
+
+/* ---------- 弹窗(仿 3x-ui LogModal / BackupModal / SystemHistoryModal) ---------- */
+.h-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--dm-line);
+  padding: 0 4px;
+}
+.h-tab {
+  position: relative;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--dm-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+.h-tab:hover {
+  color: var(--dm-text);
+}
+.h-tab.active {
+  color: var(--color-brand);
+}
+.h-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--color-brand);
+}
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--dm-line);
+}
+.log-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--dm-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.log-check input {
+  accent-color: var(--color-brand);
+}
+.backup-list {
+  padding: 6px 16px;
+}
+.backup-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--dm-line);
+}
+.backup-item:last-of-type {
+  border-bottom: none;
+}
+.backup-meta {
+  flex: 1;
+  min-width: 0;
+}
+.backup-title {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--dm-text);
 }
-.legend {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.backup-description {
+  font-size: 11.5px;
   color: var(--dm-muted);
-}
-.legend .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-.dot.down { background: #60a5fa; }
-.dot.up { background: #c084fc; }
-.dot.read { background: #34d399; }
-.dot.write { background: #fbbf24; }
-.legend .info { color: #60a5fa; }
-.legend .purple { color: #c084fc; }
-.legend .ok { color: #34d399; }
-.legend .warn { color: #fbbf24; }
-.chart-box {
-  background: var(--dm-surface2);
-  border: 1px solid var(--dm-line);
-  border-radius: 10px;
-  padding: 8px;
+  margin-top: 3px;
+  line-height: 1.45;
 }
 
-/* ---------- 系统信息条 ---------- */
-.sys-strip {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  flex-wrap: wrap;
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--dm-line);
-  background: var(--dm-surface);
-  font-size: 12px;
-}
-.sys-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.sys-item b {
-  color: var(--dm-text);
-  font-weight: 600;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sys-label {
-  color: var(--dm-muted);
-}
-
-/* ---------- 底部 ---------- */
-.bottom-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 12px;
-}
-@media (max-width: 1100px) {
-  .bottom-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------- 弹窗(仿 3x-ui Modal) ---------- */
+/* ---------- 弹窗 ---------- */
 .modal-mask {
   position: fixed;
   inset: 0;

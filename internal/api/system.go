@@ -222,6 +222,44 @@ func isValidUsername(s string) bool {
 	return true
 }
 
+// ---------------- 登录页壁纸(替换 /bg.jpg,仿 1Panel 自定义背景) ----------------
+
+const maxWallpaperBytes = 10 * 1024 * 1024
+
+// wallpaperSave 上传登录页壁纸(base64 → data/wallpaper.jpg)
+func wallpaperSave(c *gin.Context, st *state.AppState) error {
+	var req avatarReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return BadRequest("wallpaper.invalid")
+	}
+	data, err := base64.StdEncoding.DecodeString(strings.TrimSpace(req.Data))
+	if err != nil || len(data) == 0 {
+		return BadRequest("wallpaper.invalid")
+	}
+	if len(data) > maxWallpaperBytes {
+		return BadRequest("wallpaper.tooLarge")
+	}
+	if sniffImageExt(data) == "" {
+		return BadRequest("wallpaper.type")
+	}
+	path := filepath.Join(st.Cfg.DataDir, "wallpaper.jpg")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return err
+	}
+	c.JSON(200, gin.H{"ok": true})
+	return nil
+}
+
+// wallpaperGet 返回登录页壁纸(public;未设置返回 404,前端回退内置 /bg.jpg)
+func wallpaperGet(c *gin.Context, st *state.AppState) error {
+	path := filepath.Join(st.Cfg.DataDir, "wallpaper.jpg")
+	if _, err := os.Stat(path); err != nil {
+		return NewApiError(404, "wallpaper.notFound")
+	}
+	c.File(path)
+	return nil
+}
+
 // ---------------- 头像 ---------------- 
 
 const maxAvatarBytes = 2 * 1024 * 1024

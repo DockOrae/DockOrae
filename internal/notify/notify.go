@@ -52,7 +52,7 @@ func Notify(st *settings.Store, eventType, title, body string) {
 	s := st.Get()
 	var wg syncWait
 	if s.TgEnable && contains(s.TgNotifyEvents, eventType) {
-		wg.add(func() { sendTelegram(s.TgBotToken, s.TgAdminChatId, title, body) })
+		wg.add(func() { sendTelegram(s, title, body) })
 	}
 	if s.EmailEnable && contains(s.EmailNotifyEvents, eventType) {
 		wg.add(func() { sendEmail(s, title, body) })
@@ -83,8 +83,16 @@ func contains(list []string, v string) bool {
 
 // ---------------- Telegram ----------------
 
-func sendTelegram(token, chatID, title, body string) {
-	if token == "" || chatID == "" {
+// tgAPIBase 自定义 Telegram API 服务器(仿 3x-ui telegramAPIServer;空 = 官方)
+func tgAPIBase(s *settings.Settings) string {
+	if s.TgBotAPIServer != "" {
+		return strings.TrimRight(s.TgBotAPIServer, "/")
+	}
+	return "https://api.telegram.org"
+}
+
+func sendTelegram(s *settings.Settings, title, body string) {
+	if s.TgBotToken == "" || s.TgAdminChatId == "" {
 		return
 	}
 	text := title
@@ -92,11 +100,11 @@ func sendTelegram(token, chatID, title, body string) {
 		text += "\n" + body
 	}
 	payload, _ := json.Marshal(map[string]any{
-		"chat_id": chatID,
+		"chat_id": s.TgAdminChatId,
 		"text":    text,
 	})
 	client := &http.Client{Timeout: 10 * time.Second}
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	url := fmt.Sprintf("%s/bot%s/sendMessage", tgAPIBase(s), s.TgBotToken)
 	resp, err := client.Post(url, "application/json", bytes.NewReader(payload))
 	if err != nil {
 		log.Printf("telegram notify failed: %v", err)

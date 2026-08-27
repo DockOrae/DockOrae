@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -283,22 +284,25 @@ func monitorHost(c *gin.Context, st *state.AppState) error {
 
 	// Docker 信息补充(宿主机 OS / 内核 / 架构,容器内读不到时兜底)
 	arch := ""
+	ver := ""
 	if info, err := st.Docker.Info(c.Request.Context(), client.InfoOptions{}); err == nil {
 		arch = info.Info.Architecture
+		ver = info.Info.ServerVersion
 	}
 	hostname, _ := os.Hostname()
 
 	c.JSON(200, gin.H{
-		"hostname":    hostname,
-		"os":          readOsName(),
-		"kernel":      readKernel(),
-		"uptime":      uptime,
-		"load":        load,
-		"cpu_model":   cpuModel,
-		"cpu_cores":   cpuCores,
-		"mem_total":   memTotalKb * 1024,
-		"arch":        arch,
-		"server_time": time.Now().Unix(),
+		"hostname":       hostname,
+		"os":             readOsName(),
+		"kernel":         readKernel(),
+		"uptime":         uptime,
+		"load":           load,
+		"cpu_model":      cpuModel,
+		"cpu_cores":      cpuCores,
+		"mem_total":      memTotalKb * 1024,
+		"arch":           arch,
+		"docker_version": ver,
+		"server_time":    time.Now().Unix(),
 	})
 	return nil
 }
@@ -329,6 +333,16 @@ func monitorMonitor(c *gin.Context, st *state.AppState) error {
 		load = l
 	}
 
+	// 交换空间(仿 3x-ui swap)
+	var swap any
+	if t, u, ok := readSwap(); ok {
+		pct := 0.0
+		if t > 0 {
+			pct = float64(u) / float64(t) * 100.0
+		}
+		swap = gin.H{"total": t, "used": u, "pct": pct}
+	}
+
 	// 磁盘
 	var disk any
 	if total, used, ok := readDisk(); ok {
@@ -339,16 +353,27 @@ func monitorMonitor(c *gin.Context, st *state.AppState) error {
 		disk = gin.H{"total": total, "used": used, "pct": pct}
 	}
 
+	// 面板自身进程(内存 / 线程,仿 3x-ui appStats)
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	panel := gin.H{"mem": ms.Sys, "threads": runtime.NumGoroutine()}
+
+	// 公网 IP(仿 3x-ui status.publicIP:缓存,随轮询携带)
+	pub4, pub6 := publicIPs()
+
 	// 容器网络 / IO 累计值(前端做差值算速率)
 	rx, tx, rd, wr := containerNetIO(st)
 
 	c.JSON(200, gin.H{
-		"cpu_pct": cpuPct,
-		"mem":     mem,
-		"load":    load,
-		"disk":    disk,
-		"net":     gin.H{"rx": rx, "tx": tx},
-		"io":      gin.H{"read": rd, "write": wr},
+		"cpu_pct":  cpuPct,
+		"mem":      mem,
+		"load":     load,
+		"swap":     swap,
+		"disk":     disk,
+		"panel":    panel,
+		"publicIP": gin.H{"ipv4": pub4, "ipv6": pub6},
+		"net":      gin.H{"rx": rx, "tx": tx},
+		"io":       gin.H{"read": rd, "write": wr},
 	})
 	return nil
 }

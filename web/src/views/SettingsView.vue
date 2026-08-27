@@ -4,17 +4,28 @@
     <main class="settings-content">
       <!-- ============ 常规(个人资料/镜像加速在常规 tab 内 + 横向 tab:常规|证书|日期和时间) ============ -->
       <section v-if="active === 'general' || active === 'cert' || active === 'datetime'" class="space-y-4 fade-up">
-        <!-- 操作栏:保存 + 重启面板(仿 3x-ui 顶部) -->
+        <!-- 操作栏:保存 + 重启面板(仿 3x-ui:有修改保存才亮,保存后长条提示重启) -->
         <div class="card p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
+            <button
+              class="btn btn-brand"
+              :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
+              :disabled="!settingsDirty || panelLoading"
+              @click="savePanel"
+            >
               <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
             </button>
+            <!-- 重启面板:任何时候都可点击(不随保存状态禁用) -->
             <button class="btn btn-primary" @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
             </button>
-            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveNeedRestart') }}</span>
+            <!-- 警告(仿 3x-ui Alert type=warning:跟在重启面板后面同一行) -->
+            <div class="restart-hint-bar">
+              <Icon name="alert" size="14" class="shrink-0" />
+              <span>{{ t('settings.allChangesNeedRestart') }}</span>
+            </div>
+            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
         </div>
@@ -29,7 +40,7 @@
             :class="{ active: active === tab.key }"
             @click="go(tab.key)"
           >
-            {{ t(tab.labelKey) }}
+            <Icon :name="tab.icon" size="13" class="inline mr-1 align-[-2px]" /> {{ t(tab.labelKey) }}
           </button>
         </div>
 
@@ -81,30 +92,20 @@
             <input v-model="allowlistText" class="input sr-input" :placeholder="t('settings.ipLimitAllowlistPh')" />
           </div>
 
-          <!-- 镜像加速(合并进 web 设置卡,setting-row 风格) -->
+          <!-- 镜像加速(合并进 web 设置卡,与其他栏目一致的样式,无独立保存) -->
           <div class="setting-row items-start">
             <div class="sr-info">
-              <div class="sr-label flex items-center gap-1.5">
-                <Icon name="image" size="14" class="text-brand" />
-                {{ t('settings.mirrors') }}
-              </div>
+              <div class="sr-label">{{ t('settings.mirrors') }}</div>
               <div class="sr-desc">{{ t('settings.mirrorHelper') }}</div>
               <span v-if="mirrorPath" class="block text-[11px] text-muted truncate max-w-[240px] mt-1" :title="mirrorPath">{{ mirrorPath }}</span>
             </div>
             <div class="sr-input !w-[420px]">
               <textarea
                 v-model="mirrorsText"
-                class="input !h-24 code-panel font-mono text-[12px] leading-relaxed w-full"
+                class="input !h-24 code-panel font-mono text-[12px] leading-relaxed w-full resize-y"
                 :placeholder="t('settings.mirrorPlaceholder')"
                 spellcheck="false"
               />
-              <div class="flex items-center gap-3 mt-2">
-                <button class="btn btn-primary btn-sm" :disabled="savingMirrors" @click="saveMirrors">
-                  <Icon name="save" size="13" /> {{ t('settings.saveMirrors') }}
-                </button>
-                <span v-if="mirrorMsg" class="text-[11px]" :class="mirrorOk ? 'text-ok' : 'text-danger'">{{ mirrorMsg }}</span>
-              </div>
-              <p class="text-[11px] text-muted mt-2 leading-relaxed">{{ t('settings.mirrorRestartHint') }}</p>
             </div>
           </div>
         </div>
@@ -151,13 +152,23 @@
       <section v-if="active === 'security'" class="space-y-4 fade-up">
         <div class="card p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button class="btn btn-brand" :disabled="accountLoading" @click="saveAccount">
+            <button
+              class="btn btn-brand"
+              :class="{ 'opacity-40 pointer-events-none': !securityDirty }"
+              :disabled="!securityDirty || accountLoading"
+              @click="saveAccount"
+            >
               <span v-if="accountLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.saveAccount') }}
             </button>
             <button class="btn btn-primary" @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
             </button>
+            <!-- 警告(仿 3x-ui:所有更改需保存并重启面板才能生效) -->
+            <div class="restart-hint-bar">
+              <Icon name="alert" size="14" class="shrink-0" />
+              <span>{{ t('settings.allChangesNeedRestart') }}</span>
+            </div>
             <span v-if="credErr" class="text-xs text-danger">{{ credErr }}</span>
           </div>
         </div>
@@ -171,65 +182,58 @@
             :class="{ active: secTab === tab.key }"
             @click="secTab = tab.key"
           >
-            {{ t(tab.labelKey) }}
+            <Icon :name="tab.icon" size="13" class="inline mr-1 align-[-2px]" /> {{ t(tab.labelKey) }}
           </button>
         </div>
 
-        <!-- 管理员凭证(个人资料 + 密码修改合并,仿 3x-ui admin) -->
+        <!-- 管理员凭证(壁纸 + 账号凭证,仿 3x-ui admin) -->
         <div v-if="secTab === 'credentials'" class="card p-5">
-          <h2 class="card-title">{{ t('settings.adminCredentials') }}</h2>
-
-          <!-- 头像 -->
-          <div class="flex items-center gap-4 mb-5">
-            <img :src="avatarPreview" alt="avatar" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-white/15 shadow-lg" />
+          <!-- 登录页壁纸 -->
+          <div class="flex items-center gap-4 mb-6">
+            <img
+              :src="wallpaperFailed ? '/bg.jpg' : wallpaperPreview"
+              alt="wallpaper"
+              class="w-36 h-24 rounded-xl object-cover ring-1 ring-line border border-line shadow"
+              @error="onWallpaperError"
+            />
             <div class="flex-1">
-              <button class="btn btn-ghost btn-sm" @click="avatarInput?.click()">
-                <Icon name="image" size="13" /> {{ t('settings.' + (user.avatar ? 'changeAvatar' : 'uploadAvatar')) }}
+              <button class="btn btn-ghost btn-sm" @click="wallpaperInput?.click()">
+                <Icon name="image" size="13" /> {{ t('settings.changeWallpaper') }}
               </button>
-              <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadAvatar" />
-              <p class="text-[11px] text-muted mt-1.5">{{ t('settings.avatarNote') }}</p>
+              <input ref="wallpaperInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="selectWallpaper" />
+              <p class="text-[11px] text-muted mt-1.5">{{ t('settings.wallpaperNote') }}</p>
             </div>
           </div>
 
-          <!-- 账号信息 -->
+          <!-- 账号凭证 -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="label">{{ t('settings.username') }}</label>
-              <input v-model="profile.username" class="input" maxlength="32" />
-              <p class="text-[11px] text-muted mt-1">{{ t('settings.usernameNote') }}</p>
+              <label class="label">{{ t('settings.oldUsername') }}</label>
+              <input v-model="cred.oldUsername" class="input" autocomplete="username" />
             </div>
-            <div>
-              <label class="label">{{ t('settings.nickname') }}</label>
-              <input v-model="profile.nickname" class="input" maxlength="32" :placeholder="t('settings.nicknamePh')" />
-            </div>
-          </div>
-
-          <!-- 修改密码 -->
-          <div class="flex items-center gap-2 mt-6 mb-3">
-            <Icon name="lock" size="15" class="text-brand" />
-            <h3 class="text-[13px] font-semibold">{{ t('settings.changePwd') }}</h3>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="label">{{ t('settings.oldPassword') }}</label>
               <input v-model="cred.oldPassword" type="password" class="input" autocomplete="current-password" />
             </div>
             <div>
+              <label class="label">{{ t('settings.newUsername') }}</label>
+              <input v-model="cred.newUsername" class="input" :placeholder="t('settings.newUsernamePh')" autocomplete="username" />
+            </div>
+            <div>
               <label class="label">{{ t('settings.newPassword') }}</label>
-              <input v-model="cred.newPassword" type="password" class="input" autocomplete="new-password" />
+              <input v-model="cred.newPassword" type="password" class="input" :placeholder="t('settings.newPasswordPh')" autocomplete="new-password" />
             </div>
           </div>
 
-          <div v-if="profileErr || credErr" class="text-xs text-danger mt-3">{{ profileErr || credErr }}</div>
+          <div v-if="credErr" class="text-xs text-danger mt-3">{{ credErr }}</div>
           <p class="text-[11px] text-muted mt-4">{{ t('settings.saveNeedRestart') }}</p>
         </div>
 
         <!-- 双重认证 -->
         <div v-if="secTab === 'twofactor'" class="card p-5">
           <div class="flex items-center gap-2 mb-4">
-            <Icon name="key" size="16" class="text-brand" />
-            <h2 class="text-sm font-semibold">{{ t('settings.twoFactor') }}</h2>
-            <span class="ml-auto badge" :style="user.totpEnabled ? okStyle : mutedStyle">
+            <Icon name="lock" size="16" class="text-brand" />
+            <span class="badge" :style="user.totpEnabled ? okStyle : mutedStyle">
               {{ t('settings.' + (user.totpEnabled ? 'totpEnabled' : 'totpDisabled')) }}
             </span>
           </div>
@@ -285,13 +289,23 @@
       <section v-if="active === 'telegram'" class="space-y-4 fade-up">
         <div class="card p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
+            <button
+              class="btn btn-brand"
+              :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
+              :disabled="!settingsDirty || panelLoading"
+              @click="savePanel"
+            >
               <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
             </button>
             <button class="btn btn-primary" @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
             </button>
+            <!-- 警告(仿 3x-ui:所有更改需保存并重启面板才能生效) -->
+            <div class="restart-hint-bar">
+              <Icon name="alert" size="14" class="shrink-0" />
+              <span>{{ t('settings.allChangesNeedRestart') }}</span>
+            </div>
             <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
@@ -300,7 +314,7 @@
         <!-- 子 tab(仿 3x-ui TelegramTab) -->
         <div class="h-tabs">
           <button type="button" class="h-tab" :class="{ active: tgTab === 'panel' }" @click="tgTab = 'panel'">
-            <Icon name="settings" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.panelSettings') }}
+            <Icon name="settings" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.general') }}
           </button>
           <button type="button" class="h-tab" :class="{ active: tgTab === 'notify' }" @click="tgTab = 'notify'">
             <Icon name="clock" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.notifications') }}
@@ -309,7 +323,6 @@
 
         <!-- 面板设置 -->
         <div v-if="tgTab === 'panel'" class="card p-5">
-          <h2 class="card-title">{{ t('settings.telegramBot') }}</h2>
           <p class="text-[12px] text-muted mb-4">{{ t('settings.telegramDesc') }}</p>
 
           <div class="setting-row">
@@ -325,21 +338,40 @@
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.tgBotToken') }}</div>
-              <div class="sr-desc">{{ t('settings.tgBotTokenDesc') }}</div>
+              <div class="sr-desc">{{ tgTokenConfigured && !form.tgBotToken ? t('settings.telegramTokenConfigured') : t('settings.tgBotTokenDesc', { at: '@' }) }}</div>
             </div>
-            <input v-model="form.tgBotToken" class="input sr-input" :placeholder="t('settings.tgBotTokenPh')" />
+            <input v-model="form.tgBotToken" type="password" class="input sr-input" :placeholder="tgTokenConfigured && !form.tgBotToken ? t('settings.telegramTokenPlaceholder') : t('settings.tgBotTokenPh')" />
           </div>
 
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.tgAdminChatId') }}</div>
-              <div class="sr-desc">{{ t('settings.tgAdminChatIdDesc') }}</div>
+              <div class="sr-desc">{{ t('settings.tgAdminChatIdDesc', { at: '@' }) }}</div>
             </div>
             <input v-model="form.tgAdminChatId" class="input sr-input" :placeholder="t('settings.tgAdminChatIdPh')" />
           </div>
 
+          <!-- 机器人语言(仿 3x-ui telegramBotLanguage:下拉 = 面板语言列表) -->
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.telegramBotLanguage') }}</div>
+            </div>
+            <select v-model="form.tgLang" class="input sr-input w-48">
+              <option v-for="l in LANGS" :key="l.code" :value="l.code">{{ l.flag }} {{ l.label }}</option>
+            </select>
+          </div>
+
+          <!-- API 服务器(仿 3x-ui telegramAPIServer) -->
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.telegramAPIServer') }}</div>
+              <div class="sr-desc">{{ t('settings.telegramAPIServerDesc') }}</div>
+            </div>
+            <input v-model="form.tgBotAPIServer" class="input sr-input" placeholder="https://api.example.com" />
+          </div>
+
           <div class="mt-4">
-            <button class="btn btn-ghost" :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</button>
+            <button class="btn btn-brand" :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</button>
           </div>
         </div>
 
@@ -413,14 +445,23 @@
       <section v-if="active === 'email'" class="space-y-4 fade-up">
         <div class="card p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
+            <button
+              class="btn btn-brand"
+              :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
+              :disabled="!settingsDirty || panelLoading"
+              @click="savePanel"
+            >
               <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
             </button>
             <button class="btn btn-primary" @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
             </button>
-            <button class="btn btn-ghost" :disabled="panelLoading" @click="emailTest">{{ t('settings.testSmtp') }}</button>
+            <!-- 警告(仿 3x-ui:所有更改需保存并重启面板才能生效) -->
+            <div class="restart-hint-bar">
+              <Icon name="alert" size="14" class="shrink-0" />
+              <span>{{ t('settings.allChangesNeedRestart') }}</span>
+            </div>
             <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
@@ -438,8 +479,6 @@
 
         <!-- SMTP 设置 -->
         <div v-if="emailTab === 'smtp'" class="card p-5">
-          <h2 class="card-title">{{ t('settings.smtpSettings') }}</h2>
-
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.emailEnable') }}</div>
@@ -477,9 +516,9 @@
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.smtpPass') }}</div>
-              <div class="sr-desc">{{ t('settings.smtpPassDesc') }}</div>
+              <div class="sr-desc">{{ smtpPassConfigured && !form.smtpPass ? t('settings.smtpPassConfigured') : t('settings.smtpPassDesc') }}</div>
             </div>
-            <input v-model="form.smtpPass" type="password" class="input sr-input" :placeholder="t('settings.smtpPassPh')" />
+            <input v-model="form.smtpPass" type="password" class="input sr-input" :placeholder="smtpPassConfigured && !form.smtpPass ? t('settings.smtpPassPlaceholder') : t('settings.smtpPassPh')" />
           </div>
 
           <div class="setting-row">
@@ -503,7 +542,7 @@
               <div class="sr-label">{{ t('settings.smtpTo') }}</div>
               <div class="sr-desc">{{ t('settings.smtpToDesc') }}</div>
             </div>
-            <input v-model="form.smtpTo" class="input sr-input" :placeholder="t('settings.smtpToPh')" />
+            <input v-model="form.smtpTo" class="input sr-input" :placeholder="t('settings.smtpToPh', { at: '@' })" />
           </div>
 
           <div class="setting-row">
@@ -516,6 +555,10 @@
               <option value="ssl">SSL/TLS</option>
               <option value="starttls">STARTTLS</option>
             </select>
+          </div>
+
+          <div class="mt-4">
+            <button class="btn btn-brand" :disabled="panelLoading" @click="emailTest">{{ t('settings.testSmtp') }}</button>
           </div>
         </div>
 
@@ -663,9 +706,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
 import Icon from '../components/Icon.vue'
+import { LANGS } from '../i18n'
 import { api, setToken, getRegistryMirrors, saveRegistryMirrors, getLicense, activateLicenseFile, deactivateLicense } from '../api'
 import { toastErr, toastOk } from '../toast'
-import { applyUser, avatarUrl, loadLicense as refreshLicense, user } from '../store'
+import { applyUser, loadLicense as refreshLicense, user } from '../store'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -675,14 +719,14 @@ const router = useRouter()
 const SECTIONS = ['general', 'cert', 'datetime', 'security', 'telegram', 'email', 'license', 'about']
 // 常规页内横向 tab(仿 3x-ui GeneralTab)
 const generalTabs = [
-  { key: 'general', labelKey: 'settings.general' },
-  { key: 'cert', labelKey: 'settings.certificate' },
-  { key: 'datetime', labelKey: 'settings.dateTime' },
+  { key: 'general', labelKey: 'settings.general', icon: 'settings' },
+  { key: 'cert', labelKey: 'settings.certificate', icon: 'shield' },
+  { key: 'datetime', labelKey: 'settings.dateTime', icon: 'clock' },
 ]
 // 安全设定页内横向 tab(仿 3x-ui SecurityTab)
 const securityTabs = [
-  { key: 'credentials', labelKey: 'settings.adminCredentials' },
-  { key: 'twofactor', labelKey: 'settings.twoFactor' },
+  { key: 'credentials', labelKey: 'settings.adminCredentials', icon: 'user' },
+  { key: 'twofactor', labelKey: 'settings.twoFactor', icon: 'lock' },
 ]
 const active = ref('general')
 const secTab = ref('credentials')
@@ -816,6 +860,7 @@ const form = reactive({
   webListen: '', webDomain: '', webPort: 8080, webBasePath: '/', sessionMaxAge: 10080,
   webCertFile: '', webKeyFile: '', timeZone: 'Asia/Shanghai', datePickerType: 'gregorian',
   tgEnable: false, tgBotToken: '', tgAdminChatId: '', tgRunTime: '', tgBotBackup: false,
+  tgLang: '', tgBotAPIServer: '',
   emailEnable: false, smtpHost: '', smtpPort: 25, smtpUser: '', smtpPass: '', smtpFrom: '',
   smtpFromName: '', smtpTo: '', smtpEncryption: 'none',
   tgNotifyEvents: [], emailNotifyEvents: [],
@@ -826,6 +871,9 @@ const emailEvents = ref([])
 const panelLoading = ref(false)
 const panelErr = ref('')
 const panelSaved = ref(false)
+// 服务器端已配置的密钥(脱敏后非空):输入框留空,避免把脱敏值回传覆盖真值
+const tgTokenConfigured = ref(false)
+const smtpPassConfigured = ref(false)
 
 async function loadPanelSettings() {
   try {
@@ -841,15 +889,17 @@ async function loadPanelSettings() {
       timeZone: s.timeZone || 'Asia/Shanghai',
       datePickerType: s.datePickerType || 'gregorian',
       tgEnable: !!s.tgEnable,
-      tgBotToken: s.tgBotToken || '',
+      tgBotToken: '', // 已配置时留空:避免把脱敏值回传覆盖真 token
       tgAdminChatId: s.tgAdminChatId || '',
       tgRunTime: s.tgRunTime || '',
       tgBotBackup: !!s.tgBotBackup,
+      tgLang: s.tgLang || '',
+      tgBotAPIServer: s.tgBotAPIServer || '',
       emailEnable: !!s.emailEnable,
       smtpHost: s.smtpHost || '',
       smtpPort: s.smtpPort || 25,
       smtpUser: s.smtpUser || '',
-      smtpPass: s.smtpPass || '',
+      smtpPass: '', // 已配置时留空:避免把脱敏值回传覆盖真密码
       smtpFrom: s.smtpFrom || '',
       smtpFromName: s.smtpFromName || '',
       smtpTo: s.smtpTo || '',
@@ -858,7 +908,11 @@ async function loadPanelSettings() {
     allowlistText.value = (s.ipLimitAllowlist || []).join(', ')
     tgEvents.value = s.tgNotifyEvents || []
     emailEvents.value = s.emailNotifyEvents || []
+    tgTokenConfigured.value = !!s.tgBotToken
+    smtpPassConfigured.value = !!s.smtpPass
     parseNotifyTime(s.tgRunTime || '')
+    baseSnapshot = snapshotForm()
+    settingsDirty.value = false
   } catch { /* 静默 */ }
 }
 
@@ -881,6 +935,8 @@ async function savePanel() {
     tgAdminChatId: form.tgAdminChatId.trim(),
     tgRunTime: form.tgRunTime.trim(),
     tgBotBackup: form.tgBotBackup,
+    tgLang: form.tgLang,
+    tgBotAPIServer: form.tgBotAPIServer.trim(),
     tgNotifyEvents: [...tgEvents.value],
     emailEnable: form.emailEnable,
     smtpHost: form.smtpHost.trim(),
@@ -895,10 +951,14 @@ async function savePanel() {
   }
   panelLoading.value = true
   try {
-    const r = await api('/system/settings', { method: 'PUT', json: patch })
+    await api('/system/settings', { method: 'PUT', json: patch })
+    // 镜像加速并入顶部保存(不再独立保存按钮)
+    try {
+      await saveRegistryMirrors(mirrorsText.value.split('\n').map((s) => s.trim()).filter(Boolean))
+    } catch { /* 镜像保存失败不阻断面板设置保存 */ }
     panelSaved.value = true
-    if (r.needRestart) toastOk(t('settings.saveNeedRestart'))
-    setTimeout(() => (panelSaved.value = false), 3000)
+    baseSnapshot = snapshotForm()
+    settingsDirty.value = false
   } catch (e) {
     panelErr.value = e.message
     toastErr(e.message)
@@ -921,84 +981,103 @@ async function emailTest() {
   }
 }
 
-// ---------- 账号与凭证(个人资料 + 密码修改合并) ----------
-const profile = reactive({ username: user.username || 'admin', nickname: user.nickname || '' })
-watch(
-  () => [user.username, user.nickname],
-  ([u, n]) => {
-    if (u && profile.username !== u) profile.username = u
-    profile.nickname = n || ''
-  }
-)
-const profileErr = ref('')
-const accountLoading = ref(false)
-const avatarInput = ref(null)
-const avatarPreview = computed(() => avatarUrl() || '/logo.jpg')
-
-async function uploadAvatar(ev) {
-  const file = ev.target.files?.[0]
-  ev.target.value = ''
-  if (!file) return
-  if (file.size > 2 * 1024 * 1024) {
-    toastErr(t('settings.avatarNote'))
-    return
-  }
-  const reader = new FileReader()
-  reader.onload = async () => {
-    try {
-      const data = String(reader.result).split(',')[1]
-      const r = await api('/avatar', { method: 'POST', json: { data } })
-      user.avatar = r.avatar
-      toastOk(t('settings.toastAvatarSaved'))
-    } catch (e) {
-      toastErr(e.message)
-    }
-  }
-  reader.readAsDataURL(file)
-}
-
-// 合并保存:用户名/昵称(资料)+ 密码(凭证),一个按钮搞定
-const cred = reactive({ oldPassword: '', newPassword: '' })
+// ---------- 账号凭证(原用户名/原密码/新用户名/新密码,仿 3x-ui admin) ----------
+const cred = reactive({ oldUsername: '', oldPassword: '', newUsername: '', newPassword: '' })
 const credErr = ref('')
+const accountLoading = ref(false)
 
 async function saveAccount() {
-  profileErr.value = ''
   credErr.value = ''
-  const u = profile.username.trim()
-  const n = profile.nickname.trim() || null
-  const profileChanged = u !== user.username || n !== (user.nickname || null)
-  const pwdChanged = !!cred.newPassword
-  if (pwdChanged && !cred.oldPassword) {
+  const u = cred.oldUsername.trim()
+  const nu = cred.newUsername.trim()
+  const np = cred.newPassword
+  if (u && u !== user.username) {
+    credErr.value = t('settings.errOldUsername')
+    return
+  }
+  if (np && !cred.oldPassword) {
     credErr.value = t('settings.pwdFillAll')
     return
   }
-  if (pwdChanged && cred.newPassword.length < 6) {
+  if (np && np.length < 6) {
     credErr.value = t('settings.pwdMinLen')
     return
   }
   accountLoading.value = true
   try {
-    if (pwdChanged) {
-      await api('/password', { method: 'POST', json: { old_password: cred.oldPassword, new_password: cred.newPassword } })
+    if (np) {
+      await api('/password', { method: 'POST', json: { old_password: cred.oldPassword, new_password: np } })
       user.mustChangePassword = false
     }
-    if (profileChanged) {
-      const r = await api('/profile', { method: 'POST', json: { username: u, nickname: n } })
+    if (nu && nu !== user.username) {
+      const r = await api('/profile', { method: 'POST', json: { username: nu, nickname: null } })
       if (r.token) setToken(r.token)
       applyUser(r)
-      profile.username = user.username
-      profile.nickname = user.nickname || ''
+      cred.oldUsername = nu
     }
-    cred.oldPassword = cred.newPassword = ''
+    if (wallpaperPending.value) {
+      await saveWallpaper()
+      toastOk(t('settings.toastWallpaperSaved'))
+    }
+    cred.oldPassword = cred.newUsername = cred.newPassword = ''
+    credBase = credSnapshot()
     toastOk(t('settings.toastCredentialsSaved'))
   } catch (e) {
     credErr.value = e.message
-    profileErr.value = e.message
     toastErr(e.message)
   } finally {
     accountLoading.value = false
   }
 }
+
+// ---------- 登录页壁纸(替换登录背景图) ----------
+const wallpaperInput = ref(null)
+const wallpaperPreview = ref('/api/system/wallpaper?t=' + Date.now())
+const wallpaperFailed = ref(false)
+// 新选的壁纸(base64),随"保存"按钮一起上传
+const wallpaperPending = ref('')
+
+// 未上传自定义壁纸时回退内置 /bg.jpg(同登录页)
+function onWallpaperError() {
+  wallpaperFailed.value = true
+}
+function refreshWallpaperPreview() {
+  wallpaperFailed.value = false
+  wallpaperPreview.value = '/api/system/wallpaper?t=' + Date.now()
+}
+// 选图仅做本地预览并标记 dirty,真正上传在 saveAccount 里
+function selectWallpaper(ev) {
+  const file = ev.target.files?.[0]
+  ev.target.value = ''
+  if (!file) return
+  if (file.size > 10 * 1024 * 1024) {
+    toastErr(t('settings.wallpaperNote'))
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const data = String(reader.result).split(',')[1]
+    wallpaperPending.value = data
+    wallpaperPreview.value = String(reader.result)
+  }
+  reader.readAsDataURL(file)
+}
+async function saveWallpaper() {
+  if (!wallpaperPending.value) return
+  await api('/system/wallpaper', { method: 'POST', json: { data: wallpaperPending.value } })
+  wallpaperPending.value = ''
+  refreshWallpaperPreview()
+}
+
+// 安全页保存按钮 dirty 检测(凭证字段有输入或新选了壁纸才亮)
+const securityDirty = ref(false)
+let credBase = ''
+function credSnapshot() {
+  return JSON.stringify({ u: cred.oldUsername, p: cred.oldPassword, nu: cred.newUsername, np: cred.newPassword })
+}
+watch([cred, wallpaperPending], () => {
+  securityDirty.value = credSnapshot() !== credBase || !!wallpaperPending.value
+}, { deep: true })
 
 // ---------- 双因素验证 ----------
 const totpSetup = reactive({ password: '', uri: '', secret: '', code: '' })
@@ -1073,12 +1152,26 @@ async function totpDisable() {
   }
 }
 
-// ---------- 镜像加速 ----------
+// ---------- 镜像加速(保存并入顶部"保存"按钮) ----------
 const mirrorsText = ref('')
 const mirrorPath = ref('')
-const savingMirrors = ref(false)
-const mirrorMsg = ref('')
-const mirrorOk = ref(false)
+
+// 保存按钮 dirty 检测(仿 3x-ui:有修改保存才亮,保存后长条提示重启)
+const settingsDirty = ref(false)
+let baseSnapshot = ''
+function snapshotForm() {
+  return JSON.stringify({
+    ...form,
+    allowlist: allowlistText.value,
+    mirrors: mirrorsText.value,
+    tgEvents: [...tgEvents.value].sort(),
+    emailEvents: [...emailEvents.value].sort(),
+  })
+}
+watch([form, allowlistText, mirrorsText, tgEvents, emailEvents], () => {
+  settingsDirty.value = snapshotForm() !== baseSnapshot
+  if (settingsDirty.value) panelSaved.value = false // 又有修改:长条提示消失,等待再次保存
+}, { deep: true })
 
 async function loadMirrors() {
   try {
@@ -1086,24 +1179,6 @@ async function loadMirrors() {
     mirrorsText.value = (r.mirrors || []).join('\n')
     mirrorPath.value = r.path || ''
   } catch { /* 静默 */ }
-}
-
-async function saveMirrors() {
-  const mirrors = mirrorsText.value.split('\n').map((s) => s.trim()).filter(Boolean)
-  savingMirrors.value = true
-  mirrorMsg.value = ''
-  try {
-    await saveRegistryMirrors(mirrors)
-    mirrorOk.value = true
-    mirrorMsg.value = t('settings.mirrorSaved')
-    setTimeout(() => (mirrorMsg.value = ''), 3000)
-  } catch (e) {
-    mirrorOk.value = false
-    mirrorMsg.value = e.message
-    toastErr(e.message)
-  } finally {
-    savingMirrors.value = false
-  }
 }
 
 // ---------- 许可证 ----------
@@ -1250,6 +1325,19 @@ onMounted(() => {
   height: 2px;
   border-radius: 2px 2px 0 0;
   background: var(--color-brand);
+}
+
+/* 保存后"需重启生效"警告(仿 3x-ui Alert type=warning:跟在重启面板按钮后面同一行) */
+.restart-hint-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 /* 设置行(仿 3x-ui SettingListItem) */

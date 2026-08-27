@@ -33,6 +33,8 @@ type Settings struct {
 	TgNotifyEvents []string `json:"tgNotifyEvents"`
 	TgRunTime      string   `json:"tgRunTime"`   // 周期报告频率(@every 1h / @daily / crontab 表达式;空 = 不启用)
 	TgBotBackup    bool     `json:"tgBotBackup"` // 周期报告附带数据库备份文件
+	TgLang         string   `json:"tgLang"`         // Telegram 机器人语言(仿 3x-ui telegramBotLanguage,空=默认)
+	TgBotAPIServer string   `json:"tgBotAPIServer"` // 自定义 Telegram API 服务器(仿 3x-ui telegramAPIServer,空=官方)
 	// 邮件
 	EmailEnable       bool     `json:"emailEnable"`
 	SmtpHost          string   `json:"smtpHost"`
