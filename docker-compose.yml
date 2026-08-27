@@ -1,0 +1,25 @@
+services:
+  docker-manager:
+    image: zhaoweiwen123/docker-manager-go:latest
+    container_name: docker-manager
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DATA_DIR=/data
+      - PORT=8080
+      - TZ=Asia/Shanghai
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - docker-manager-data:/data
+      # 宿主机根文件系统:终端页可直接进入宿主机 shell(chroot /host)
+      - /:/host:ro
+      # 宿主机 Docker 配置:面板设置中的「镜像加速」读写此文件
+      - /etc/docker:/host/etc/docker:ro
+    # 开启后可在面板中自动重启宿主机 Docker(nsenter),默认关闭
+    # privileged: true
+    # 若宿主机 Docker 使用 rootless,把 socket 路径换成:
+    # - /run/user/1000/docker.sock:/var/run/docker.sock
+
+volumes:
+  docker-manager-data:

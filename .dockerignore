@@ -1,0 +1,7 @@
+.git
+.gitignore
+data
+target
+*.exe
+web/node_modules
+web/dist

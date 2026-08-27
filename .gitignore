@@ -1,0 +1,17 @@
+# Go
+docker-manager-go.exe
+*.exe
+target/
+
+# Node
+web/node_modules/
+web/dist/
+
+# Data
+data/
+*.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
