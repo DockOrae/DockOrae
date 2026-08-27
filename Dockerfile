@@ -25,8 +25,6 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 FROM alpine:3.20
 ARG TARGETARCH
 ARG TARGETVARIANT
-# 下载 docker-compose 二进制:compose 官方 release 无 i386 资产、
-# Alpine i386 仓库亦无 docker-cli-compose 包,故 386 平台跳过(其余 5 架构均可用)
 RUN apk add --no-cache ca-certificates tini curl \
     && case "${TARGETARCH}${TARGETVARIANT}" in \
          amd64) A=x86_64 ;; \
@@ -34,16 +32,11 @@ RUN apk add --no-cache ca-certificates tini curl \
          armv7) A=armv7 ;; \
          armv6) A=armv6 ;; \
          s390x) A=s390x ;; \
-         386) A= ;; \
          *) echo "unsupported arch: ${TARGETARCH}${TARGETVARIANT}" >&2; exit 1 ;; \
        esac \
-    && if [ -n "$A" ]; then \
-         curl -fsSL "https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-linux-$A" -o /usr/local/bin/docker-compose \
-         && chmod +x /usr/local/bin/docker-compose \
-         && docker-compose version; \
-       else \
-         echo "386: docker-compose skipped (no official i386 asset)"; \
-       fi
+    && curl -fsSL "https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-linux-$A" -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose \
+    && docker-compose version
 
 COPY --from=build /app/docker-manager /usr/local/bin/docker-manager
 
