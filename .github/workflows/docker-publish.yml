@@ -4,6 +4,14 @@ on:
   push:
     branches: [master]
     tags: ["v*"]
+    # 仅源码改动触发构建;工作流文件/README/.gitignore 等修改不触发
+    # (paths 过滤对 tag push 不生效,发版仍然必定触发)
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "web/**"
+      - "Dockerfile"
   workflow_dispatch:
 
 env:
