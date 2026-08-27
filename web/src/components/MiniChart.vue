@@ -1,5 +1,5 @@
 <template>
-  <div class="relative w-full h-full">
+  <div class="relative w-full" :style="{ height: props.height + 'px' }">
     <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" class="w-full h-full">
       <!-- 网格线 -->
       <line v-for="i in 3" :key="i" x1="0" :y1="(H / 4) * i" :x2="W" :y2="(H / 4) * i" stroke="var(--dm-line)" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.5" />
@@ -23,17 +23,20 @@ const props = defineProps({
   color1: { type: String, default: '#60a5fa' },
   color2: { type: String, default: '#ec4899' },
   emptyText: { type: String, default: '' },
+  /** 图表高度(px) */
+  height: { type: Number, default: 40 },
 })
 
 const W = 100
-const H = 40
+const H = computed(() => props.height)
 
 function points(series) {
   const n = series.length
   const step = W / (n - 1)
+  const h = H.value
   const max = Math.max(...series, 1)
   return series
-    .map((v, i) => `${(i * step).toFixed(2)},${(H - 4 - (v / max) * (H - 8)).toFixed(2)}`)
+    .map((v, i) => `${(i * step).toFixed(2)},${(h - 4 - (v / max) * (h - 8)).toFixed(2)}`)
     .join(' ')
 }
 </script>

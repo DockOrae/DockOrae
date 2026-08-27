@@ -1,4 +1,4 @@
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { getToken, api } from './api'
 
 /** 当前登录用户信息(登录 / 改资料后更新,供全局使用) */
@@ -14,6 +14,7 @@ export const user = reactive({
 
 const THEME_KEY = 'dm_theme'
 export const theme = ref(localStorage.getItem(THEME_KEY) || 'dark')
+export const isDark = computed(() => theme.value === 'dark')
 
 export function applyTheme(t) {
   theme.value = t

@@ -1,118 +1,94 @@
 <template>
-  <div class="h-screen overflow-hidden">
-    <!-- 毛玻璃背景(照片虚化) -->
-    <div class="bg-layer" />
-
-    <!-- 收起/展开悬浮按钮(仿 1Panel:骑在侧边栏右边缘的圆形按钮) -->
-    <button
-      class="side-toggle"
-      :class="sidebarOpen ? 'is-open' : 'is-collapsed'"
-      :title="t(sidebarOpen ? 'nav.collapse' : 'nav.expand')"
-      @click="setSidebar(!sidebarOpen)"
+  <div class="app-shell">
+    <!-- 左侧折叠侧边栏(仿 3x-ui:72px 窄栏,悬停展开 220px,可图钉固定) -->
+    <div
+      class="app-sider"
+      :class="{ expanded: expanded || pinned, pinned }"
+      @mouseenter="onEnter"
+      @mouseleave="onLeave"
     >
-      <Icon :name="sidebarOpen ? 'chevronsLeft' : 'chevronsRight'" size="14" />
-    </button>
-
-    <!-- 侧边栏(仿 1Panel:180px ↔ 75px,0.3s 宽度过渡) -->
-    <aside :class="['sidebar fixed left-0 top-0 bottom-0 bg-surface/95 backdrop-blur border-r border-line flex flex-col z-40', sidebarOpen ? 'is-open' : 'is-collapsed']">
-      <!-- Logo(49px 高,仿 1Panel) -->
-      <div class="flex items-center justify-center h-[49px] border-b border-line shrink-0">
-        <img
-          src="/logo.svg"
-          alt="logo"
-          :class="['object-contain transition-all', sidebarOpen ? 'w-9 h-9' : 'w-7 h-7']"
-        />
+      <!-- 品牌区 -->
+      <div class="sider-brand">
+        <div class="brand-block" @click="$router.push('/')">
+          <img src="/logo.svg" alt="logo" class="brand-logo" />
+          <span v-if="expanded || pinned" class="brand-text">Docker Manager</span>
+        </div>
+        <div v-if="expanded || pinned" class="brand-actions">
+          <button
+            type="button"
+            class="brand-btn"
+            :class="{ active: pinned }"
+            :title="t(pinned ? 'nav.unpin' : 'nav.pin')"
+            :aria-label="t(pinned ? 'nav.unpin' : 'nav.pin')"
+            @click="togglePinned"
+          >
+            <Icon :name="pinned ? 'pinFilled' : 'pin'" size="14" />
+          </button>
+          <SwitchAppearance />
+        </div>
       </div>
 
-      <nav class="flex-1 px-[7px] py-2 overflow-y-auto overflow-x-hidden">
+      <!-- 导航菜单 -->
+      <nav class="sider-nav">
         <router-link
           v-for="item in navs"
           :key="item.to"
           :to="item.to"
-          :title="sidebarOpen ? '' : t(item.labelKey)"
-          class="side-link"
+          class="nav-item"
           :class="[
-            $route.path === item.to || ($route.path.startsWith(item.to + '/') && item.to !== '/') ? 'active' : '',
-            sidebarOpen ? '' : 'is-collapsed',
+            isActive(item) ? 'active' : '',
+            !(expanded || pinned) ? 'is-collapsed' : '',
           ]"
+          :title="expanded || pinned ? '' : t(item.labelKey)"
         >
-          <Icon :name="item.icon" size="16" class="shrink-0" />
-          <span v-if="sidebarOpen" class="truncate">{{ t(item.labelKey) }}</span>
+          <Icon :name="item.icon" size="16" class="nav-icon" />
+          <span v-if="expanded || pinned" class="nav-label">{{ t(item.labelKey) }}</span>
         </router-link>
       </nav>
 
-      <!-- 用户区(仿 1Panel 主节点:主机图标 + 名称,点击右侧滑出菜单) -->
-      <div class="user-menu-wrap p-2 border-t border-line shrink-0 relative">
-        <button
-          class="w-full flex items-center justify-center gap-2.5 px-2 py-2 rounded-lg hover:bg-surface2 transition-colors cursor-pointer"
-          :class="sidebarOpen ? '' : '!justify-center'"
-          @click="userMenuOpen = !userMenuOpen"
-        >
-          <Icon name="server" size="18" class="text-brand shrink-0" />
-          <span v-if="sidebarOpen" class="flex-1 min-w-0 text-left">
-            <span class="block text-[13px] font-medium truncate">{{ t('app.mainNode') }}</span>
-            <span class="block text-[10px] text-muted truncate">{{ mainNodeName }}</span>
-          </span>
-          <Icon v-if="sidebarOpen" name="chevronsUp" size="14" class="text-muted shrink-0 transition-transform duration-200" :class="{ 'rotate-180': userMenuOpen }" />
+      <!-- 底部:登出 + 版本(仿 3x-ui sider-utility) -->
+      <div class="sider-footer">
+        <button type="button" class="logout-item" :class="{ 'is-collapsed': !expanded }" @click="logout">
+          <Icon name="logout" size="15" class="nav-icon" />
+          <span v-if="expanded" class="nav-label">{{ t('nav.logout') }}</span>
         </button>
-
-        <!-- 右侧滑出菜单(仿 1Panel Drawer:用户设置 / 许可证 / 退出) -->
-        <Transition name="dm-slide">
-          <div v-if="userMenuOpen" class="absolute left-full bottom-0 ml-2 z-50 w-48 rounded-xl border border-line bg-surface shadow-xl overflow-hidden">
-            <router-link
-              to="/settings"
-              class="flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-muted hover:text-text hover:bg-surface2 transition-colors"
-              @click="userMenuOpen = false"
-            >
-              <Icon name="settings" size="14" /> {{ t('app.userSettings') }}
-            </router-link>
-            <router-link
-              to="/settings?tab=license"
-              class="flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-muted hover:text-text hover:bg-surface2 transition-colors"
-              @click="userMenuOpen = false"
-            >
-              <Icon name="key" size="14" />
-              {{ t('license.title') }}
-              <span class="ml-auto badge text-[10px]" :style="licenseActive ? okStyle : mutedStyle">
-                {{ licenseActive ? t('license.pro') : t('license.community') }}
-              </span>
-            </router-link>
-            <div class="border-t border-line" />
-            <button
-              class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-danger hover:bg-danger/10 transition-colors"
-              @click="logout"
-            >
-              <Icon name="logout" size="14" /> {{ t('nav.logout') }}
-            </button>
-          </div>
-        </Transition>
+        <a
+          href="https://github.com/MinimaxFlora/Docker_Manager_Go"
+          target="_blank"
+          rel="noopener"
+          class="sider-version"
+          :class="{ 'is-collapsed': !expanded }"
+          :title="t('app.version')"
+        >
+          <Icon name="github" size="13" filled />
+          <span v-if="expanded" class="version-text">{{ t('app.version') }}</span>
+        </a>
       </div>
-    </aside>
+    </div>
 
-    <!-- 主区域(仿 1Panel:100vh 内部滚动,margin-left 跟随) -->
-    <div :class="['panel-main', sidebarOpen ? 'is-open' : 'is-collapsed']">
-      <header class="shrink-0 h-14 px-6 flex items-center gap-3 bg-bg/70 backdrop-blur-xl border-b border-line">
-        <h1 class="text-[15px] font-semibold">{{ t($route.meta.title || '') }}</h1>
-        <div class="ml-auto flex items-center gap-3 text-[11px] text-muted">
-          <SwitchAppearance />
+    <!-- 主区域 -->
+    <div :class="['panel-main', { expanded: expanded || pinned }]">
+      <header class="app-header">
+        <h1 class="page-title">{{ t($route.meta.title || '') }}</h1>
+        <div class="header-actions">
           <ToggleLocale />
           <a
             href="https://manager.kejizero.xyz"
             target="_blank"
             rel="noopener"
-            class="dm-social-link flex items-center justify-center w-9 h-9 rounded-lg hover:bg-surface2 transition-colors"
+            class="header-btn"
             :title="t('app.docs')"
           >
-            <Icon name="book" size="20" />
+            <Icon name="book" size="18" />
           </a>
           <a
             href="https://github.com/MinimaxFlora/Docker_Manager_Go"
             target="_blank"
             rel="noopener"
-            class="dm-social-link flex items-center justify-center w-9 h-9 rounded-lg hover:bg-surface2 transition-colors"
+            class="header-btn"
             :title="t('app.github')"
           >
-            <Icon name="github" size="20" filled />
+            <Icon name="github" size="18" filled />
           </a>
         </div>
       </header>
@@ -120,16 +96,16 @@
       <!-- 默认密码警告横幅 -->
       <div
         v-if="user.mustChangePassword"
-        class="shrink-0 flex items-center gap-3 px-6 py-2.5 text-[13px] bg-amber-500/15 border-b border-amber-500/30 text-amber-300"
+        class="pwd-banner"
       >
         <Icon name="alert" size="15" class="shrink-0" />
         <span class="flex-1">{{ t('banner.changePwd') }}</span>
-        <router-link to="/settings" class="shrink-0 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 font-medium transition-colors">
+        <router-link to="/settings" class="pwd-banner-link">
           {{ t('banner.goSettings') }}
         </router-link>
       </div>
 
-      <main class="flex-1 overflow-y-auto p-4 md:p-5">
+      <main class="app-main">
         <router-view v-slot="{ Component }">
           <keep-alive include="DashboardView">
             <component :is="Component" />
@@ -137,11 +113,7 @@
         </router-view>
       </main>
 
-      <!-- 页脚(仿 1Panel AppFooter:Copyright 左、链接右、跟随主题) -->
-      <footer
-        class="shrink-0 px-5 py-3 flex items-center gap-4 border-t border-line flex-wrap text-[13px]"
-        style="color: var(--dm-footer-color); background: var(--dm-surface);"
-      >
+      <footer class="app-footer">
         <a href="https://github.com/MinimaxFlora" target="_blank" rel="noopener" class="hover:text-brand transition-colors">
           Copyright © {{ year }} MinimaxFlora
         </a>
@@ -167,40 +139,40 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
 import ToggleLocale from '../components/ToggleLocale.vue'
 import SwitchAppearance from '../components/SwitchAppearance.vue'
 import { getToken, setToken } from '../api'
-import { licenseActive, loadLicense, resetUser, user } from '../store'
+import { licenseActive, resetUser, user } from '../store'
 
 const { t } = useI18n()
 const router = useRouter()
-const sidebarOpen = ref(localStorage.getItem('dm_sidebar') !== '0')
-const userMenuOpen = ref(false)
-const year = new Date().getFullYear()
-const mainNodeName = ref('')
-const okStyle = { color: '#34d399', background: 'rgba(52,211,153,.12)', border: '1px solid rgba(52,211,153,.3)' }
-const mutedStyle = { color: '#8b93a7', background: 'rgba(139,147,167,.12)', border: '1px solid rgba(139,147,167,.3)' }
+const route = useRoute()
+const PINNED_KEY = 'dm_sidebar_pinned'
 
-function setSidebar(v) {
-  sidebarOpen.value = v
-  localStorage.setItem('dm_sidebar', v ? '1' : '0')
+// 3x-ui 交互:默认折叠,悬停展开;图钉固定后保持展开
+const hovered = ref(false)
+const pinned = ref(localStorage.getItem(PINNED_KEY) === 'true')
+const expanded = computed(() => hovered.value || pinned.value)
+const year = new Date().getFullYear()
+
+function onEnter() {
+  hovered.value = true
+}
+function onLeave() {
+  hovered.value = false
+}
+function togglePinned() {
+  pinned.value = !pinned.value
+  localStorage.setItem(PINNED_KEY, pinned.value ? 'true' : 'false')
 }
 
-onMounted(() => {
-  loadLicense().then((r) => {
-    // 主节点名 = 设备 ID 的主机部分(如 ZHAO@docker-manager → ZHAO)
-    if (r && r.device_id) mainNodeName.value = String(r.device_id).split('@')[0]
-  })
-  document.addEventListener('click', onDocClick)
-})
-onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
-
-function onDocClick(e) {
-  if (userMenuOpen.value && !e.target.closest('.user-menu-wrap')) userMenuOpen.value = false
+function isActive(item) {
+  if (item.to === '/') return route.path === '/'
+  return route.path.startsWith(item.to)
 }
 
 // 从 JWT 解析用户名(登录后 /me 会刷新完整资料)
@@ -214,13 +186,12 @@ if (!user.username && usernameFromToken.value) {
 }
 
 const navs = [
-  { to: '/', labelKey: 'nav.dashboard', icon: 'dashboard' },
+  { to: '/', labelKey: 'nav.systemStatus', icon: 'dashboard' },
   { to: '/containers', labelKey: 'nav.containers', icon: 'container' },
   { to: '/images', labelKey: 'nav.images', icon: 'image' },
   { to: '/networks', labelKey: 'nav.networks', icon: 'network' },
   { to: '/volumes', labelKey: 'nav.volumes', icon: 'volume' },
   { to: '/compose', labelKey: 'nav.compose', icon: 'compose' },
-  { to: '/terminal', labelKey: 'nav.terminal', icon: 'terminal' },
   { to: '/settings', labelKey: 'nav.settings', icon: 'settings' },
 ]
 
@@ -232,131 +203,290 @@ function logout() {
 </script>
 
 <style scoped>
-/* 亮色主题:照片背景淡化为浅色毛玻璃(若隐若现,整体保持浅色调) */
-[data-theme="light"] .bg-layer {
-  opacity: 0.32;
-  filter: blur(18px) brightness(2.6) saturate(0.5);
-}
-[data-theme="light"] .bg-layer::after {
-  background: radial-gradient(ellipse at center, transparent 25%, rgba(255, 255, 255, 0.65) 100%);
-}
-.bg-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background-color: #0b0e14;
-  background-image: url('/bg.jpg');
-  background-size: cover;
-  background-position: center;
-  filter: blur(12px) brightness(0.45) saturate(0.9);
-  transform: scale(1.12);
-  transition: opacity 0.3s ease;
-}
-.bg-layer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center, transparent 20%, rgba(5, 8, 14, 0.55) 100%);
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--dm-bg);
 }
 
-/* ---------- 侧边栏(仿 1Panel:180px ↔ 75px,0.3s) ---------- */
-.sidebar {
-  width: 180px;
-  transition: width 0.3s;
-  font-size: 0;
-}
-.sidebar.is-collapsed {
-  width: 75px;
-}
-
-/* 收起按钮:骑在侧边栏右边缘的悬浮圆形按钮(仿 1Panel el-affix) */
-.side-toggle {
+/* ---------- 侧边栏(仿 3x-ui:72px ↔ 220px,悬停展开) ---------- */
+.app-sider {
   position: fixed;
-  top: 8px;
-  z-index: 60;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 40;
+  width: 72px;
+  display: flex;
+  flex-direction: column;
   background: var(--dm-surface);
-  border: 1px solid var(--dm-line);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border-right: 1px solid var(--dm-line);
+  transition: width 0.25s ease;
+  overflow: visible;
+}
+.app-sider.expanded {
+  width: 220px;
+}
+
+/* 品牌区 */
+.sider-brand {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--dm-line);
+  gap: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+  flex: 1;
+}
+.brand-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.brand-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--dm-text);
+  letter-spacing: 0.3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brand-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.brand-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
   color: var(--dm-muted);
   cursor: pointer;
-  transition:
-    left 0.3s,
-    color 0.2s,
-    border-color 0.2s;
-  left: 168px;
+  transition: color 0.2s, background 0.2s;
 }
-.side-toggle:hover {
+.brand-btn:hover,
+.brand-btn.active {
   color: var(--dm-brand);
-  border-color: var(--dm-brand);
-}
-.side-toggle.is-collapsed {
-  left: 63px;
+  background: color-mix(in srgb, var(--dm-brand) 10%, transparent);
 }
 
-/* 菜单项(仿 1Panel:42px 高、圆角 4px、细阴影、active 左侧竖条 + inset 描边) */
-.side-link {
+/* 导航菜单(仿 3x-ui antd Menu) */
+.sider-nav {
+  flex: 1;
+  padding: 8px 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: 42px;
-  margin: 7px 0;
-  padding: 0 14px;
-  border-radius: 4px;
-  font-size: 13px;
+  gap: 10px;
+  height: 40px;
+  margin: 4px 0;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
   font-weight: 500;
-  background: var(--dm-surface2);
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
   color: var(--dm-muted);
-  position: relative;
-  transition: color 0.2s;
+  text-decoration: none;
   white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
 }
-.side-link:hover {
+.nav-item:hover {
+  color: var(--dm-text);
+  background: var(--dm-surface2);
+}
+.nav-item.active {
   color: var(--dm-brand);
+  background: color-mix(in srgb, var(--dm-brand) 12%, transparent);
 }
-.side-link.active {
-  color: var(--dm-brand);
-  box-shadow:
-    0 0 4px rgba(0, 0, 0, 0.1),
-    inset 0 0 0 2px var(--dm-brand);
-}
-.side-link.active::before {
+.nav-item.active::before {
   content: '';
   position: absolute;
-  left: 12px;
-  width: 4px;
-  height: 14px;
-  border-radius: 4px;
+  left: 0;
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
   background: var(--dm-brand);
 }
-.side-link.is-collapsed {
+.nav-item {
+  position: relative;
+}
+.nav-item.is-collapsed {
   justify-content: center;
   padding: 0;
 }
-.side-link.is-collapsed.active::before {
+.nav-item.is-collapsed .nav-label {
+  display: none;
+}
+.nav-icon {
+  flex-shrink: 0;
+}
+
+/* 底部登出(仿 3x-ui sider-utility) */
+.sider-footer {
+  border-top: 1px solid var(--dm-line);
+  padding: 8px 6px;
+  flex-shrink: 0;
+}
+.logout-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  margin: 4px 0;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #f87171;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.logout-item:hover {
+  background: rgba(248, 113, 113, 0.12);
+}
+.logout-item.is-collapsed {
+  justify-content: center;
+  padding: 0;
+}
+.logout-item.is-collapsed .nav-label {
   display: none;
 }
 
-/* 主区域(仿 1Panel:100vh 内部滚动,margin-left 0.3s 过渡) */
+/* 版本徽章(仿 3x-ui sider-version) */
+.sider-version {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 7px 0;
+  border-radius: 8px;
+  color: var(--dm-muted);
+  font-size: 11.5px;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+.sider-version:hover {
+  color: var(--dm-brand);
+  background: var(--dm-surface2);
+}
+.sider-version.is-collapsed {
+  padding: 8px 0;
+}
+
+/* ---------- 主区域 ---------- */
 .panel-main {
-  position: relative;
-  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  margin-left: 72px;
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  transition: margin-left 0.3s;
+  transition: margin-left 0.25s ease;
 }
-.panel-main.is-open {
-  margin-left: 180px;
+.panel-main.expanded {
+  margin-left: 220px;
 }
-.panel-main.is-collapsed {
-  margin-left: 75px;
+
+.app-header {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 20px;
+  gap: 12px;
+  background: var(--dm-bg);
+  border-bottom: 1px solid var(--dm-line);
+  flex-shrink: 0;
+}
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dm-text);
+}
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--dm-muted);
+  transition: color 0.2s, background 0.2s;
+}
+.header-btn:hover {
+  color: var(--dm-text);
+  background: var(--dm-surface2);
+}
+
+.pwd-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 20px;
+  font-size: 13px;
+  background: rgba(245, 158, 11, 0.14);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+.pwd-banner-link {
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.2);
+  font-weight: 500;
+  text-decoration: none;
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  font-size: 13px;
+  color: var(--dm-footer-color);
+  background: var(--dm-surface);
+  border-top: 1px solid var(--dm-line);
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 </style>

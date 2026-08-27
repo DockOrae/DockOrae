@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,11 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/client"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/notify"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
 )
 
 // StoredUser users.json 中存储的用户(扩展字段需兼容旧文件缺失的情况)
@@ -94,6 +97,7 @@ func (h *EventHub) Publish(m events.Message) {
 type AppState struct {
 	Docker       *client.Client
 	Cfg          *config.Config
+	Settings     *settings.Store
 	UsersMu      sync.Mutex
 	Users        []StoredUser
 	Events       *EventHub
@@ -111,24 +115,29 @@ func New(cfg *config.Config) (*AppState, error) {
 	if err != nil {
 		return nil, err
 	}
+	st, err := settings.Load(cfg.DataDir, os.Getenv("PORT"))
+	if err != nil {
+		return nil, err
+	}
 	composeDir := filepath.Join(cfg.DataDir, "compose")
 	avatarDir := filepath.Join(cfg.DataDir, "avatars")
 	_ = os.MkdirAll(composeDir, 0o755)
 	_ = os.MkdirAll(avatarDir, 0o755)
 
-	st := &AppState{
+	as := &AppState{
 		Docker:     docker,
 		Cfg:        cfg,
+		Settings:   st,
 		Events:     NewEventHub(),
 		ComposeDir: composeDir,
 		AvatarDir:  avatarDir,
 		done:       make(chan struct{}),
 	}
-	if err := st.initUsers(); err != nil {
+	if err := as.initUsers(); err != nil {
 		return nil, err
 	}
-	st.SpawnEventWatcher()
-	return st, nil
+	as.SpawnEventWatcher()
+	return as, nil
 }
 
 func newDockerClient() (*client.Client, error) {
@@ -182,6 +191,11 @@ func (s *AppState) SaveUsers() error {
 	return os.WriteFile(filepath.Join(s.Cfg.DataDir, "users.json"), out, 0o600)
 }
 
+// ReloadUsers 从磁盘重新加载用户(备份恢复后调用)
+func (s *AppState) ReloadUsers() error {
+	return s.initUsers()
+}
+
 func (s *AppState) FindUser(username string) *StoredUser {
 	s.UsersMu.Lock()
 	defer s.UsersMu.Unlock()
@@ -211,6 +225,14 @@ func (s *AppState) SpawnEventWatcher() {
 						goto reconnect
 					}
 					s.Events.Publish(m)
+					// 通知:Docker 事件 → TG/邮件(按配置过滤)
+					go func(ev events.Message) {
+						body := fmt.Sprintf("Action: %s\nTarget: %s", string(ev.Action), ev.Actor.ID)
+						if name := ev.Actor.Attributes["name"]; name != "" {
+							body += "\nName: " + name
+						}
+						notify.Notify(s.Settings, notify.EventActionToType(string(ev.Action)), "Docker Event: "+string(ev.Action), body)
+					}(m)
 				case err, ok := <-res.Err:
 					_ = err
 					if !ok || err != nil {

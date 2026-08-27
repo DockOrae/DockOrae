@@ -1,18 +1,27 @@
 package api
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
 // Router 构建 gin 路由:public 组(登录)+ protected 组(全部业务)+ SPA 回退
-func Router(st *state.AppState, static gin.HandlerFunc) *gin.Engine {
+// basePath:面板 URI 前缀(settings.webBasePath,默认 "/")
+func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
 
-	api := r.Group("/api")
+	if basePath == "" || basePath == "/" {
+		basePath = ""
+	} else {
+		basePath = "/" + strings.Trim(basePath, "/")
+	}
+
+	api := r.Group(basePath + "/api")
 
 	// ---------- public ----------
 	api.GET("/health", H(systemHealth).Handler(st))
@@ -40,20 +49,14 @@ func Router(st *state.AppState, static gin.HandlerFunc) *gin.Engine {
 	p.PUT("/system/registry-mirrors", H(monitorSaveRegistryMirrors).Handler(st))
 	p.POST("/system/restart-docker", H(monitorRestartDocker).Handler(st))
 
-	p.GET("/terminal/quick-commands", H(terminalQuickCommands).Handler(st))
-	p.POST("/terminal/quick-commands", H(terminalAddQuickCommand).Handler(st))
-	p.DELETE("/terminal/quick-commands/:id", H(terminalDeleteQuickCommand).Handler(st))
-	p.GET("/terminal/settings", H(terminalGetSettings).Handler(st))
-	p.PUT("/terminal/settings", H(terminalSaveSettings).Handler(st))
-	p.GET("/terminal/self", H(terminalSelfContainer).Handler(st))
-	p.GET("/terminal/self/ws", H(terminalSelfWS).Handler(st))
-
-	p.GET("/hosts", H(hostsList).Handler(st))
-	p.POST("/hosts", H(hostsAdd).Handler(st))
-	p.PUT("/hosts/:id", H(hostsUpdate).Handler(st))
-	p.DELETE("/hosts/:id", H(hostsDelete).Handler(st))
-	p.POST("/hosts/:id/test", H(hostsTest).Handler(st))
-	p.GET("/hosts/:id/terminal", H(hostsTerminalWS).Handler(st))
+	// ---------- 面板设置 / 日志 / 配置 / 备份恢复 / 重启(仿 3x-ui) ----------
+	p.GET("/system/settings", H(panelSettings).Handler(st))
+	p.PUT("/system/settings", H(panelSettingsSave).Handler(st))
+	p.GET("/system/logs", H(panelLogs).Handler(st))
+	p.GET("/system/config", H(panelConfig).Handler(st))
+	p.GET("/system/backup", H(panelBackup).Handler(st))
+	p.POST("/system/restore", H(panelRestore).Handler(st))
+	p.POST("/system/restart", H(panelRestart).Handler(st))
 
 	p.GET("/license", H(licenseGet).Handler(st))
 	p.POST("/license/activate", H(licenseActivate).Handler(st))

@@ -80,10 +80,10 @@ func b64(data []byte) string {
 	return base64.RawURLEncoding.EncodeToString(data)
 }
 
-func MakeToken(secret, username string) string {
+func MakeToken(secret, username string, ttlSeconds int64) string {
 	now := time.Now().Unix()
 	header := b64([]byte(`{"alg":"HS256","typ":"JWT"}`))
-	payloadBytes, _ := json.Marshal(map[string]any{"sub": username, "iat": now, "exp": now + TOKEN_TTL})
+	payloadBytes, _ := json.Marshal(map[string]any{"sub": username, "iat": now, "exp": now + ttlSeconds})
 	payload := b64(payloadBytes)
 	signing := header + "." + payload
 	return signing + "." + sign(secret, signing)
