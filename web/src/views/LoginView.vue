@@ -1,5 +1,8 @@
 <template>
   <div :class="['login-app', { 'is-dark': isDark }]">
+    <!-- 背景图 + 遮罩(1Panel 风格) -->
+    <img src="/bg.jpg" alt="" class="login-bg" />
+    <div class="login-bg-overlay" />
     <!-- 右上角工具栏:主题切换 + 语言切换(仿 3x-ui) -->
     <div class="login-toolbar">
       <button
@@ -240,6 +243,24 @@ async function doTotp() {
   overflow: hidden;
   background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #f5f3ff 100%);
   transition: background 0.3s ease;
+}
+
+/* 背景图 + 遮罩(1Panel 风格) */
+.login-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.login-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 14, 0.55) 0%, rgba(5, 8, 14, 0.75) 100%),
+    radial-gradient(ellipse at center, transparent 0%, rgba(5, 8, 14, 0.35) 100%);
+  z-index: 1;
 }
 
 .login-app.is-dark {

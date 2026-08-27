@@ -44,6 +44,73 @@
           <Icon :name="item.icon" size="16" class="nav-icon" />
           <span v-if="expanded || pinned" class="nav-label">{{ t(item.labelKey) }}</span>
         </router-link>
+
+        <!-- 面板设置(点击展开子菜单:个人资料/常规/证书/日期和时间) -->
+        <div class="menu-group">
+          <button
+            type="button"
+            class="nav-item"
+            :class="[
+              settingsOpen || isSettingsChild ? 'active' : '',
+              !(expanded || pinned) ? 'is-collapsed' : '',
+            ]"
+            @click="toggleSettingsMenu"
+            :title="expanded || pinned ? '' : t('settings.panelSettings')"
+          >
+            <Icon name="settings" size="16" class="nav-icon" />
+            <span v-if="expanded || pinned" class="nav-label">{{ t('settings.panelSettings') }}</span>
+            <Icon v-if="expanded || pinned" name="chevronsUp" size="11" class="nav-caret" :class="{ open: settingsOpen }" />
+          </button>
+          <div v-if="(expanded || pinned) && settingsOpen" class="menu-sub">
+            <router-link
+              v-for="sub in settingsSubs"
+              :key="sub.hash"
+              :to="'/settings' + sub.hash"
+              class="sub-item"
+              :class="{ active: isSettingsChild && route.path === '/settings' && route.hash === sub.hash }"
+              @click="settingsOpen = false"
+            >
+              <span class="sub-dot" />{{ t(sub.labelKey) }}
+            </router-link>
+          </div>
+        </div>
+
+        <router-link
+          to="/settings#security"
+          class="nav-item"
+          :class="[isSecChild('security') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
+          :title="expanded || pinned ? '' : t('settings.securitySettings')"
+        >
+          <Icon name="lock" size="16" class="nav-icon" />
+          <span v-if="expanded || pinned" class="nav-label">{{ t('settings.securitySettings') }}</span>
+        </router-link>
+        <router-link
+          to="/settings#telegram"
+          class="nav-item"
+          :class="[isSecChild('telegram') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
+          :title="expanded || pinned ? '' : t('settings.telegramBot')"
+        >
+          <Icon name="send" size="16" class="nav-icon" />
+          <span v-if="expanded || pinned" class="nav-label">{{ t('settings.telegramBot') }}</span>
+        </router-link>
+        <router-link
+          to="/settings#email"
+          class="nav-item"
+          :class="[isSecChild('email') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
+          :title="expanded || pinned ? '' : t('settings.smtpSettings')"
+        >
+          <Icon name="mail" size="16" class="nav-icon" />
+          <span v-if="expanded || pinned" class="nav-label">{{ t('settings.smtpSettings') }}</span>
+        </router-link>
+        <router-link
+          to="/settings#license"
+          class="nav-item"
+          :class="[isSecChild('license') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
+          :title="expanded || pinned ? '' : t('license.title')"
+        >
+          <Icon name="key" size="16" class="nav-icon" />
+          <span v-if="expanded || pinned" class="nav-label">{{ t('license.title') }}</span>
+        </router-link>
       </nav>
 
       <!-- 底部:登出 + 版本(仿 3x-ui sider-utility) -->
@@ -192,8 +259,36 @@ const navs = [
   { to: '/networks', labelKey: 'nav.networks', icon: 'network' },
   { to: '/volumes', labelKey: 'nav.volumes', icon: 'volume' },
   { to: '/compose', labelKey: 'nav.compose', icon: 'compose' },
-  { to: '/settings', labelKey: 'nav.settings', icon: 'settings' },
 ]
+
+// 面板设置子菜单(个人资料在最上面)
+const settingsSubs = [
+  { hash: '#profile', labelKey: 'settings.profile' },
+  { hash: '#general', labelKey: 'settings.general' },
+  { hash: '#cert', labelKey: 'settings.certificate' },
+  { hash: '#datetime', labelKey: 'settings.dateTime' },
+]
+const settingsOpen = ref(false)
+const isSettingsChild = computed(() => {
+  if (route.path !== '/settings') return false
+  return ['#profile', '#general', '#cert', '#datetime'].includes(route.hash)
+})
+function toggleSettingsMenu() {
+  if (!expanded.value && !pinned.value) {
+    // 折叠态:悬停已展开,点击直接进常规
+    router.push('/settings#general')
+    return
+  }
+  settingsOpen.value = !settingsOpen.value
+  if (!settingsOpen.value && route.path === '/settings') {
+    // 收起时若停留在子页,回到常规
+    router.push('/settings#general')
+  }
+}
+function isSecChild(key) {
+  if (route.path !== '/settings') return false
+  return route.hash === '#' + key
+}
 
 function logout() {
   setToken(null)
@@ -209,10 +304,10 @@ function logout() {
   background: var(--dm-bg);
 }
 
-/* ---------- 侧边栏(仿 3x-ui:72px ↔ 220px,悬停展开) ---------- */
+/* ---------- 侧边栏(仿 3x-ui:右侧 72px ↔ 220px,悬停展开) ---------- */
 .app-sider {
   position: fixed;
-  left: 0;
+  right: 0;
   top: 0;
   bottom: 0;
   z-index: 40;
@@ -220,7 +315,7 @@ function logout() {
   display: flex;
   flex-direction: column;
   background: var(--dm-surface);
-  border-right: 1px solid var(--dm-line);
+  border-left: 1px solid var(--dm-line);
   transition: width 0.25s ease;
   overflow: visible;
 }
@@ -341,6 +436,49 @@ function logout() {
   flex-shrink: 0;
 }
 
+/* 面板设置子菜单(展开式) */
+.nav-caret {
+  margin-left: auto;
+  color: var(--dm-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.nav-caret.open {
+  transform: rotate(180deg);
+}
+.menu-sub {
+  padding: 2px 0 6px;
+}
+.sub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px 0 34px;
+  border-radius: 8px;
+  color: var(--dm-muted);
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.sub-item:hover {
+  color: var(--dm-text);
+  background: var(--dm-surface2);
+}
+.sub-item.active {
+  color: var(--dm-brand);
+  font-weight: 600;
+}
+.sub-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
 /* 底部登出(仿 3x-ui sider-utility) */
 .sider-footer {
   border-top: 1px solid var(--dm-line);
@@ -403,15 +541,15 @@ function logout() {
 .panel-main {
   flex: 1;
   min-width: 0;
-  margin-left: 72px;
+  margin-right: 72px;
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  transition: margin-left 0.25s ease;
+  transition: margin-right 0.25s ease;
 }
 .panel-main.expanded {
-  margin-left: 220px;
+  margin-right: 220px;
 }
 
 .app-header {

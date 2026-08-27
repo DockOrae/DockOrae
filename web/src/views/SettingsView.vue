@@ -10,6 +10,9 @@
         </button>
         <Transition name="dm-expand">
           <div v-if="panelOpen" class="menu-sub">
+            <button type="button" class="sub-item" :class="{ active: active === 'profile' }" @click="go('profile')">
+              <span class="sub-dot" />{{ t('settings.profile') }}
+            </button>
             <button type="button" class="sub-item" :class="{ active: active === 'general' }" @click="go('general')">
               <span class="sub-dot" />{{ t('settings.general') }}
             </button>
@@ -32,7 +35,7 @@
       </button>
       <button type="button" class="menu-item" :class="{ active: active === 'email' }" @click="go('email')">
         <Icon name="mail" size="15" class="menu-icon" />
-        <span class="menu-label">{{ t('settings.emailSettings') }}</span>
+        <span class="menu-label">{{ t('settings.smtpSettings') }}</span>
       </button>
       <button type="button" class="menu-item" :class="{ active: active === 'license' }" @click="go('license')">
         <Icon name="key" size="15" class="menu-icon" />
@@ -42,6 +45,41 @@
 
     <!-- 右侧内容区 -->
     <main class="settings-content">
+      <!-- ============ 个人资料(最上面) ============ -->
+      <section v-if="active === 'profile'" class="space-y-4 fade-up">
+        <div class="card p-5">
+          <h2 class="card-title">{{ t('settings.profile') }}</h2>
+          <div class="flex items-center gap-4 mb-5">
+            <img :src="avatarPreview" alt="avatar" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-white/15 shadow-lg" />
+            <div class="flex-1">
+              <button class="btn btn-ghost btn-sm" @click="avatarInput?.click()">
+                <Icon name="image" size="13" /> {{ t('settings.' + (user.avatar ? 'changeAvatar' : 'uploadAvatar')) }}
+              </button>
+              <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadAvatar" />
+              <p class="text-[11px] text-muted mt-1.5">{{ t('settings.avatarNote') }}</p>
+            </div>
+          </div>
+          <form class="space-y-4" @submit.prevent="saveProfile">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">{{ t('settings.username') }}</label>
+                <input v-model="profile.username" class="input" maxlength="32" />
+                <p class="text-[11px] text-muted mt-1">{{ t('settings.usernameNote') }}</p>
+              </div>
+              <div>
+                <label class="label">{{ t('settings.nickname') }}</label>
+                <input v-model="profile.nickname" class="input" maxlength="32" :placeholder="t('settings.nicknamePh')" />
+              </div>
+            </div>
+            <div v-if="profileErr" class="text-xs text-danger">{{ profileErr }}</div>
+            <button type="submit" class="btn btn-brand" :disabled="profileLoading">
+              <span v-if="profileLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              {{ t('settings.saveProfile') }}
+            </button>
+          </form>
+        </div>
+      </section>
+
       <!-- ============ 常规(仿 3x-ui GeneralTab) ============ -->
       <section v-if="active === 'general'" class="space-y-4 fade-up">
         <div class="card p-5">
@@ -247,32 +285,6 @@
               {{ t('settings.saveCredentials') }}
             </button>
           </div>
-        </div>
-
-        <!-- 个人资料(头像/昵称) -->
-        <div class="card p-5">
-          <h2 class="card-title">{{ t('settings.profile') }}</h2>
-          <div class="flex items-center gap-4 mb-5">
-            <img :src="avatarPreview" alt="avatar" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-white/15 shadow-lg" />
-            <div class="flex-1">
-              <button class="btn btn-ghost btn-sm" @click="avatarInput?.click()">
-                <Icon name="image" size="13" /> {{ t('settings.' + (user.avatar ? 'changeAvatar' : 'uploadAvatar')) }}
-              </button>
-              <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadAvatar" />
-              <p class="text-[11px] text-muted mt-1.5">{{ t('settings.avatarNote') }}</p>
-            </div>
-          </div>
-          <form class="space-y-4" @submit.prevent="saveProfile">
-            <div>
-              <label class="label">{{ t('settings.nickname') }}</label>
-              <input v-model="profile.nickname" class="input" maxlength="32" :placeholder="t('settings.nicknamePh')" />
-            </div>
-            <div v-if="profileErr" class="text-xs text-danger">{{ profileErr }}</div>
-            <button type="submit" class="btn btn-brand" :disabled="profileLoading">
-              <span v-if="profileLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.saveProfile') }}
-            </button>
-          </form>
         </div>
 
         <!-- 双因素验证 -->
@@ -576,8 +588,8 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-// 分类切换(支持 #general/#cert/#datetime/#security/#telegram/#email/#license)
-const SECTIONS = ['general', 'cert', 'datetime', 'security', 'telegram', 'email', 'license']
+// 分类切换(支持 #profile/#general/#cert/#datetime/#security/#telegram/#email/#license)
+const SECTIONS = ['profile', 'general', 'cert', 'datetime', 'security', 'telegram', 'email', 'license']
 const active = ref('general')
 const panelOpen = ref(true)
 function go(section) {
@@ -590,7 +602,7 @@ watch(
     const key = String(h || '').replace('#', '')
     if (SECTIONS.includes(key)) {
       active.value = key
-      if (key === 'general' || key === 'cert' || key === 'datetime') panelOpen.value = true
+      if (key === 'profile' || key === 'general' || key === 'cert' || key === 'datetime') panelOpen.value = true
     }
   },
   { immediate: true }
@@ -702,10 +714,13 @@ async function tgTest() {
 }
 
 // ---------- 个人资料 ----------
-const profile = reactive({ nickname: user.nickname || '' })
+const profile = reactive({ username: user.username || 'admin', nickname: user.nickname || '' })
 watch(
-  () => user.nickname,
-  (n) => (profile.nickname = n || '')
+  () => [user.username, user.nickname],
+  ([u, n]) => {
+    if (u && profile.username !== u) profile.username = u
+    profile.nickname = n || ''
+  }
 )
 const profileErr = ref('')
 const profileLoading = ref(false)
@@ -716,8 +731,10 @@ async function saveProfile() {
   profileErr.value = ''
   profileLoading.value = true
   try {
-    const r = await api('/profile', { method: 'POST', json: { username: '', nickname: profile.nickname.trim() || null } })
+    const r = await api('/profile', { method: 'POST', json: { username: profile.username.trim(), nickname: profile.nickname.trim() || null } })
+    if (r.token) setToken(r.token)
     applyUser(r)
+    profile.username = user.username
     profile.nickname = user.nickname || ''
     toastOk(t('settings.toastProfileSaved'))
   } catch (e) {
