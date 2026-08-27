@@ -87,7 +87,7 @@
           </button>
         </form>
 
-        <p class="text-center text-[11px] text-muted mt-4">
+        <p v-if="showDefaultHint" class="text-center text-[11px] text-muted mt-4">
           {{ t('login.defaultAccount', { user: 'admin', pass: '123456' }) }}
         </p>
 
@@ -102,7 +102,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
@@ -120,6 +120,17 @@ const error = ref('')
 const showPw = ref(false)
 const totpStep = ref(false)
 const totpCode = ref('')
+// 仅当 admin 仍是默认密码(未改密)时显示"默认账号"提示
+const showDefaultHint = ref(false)
+
+onMounted(async () => {
+  try {
+    const r = await api('/system/default-account')
+    showDefaultHint.value = !!r.show
+  } catch {
+    showDefaultHint.value = false
+  }
+})
 
 async function doLogin() {
   if (!form.username || !form.password) {

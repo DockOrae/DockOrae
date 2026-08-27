@@ -15,3 +15,6 @@ data/
 .idea/
 .vscode/
 *.swp
+
+# Editor backup
+*.exe~

@@ -19,7 +19,7 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-// ---------------- 公共 ---------------- 
+// ---------------- 公共 ----------------
 
 func systemHealth(c *gin.Context, st *state.AppState) error {
 	c.JSON(200, gin.H{
@@ -27,6 +27,22 @@ func systemHealth(c *gin.Context, st *state.AppState) error {
 		"name":    "docker-manager-go",
 		"version": "1.0.0",
 	})
+	return nil
+}
+
+// systemDefaultAccount 登录页提示"默认账号"的条件:admin 用户存在且仍为默认密码
+func systemDefaultAccount(c *gin.Context, st *state.AppState) error {
+	show := false
+	st.UsersMu.Lock()
+	for i := range st.Users {
+		u := &st.Users[i]
+		if u.Username == "admin" && u.MustChangePassword {
+			show = true
+			break
+		}
+	}
+	st.UsersMu.Unlock()
+	c.JSON(200, gin.H{"show": show})
 	return nil
 }
 

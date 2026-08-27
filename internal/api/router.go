@@ -16,6 +16,7 @@ func Router(st *state.AppState, static gin.HandlerFunc) *gin.Engine {
 
 	// ---------- public ----------
 	api.GET("/health", H(systemHealth).Handler(st))
+	api.GET("/system/default-account", H(systemDefaultAccount).Handler(st))
 	api.POST("/login", H(systemLogin).Handler(st))
 	api.POST("/login/totp", H(systemLoginTotp).Handler(st))
 
