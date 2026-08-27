@@ -523,6 +523,7 @@ export default {
     smtpFrom: '发件人地址',
     smtpFromDesc: '邮件将从此地址发出',
     savePanel: '保存',
+    restartPanel: '重启面板',
     saveNeedRestart: '已保存,重启面板后生效',
     saveOk: '已保存',
     profile: '个人资料',

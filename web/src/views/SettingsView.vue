@@ -1,6 +1,6 @@
 <template>
   <div class="settings-page">
-    <!-- 左侧分类菜单(仿 3x-ui 设置菜单) -->
+    <!-- 左侧分类菜单(仿 3x-ui:全部子项在面板设置下) -->
     <aside class="settings-menu">
       <div class="menu-group">
         <button type="button" class="menu-item" :class="{ active: panelOpen }" @click="panelOpen = !panelOpen">
@@ -10,43 +10,35 @@
         </button>
         <Transition name="dm-expand">
           <div v-if="panelOpen" class="menu-sub">
-            <button type="button" class="sub-item" :class="{ active: active === 'profile' }" @click="go('profile')">
-              <span class="sub-dot" />{{ t('settings.profile') }}
-            </button>
-            <button type="button" class="sub-item" :class="{ active: active === 'general' }" @click="go('general')">
-              <span class="sub-dot" />{{ t('settings.general') }}
-            </button>
-            <button type="button" class="sub-item" :class="{ active: active === 'cert' }" @click="go('cert')">
-              <span class="sub-dot" />{{ t('settings.certificate') }}
-            </button>
-            <button type="button" class="sub-item" :class="{ active: active === 'datetime' }" @click="go('datetime')">
-              <span class="sub-dot" />{{ t('settings.dateTime') }}
+            <button v-for="sub in subSections" :key="sub.key" type="button" class="sub-item" :class="{ active: active === sub.key }" @click="go(sub.key)">
+              <Icon :name="sub.icon" size="14" class="sub-icon" />
+              {{ t(sub.labelKey) }}
             </button>
           </div>
         </Transition>
       </div>
-      <button type="button" class="menu-item" :class="{ active: active === 'security' }" @click="go('security')">
-        <Icon name="lock" size="15" class="menu-icon" />
-        <span class="menu-label">{{ t('settings.securitySettings') }}</span>
-      </button>
-      <button type="button" class="menu-item" :class="{ active: active === 'telegram' }" @click="go('telegram')">
-        <Icon name="send" size="15" class="menu-icon" />
-        <span class="menu-label">{{ t('settings.telegramBot') }}</span>
-      </button>
-      <button type="button" class="menu-item" :class="{ active: active === 'email' }" @click="go('email')">
-        <Icon name="mail" size="15" class="menu-icon" />
-        <span class="menu-label">{{ t('settings.smtpSettings') }}</span>
-      </button>
-      <button type="button" class="menu-item" :class="{ active: active === 'license' }" @click="go('license')">
-        <Icon name="key" size="15" class="menu-icon" />
-        <span class="menu-label">{{ t('license.title') }}</span>
-      </button>
     </aside>
 
     <!-- 右侧内容区 -->
     <main class="settings-content">
-      <!-- ============ 个人资料(最上面) ============ -->
-      <section v-if="active === 'profile'" class="space-y-4 fade-up">
+      <!-- ============ 常规(个人资料在最上面 + 横向 tab:常规|证书|日期和时间) ============ -->
+      <section v-if="active === 'general' || active === 'cert' || active === 'datetime'" class="space-y-4 fade-up">
+        <!-- 操作栏:保存 + 重启面板(仿 3x-ui 顶部) -->
+        <div class="card p-4">
+          <div class="flex items-center gap-3 flex-wrap">
+            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
+              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
+            </button>
+            <button class="btn btn-primary" @click="panelRestart">
+              <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
+            </button>
+            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveNeedRestart') }}</span>
+            <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
+          </div>
+        </div>
+
+        <!-- 个人资料(放到常规里面,最上面) -->
         <div class="card p-5">
           <h2 class="card-title">{{ t('settings.profile') }}</h2>
           <div class="flex items-center gap-4 mb-5">
@@ -78,14 +70,23 @@
             </button>
           </form>
         </div>
-      </section>
 
-      <!-- ============ 常规(仿 3x-ui GeneralTab) ============ -->
-      <section v-if="active === 'general'" class="space-y-4 fade-up">
-        <div class="card p-5">
-          <h2 class="card-title">{{ t('settings.general') }}</h2>
+        <!-- 横向 tab(仿 3x-ui GeneralTab) -->
+        <div class="h-tabs">
+          <button
+            v-for="tab in generalTabs"
+            :key="tab.key"
+            type="button"
+            class="h-tab"
+            :class="{ active: active === tab.key }"
+            @click="go(tab.key)"
+          >
+            {{ t(tab.labelKey) }}
+          </button>
+        </div>
 
-          <!-- 面板监听 IP -->
+        <!-- 常规:web 设置 -->
+        <div v-if="active === 'general'" class="card p-5">
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webListen') }}</div>
@@ -93,8 +94,6 @@
             </div>
             <input v-model="form.webListen" class="input sr-input" :placeholder="t('settings.webListenPh')" />
           </div>
-
-          <!-- 面板监听域名 -->
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webDomain') }}</div>
@@ -102,8 +101,6 @@
             </div>
             <input v-model="form.webDomain" class="input sr-input" :placeholder="t('settings.webDomainPh')" />
           </div>
-
-          <!-- 面板监听端口 -->
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webPort') }}</div>
@@ -111,8 +108,6 @@
             </div>
             <input v-model.number="form.webPort" type="number" class="input sr-input w-40" min="1" max="65535" />
           </div>
-
-          <!-- URI 路径 -->
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webBasePath') }}</div>
@@ -120,8 +115,6 @@
             </div>
             <input v-model="form.webBasePath" class="input sr-input" placeholder="/" />
           </div>
-
-          <!-- 会话时长 -->
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.sessionMaxAge') }}</div>
@@ -132,8 +125,6 @@
               <span class="text-[12px] text-muted">{{ t('settings.minutes') }}</span>
             </div>
           </div>
-
-          <!-- IP 限制白名单 -->
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.ipLimitAllowlist') }}</div>
@@ -141,19 +132,47 @@
             </div>
             <input v-model="allowlistText" class="input sr-input" :placeholder="t('settings.ipLimitAllowlistPh')" />
           </div>
+        </div>
 
-          <div v-if="panelErr" class="text-xs text-danger mt-2">{{ panelErr }}</div>
-          <div class="flex items-center gap-3 mt-4">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
-              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.savePanel') }}
-            </button>
-            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveNeedRestart') }}</span>
+        <!-- 证书 -->
+        <div v-if="active === 'cert'" class="card p-5">
+          <p class="text-[12px] text-muted mb-4">{{ t('settings.certDesc') }}</p>
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.webCertFile') }}</div>
+              <div class="sr-desc">{{ t('settings.webCertFileDesc') }}</div>
+            </div>
+            <input v-model="form.webCertFile" class="input sr-input" :placeholder="t('settings.pathPh')" />
+          </div>
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.webKeyFile') }}</div>
+              <div class="sr-desc">{{ t('settings.webKeyFileDesc') }}</div>
+            </div>
+            <input v-model="form.webKeyFile" class="input sr-input" :placeholder="t('settings.pathPh')" />
           </div>
         </div>
 
-        <!-- 镜像加速 -->
-        <div class="card p-5">
+        <!-- 日期和时间 -->
+        <div v-if="active === 'datetime'" class="card p-5">
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.timeZone') }}</div>
+              <div class="sr-desc">{{ t('settings.timeZoneDesc') }}</div>
+            </div>
+            <input v-model="form.timeZone" class="input sr-input" placeholder="Asia/Shanghai" />
+          </div>
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.datePickerType') }}</div>
+              <div class="sr-desc">{{ t('settings.datePickerTypeDesc') }}</div>
+            </div>
+            <input v-model="form.datePickerType" class="input sr-input" placeholder="gregorian" />
+          </div>
+        </div>
+
+        <!-- 镜像加速(仅常规) -->
+        <div v-if="active === 'general'" class="card p-5">
           <div class="flex items-center gap-2 mb-3">
             <Icon name="image" size="16" class="text-brand" />
             <h2 class="text-sm font-semibold">{{ t('settings.mirrors') }}</h2>
@@ -170,8 +189,8 @@
           <p class="text-[11px] text-muted mt-3 leading-relaxed">{{ t('settings.mirrorRestartHint') }}</p>
         </div>
 
-        <!-- 关于 -->
-        <div class="card p-5">
+        <!-- 关于(仅常规) -->
+        <div v-if="active === 'general'" class="card p-5">
           <h2 class="card-title">{{ t('settings.about') }}</h2>
           <dl class="text-[13px] space-y-2">
             <div class="flex"><dt class="text-muted w-28">{{ t('settings.panelName') }}</dt><dd class="font-medium">{{ t('app.name') }}</dd></div>
@@ -189,77 +208,36 @@
         </div>
       </section>
 
-      <!-- ============ 证书(仿 3x-ui GeneralTab 证书区) ============ -->
-      <section v-if="active === 'cert'" class="space-y-4 fade-up">
-        <div class="card p-5">
-          <h2 class="card-title">{{ t('settings.certificate') }}</h2>
-          <p class="text-[12px] text-muted mb-4">{{ t('settings.certDesc') }}</p>
-
-          <div class="setting-row">
-            <div class="sr-info">
-              <div class="sr-label">{{ t('settings.webCertFile') }}</div>
-              <div class="sr-desc">{{ t('settings.webCertFileDesc') }}</div>
-            </div>
-            <input v-model="form.webCertFile" class="input sr-input" :placeholder="t('settings.pathPh')" />
-          </div>
-
-          <div class="setting-row">
-            <div class="sr-info">
-              <div class="sr-label">{{ t('settings.webKeyFile') }}</div>
-              <div class="sr-desc">{{ t('settings.webKeyFileDesc') }}</div>
-            </div>
-            <input v-model="form.webKeyFile" class="input sr-input" :placeholder="t('settings.pathPh')" />
-          </div>
-
-          <div v-if="panelErr" class="text-xs text-danger mt-2">{{ panelErr }}</div>
-          <div class="flex items-center gap-3 mt-4">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
-              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.savePanel') }}
-            </button>
-            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveNeedRestart') }}</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ 日期和时间(仿 3x-ui) ============ -->
-      <section v-if="active === 'datetime'" class="space-y-4 fade-up">
-        <div class="card p-5">
-          <h2 class="card-title">{{ t('settings.dateTime') }}</h2>
-
-          <div class="setting-row">
-            <div class="sr-info">
-              <div class="sr-label">{{ t('settings.timeZone') }}</div>
-              <div class="sr-desc">{{ t('settings.timeZoneDesc') }}</div>
-            </div>
-            <input v-model="form.timeZone" class="input sr-input" placeholder="Asia/Shanghai" />
-          </div>
-
-          <div class="setting-row">
-            <div class="sr-info">
-              <div class="sr-label">{{ t('settings.datePickerType') }}</div>
-              <div class="sr-desc">{{ t('settings.datePickerTypeDesc') }}</div>
-            </div>
-            <input v-model="form.datePickerType" class="input sr-input" placeholder="gregorian" />
-          </div>
-
-          <div v-if="panelErr" class="text-xs text-danger mt-2">{{ panelErr }}</div>
-          <div class="flex items-center gap-3 mt-4">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
-              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.savePanel') }}
-            </button>
-            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveNeedRestart') }}</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ 安全设定(仿 3x-ui SecurityTab) ============ -->
+      <!-- ============ 安全设定(横向 tab:管理员凭证|双重认证 + 重启按钮) ============ -->
       <section v-if="active === 'security'" class="space-y-4 fade-up">
-        <!-- 管理员凭证 -->
-        <div class="card p-5">
-          <h2 class="card-title">{{ t('settings.adminCredentials') }}</h2>
+        <div class="card p-4">
+          <div class="flex items-center gap-3 flex-wrap">
+            <button class="btn btn-brand" :disabled="credLoading" @click="saveCredential">
+              <span v-if="credLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <Icon v-else name="check" size="14" /> {{ t('settings.saveCredentials') }}
+            </button>
+            <button class="btn btn-primary" @click="panelRestart">
+              <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
+            </button>
+            <span v-if="credErr" class="text-xs text-danger">{{ credErr }}</span>
+          </div>
+        </div>
 
+        <div class="h-tabs">
+          <button
+            v-for="tab in securityTabs"
+            :key="tab.key"
+            type="button"
+            class="h-tab"
+            :class="{ active: secTab === tab.key }"
+            @click="secTab = tab.key"
+          >
+            {{ t(tab.labelKey) }}
+          </button>
+        </div>
+
+        <!-- 管理员凭证 -->
+        <div v-if="secTab === 'credentials'" class="card p-5">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="label">{{ t('settings.oldUsername') }}</label>
@@ -278,17 +256,11 @@
               <input v-model="cred.newPassword" type="password" class="input" autocomplete="new-password" />
             </div>
           </div>
-          <div v-if="credErr" class="text-xs text-danger mt-2">{{ credErr }}</div>
-          <div class="flex items-center gap-3 mt-4">
-            <button class="btn btn-brand" :disabled="credLoading" @click="saveCredential">
-              <span v-if="credLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.saveCredentials') }}
-            </button>
-          </div>
+          <p class="text-[11px] text-muted mt-4">{{ t('settings.saveNeedRestart') }}</p>
         </div>
 
-        <!-- 双因素验证 -->
-        <div class="card p-5">
+        <!-- 双重认证 -->
+        <div v-if="secTab === 'twofactor'" class="card p-5">
           <div class="flex items-center gap-2 mb-4">
             <Icon name="key" size="16" class="text-brand" />
             <h2 class="text-sm font-semibold">{{ t('settings.twoFactor') }}</h2>
@@ -344,11 +316,27 @@
         </div>
       </section>
 
-      <!-- ============ Telegram 机器人(仿 3x-ui TelegramTab) ============ -->
+      <!-- ============ Telegram 机器人 ============ -->
       <section v-if="active === 'telegram'" class="space-y-4 fade-up">
+        <div class="card p-4">
+          <div class="flex items-center gap-3 flex-wrap">
+            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
+              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
+            </button>
+            <button class="btn btn-primary" @click="panelRestart">
+              <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
+            </button>
+            <button class="btn btn-ghost" :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</button>
+            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
+            <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
+          </div>
+        </div>
+
         <div class="card p-5">
           <h2 class="card-title">{{ t('settings.telegramBot') }}</h2>
           <p class="text-[12px] text-muted mb-4">{{ t('settings.telegramDesc') }}</p>
+
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.tgEnable') }}</div>
@@ -375,7 +363,6 @@
             <input v-model="form.tgAdminChatId" class="input sr-input" :placeholder="t('settings.tgAdminChatIdPh')" />
           </div>
 
-          <!-- 通知事件选择 -->
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.notifyEvents') }}</div>
@@ -388,20 +375,25 @@
               </label>
             </div>
           </div>
-          <div v-if="panelErr" class="text-xs text-danger mt-2">{{ panelErr }}</div>
-          <div class="flex items-center gap-3 mt-4">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
-              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.savePanel') }}
-            </button>
-            <button class="btn btn-ghost" :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</button>
-            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
-          </div>
         </div>
       </section>
 
-      <!-- ============ 邮件(仿 3x-ui EmailTab) ============ -->
+      <!-- ============ 邮件 ============ -->
       <section v-if="active === 'email'" class="space-y-4 fade-up">
+        <div class="card p-4">
+          <div class="flex items-center gap-3 flex-wrap">
+            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
+              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
+            </button>
+            <button class="btn btn-primary" @click="panelRestart">
+              <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
+            </button>
+            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
+            <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
+          </div>
+        </div>
+
         <div class="card p-5">
           <h2 class="card-title">{{ t('settings.smtpSettings') }}</h2>
 
@@ -467,15 +459,6 @@
               </label>
             </div>
           </div>
-
-          <div v-if="panelErr" class="text-xs text-danger mt-2">{{ panelErr }}</div>
-          <div class="flex items-center gap-3 mt-4">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="savePanel">
-              <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.savePanel') }}
-            </button>
-            <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
-          </div>
         </div>
       </section>
 
@@ -534,7 +517,6 @@
           </div>
           <div v-if="licErr" class="text-xs text-danger mt-3">{{ licErr }}</div>
 
-          <!-- 添加许可证弹窗 -->
           <div v-if="licFormOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="licFormOpen = false">
             <div class="card p-6 w-full max-w-lg shadow-2xl fade-up" style="border-width: 2px; border-color: var(--dm-line);">
               <h3 class="text-base font-semibold mb-1">{{ t('license.add') }}</h3>
@@ -588,9 +570,28 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-// 分类切换(支持 #profile/#general/#cert/#datetime/#security/#telegram/#email/#license)
-const SECTIONS = ['profile', 'general', 'cert', 'datetime', 'security', 'telegram', 'email', 'license']
+// 分类切换(#general/#security/#telegram/#email/#license;常规页内 tab:#general/#cert/#datetime)
+const SECTIONS = ['general', 'cert', 'datetime', 'security', 'telegram', 'email', 'license']
+const subSections = [
+  { key: 'general', labelKey: 'settings.general', icon: 'settings' },
+  { key: 'security', labelKey: 'settings.securitySettings', icon: 'lock' },
+  { key: 'telegram', labelKey: 'settings.telegramBot', icon: 'send' },
+  { key: 'email', labelKey: 'settings.emailSettings', icon: 'mail' },
+  { key: 'license', labelKey: 'license.title', icon: 'key' },
+]
+// 常规页内横向 tab(仿 3x-ui GeneralTab)
+const generalTabs = [
+  { key: 'general', labelKey: 'settings.general' },
+  { key: 'cert', labelKey: 'settings.certificate' },
+  { key: 'datetime', labelKey: 'settings.dateTime' },
+]
+// 安全设定页内横向 tab(仿 3x-ui SecurityTab)
+const securityTabs = [
+  { key: 'credentials', labelKey: 'settings.adminCredentials' },
+  { key: 'twofactor', labelKey: 'settings.twoFactor' },
+]
 const active = ref('general')
+const secTab = ref('credentials')
 const panelOpen = ref(true)
 function go(section) {
   active.value = section
@@ -602,11 +603,19 @@ watch(
     const key = String(h || '').replace('#', '')
     if (SECTIONS.includes(key)) {
       active.value = key
-      if (key === 'profile' || key === 'general' || key === 'cert' || key === 'datetime') panelOpen.value = true
+      if (key === 'general' || key === 'cert' || key === 'datetime') panelOpen.value = true
     }
   },
   { immediate: true }
 )
+
+// 重启面板(设置保存后需重启生效)
+function panelRestart() {
+  if (!confirm(t('status.restartConfirm'))) return
+  api('/system/restart', { method: 'POST' })
+    .then(() => toastOk(t('status.restarting')))
+    .catch((e) => toastErr(e.message))
+}
 
 const okStyle = { color: '#34d399', background: 'rgba(52,211,153,.12)', border: '1px solid rgba(52,211,153,.3)' }
 const mutedStyle = { color: '#8b93a7', background: 'rgba(139,147,167,.12)', border: '1px solid rgba(139,147,167,.3)' }
@@ -767,7 +776,7 @@ async function uploadAvatar(ev) {
   reader.readAsDataURL(file)
 }
 
-// ---------- 管理员凭证(仿 3x-ui SecurityTab:一次提交改用户名+密码) ----------
+// ---------- 管理员凭证 ----------
 const cred = reactive({ oldUsername: '', oldPassword: '', newUsername: '', newPassword: '' })
 const credErr = ref('')
 const credLoading = ref(false)
@@ -778,7 +787,6 @@ async function saveCredential() {
     credErr.value = t('settings.pwdFillAll')
     return
   }
-  // 改密码(需要旧密码校验)
   if (cred.newPassword) {
     if (cred.newPassword.length < 6) {
       credErr.value = t('settings.pwdMinLen')
@@ -793,7 +801,6 @@ async function saveCredential() {
       return
     }
   }
-  // 改用户名(需要当前用户名)
   if (cred.newUsername && cred.newUsername !== user.username) {
     try {
       const r = await api('/profile', { method: 'POST', json: { username: cred.newUsername, nickname: null } })
@@ -1065,10 +1072,10 @@ onMounted(() => {
 .sub-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   height: 32px;
-  padding: 0 12px 0 34px;
+  padding: 0 12px 0 30px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -1083,15 +1090,14 @@ onMounted(() => {
   background: var(--dm-surface2);
 }
 .sub-item.active {
+  background: color-mix(in srgb, var(--dm-brand) 12%, transparent);
   color: var(--dm-brand);
   font-weight: 600;
 }
-.sub-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.5;
+.sub-icon {
+  flex-shrink: 0;
+  color: currentColor;
+  opacity: 0.85;
 }
 
 .dm-expand-enter-active,
@@ -1117,6 +1123,43 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* 横向 tab(仿 3x-ui antd Tabs) */
+.h-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--dm-line);
+  padding: 0 4px;
+  overflow-x: auto;
+}
+.h-tab {
+  position: relative;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--dm-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+.h-tab:hover {
+  color: var(--dm-text);
+}
+.h-tab.active {
+  color: var(--dm-brand);
+}
+.h-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--dm-brand);
 }
 
 /* 设置行(仿 3x-ui SettingListItem) */

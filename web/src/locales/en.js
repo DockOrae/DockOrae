@@ -522,6 +522,7 @@ export default {
     smtpFrom: 'Sender address',
     smtpFromDesc: 'Emails are sent from this address',
     savePanel: 'Save',
+    restartPanel: 'Restart Panel',
     saveNeedRestart: 'Saved. Takes effect after panel restart',
     saveOk: 'Saved',
     profile: 'Profile',

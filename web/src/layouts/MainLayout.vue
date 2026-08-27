@@ -45,7 +45,7 @@
           <span v-if="expanded || pinned" class="nav-label">{{ t(item.labelKey) }}</span>
         </router-link>
 
-        <!-- 面板设置(点击展开子菜单:个人资料/常规/证书/日期和时间) -->
+        <!-- 面板设置(点击展开子菜单:所有设置项,仿 3x-ui) -->
         <div class="menu-group">
           <button
             type="button"
@@ -70,47 +70,11 @@
               :class="{ active: isSettingsChild && route.path === '/settings' && route.hash === sub.hash }"
               @click="settingsOpen = false"
             >
-              <span class="sub-dot" />{{ t(sub.labelKey) }}
+              <Icon :name="sub.icon" size="14" class="sub-icon" />
+              {{ t(sub.labelKey) }}
             </router-link>
           </div>
         </div>
-
-        <router-link
-          to="/settings#security"
-          class="nav-item"
-          :class="[isSecChild('security') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
-          :title="expanded || pinned ? '' : t('settings.securitySettings')"
-        >
-          <Icon name="lock" size="16" class="nav-icon" />
-          <span v-if="expanded || pinned" class="nav-label">{{ t('settings.securitySettings') }}</span>
-        </router-link>
-        <router-link
-          to="/settings#telegram"
-          class="nav-item"
-          :class="[isSecChild('telegram') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
-          :title="expanded || pinned ? '' : t('settings.telegramBot')"
-        >
-          <Icon name="send" size="16" class="nav-icon" />
-          <span v-if="expanded || pinned" class="nav-label">{{ t('settings.telegramBot') }}</span>
-        </router-link>
-        <router-link
-          to="/settings#email"
-          class="nav-item"
-          :class="[isSecChild('email') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
-          :title="expanded || pinned ? '' : t('settings.smtpSettings')"
-        >
-          <Icon name="mail" size="16" class="nav-icon" />
-          <span v-if="expanded || pinned" class="nav-label">{{ t('settings.smtpSettings') }}</span>
-        </router-link>
-        <router-link
-          to="/settings#license"
-          class="nav-item"
-          :class="[isSecChild('license') ? 'active' : '', !(expanded || pinned) ? 'is-collapsed' : '']"
-          :title="expanded || pinned ? '' : t('license.title')"
-        >
-          <Icon name="key" size="16" class="nav-icon" />
-          <span v-if="expanded || pinned" class="nav-label">{{ t('license.title') }}</span>
-        </router-link>
       </nav>
 
       <!-- 底部:登出 + 版本(仿 3x-ui sider-utility) -->
@@ -261,17 +225,18 @@ const navs = [
   { to: '/compose', labelKey: 'nav.compose', icon: 'compose' },
 ]
 
-// 面板设置子菜单(个人资料在最上面)
+// 面板设置子菜单(仿 3x-ui:常规/安全/TG/邮件/许可证;证书与日期时间在常规页内横向 tab)
 const settingsSubs = [
-  { hash: '#profile', labelKey: 'settings.profile' },
-  { hash: '#general', labelKey: 'settings.general' },
-  { hash: '#cert', labelKey: 'settings.certificate' },
-  { hash: '#datetime', labelKey: 'settings.dateTime' },
+  { hash: '#general', labelKey: 'settings.general', icon: 'settings' },
+  { hash: '#security', labelKey: 'settings.securitySettings', icon: 'lock' },
+  { hash: '#telegram', labelKey: 'settings.telegramBot', icon: 'send' },
+  { hash: '#email', labelKey: 'settings.emailSettings', icon: 'mail' },
+  { hash: '#license', labelKey: 'license.title', icon: 'key' },
 ]
 const settingsOpen = ref(false)
 const isSettingsChild = computed(() => {
   if (route.path !== '/settings') return false
-  return ['#profile', '#general', '#cert', '#datetime'].includes(route.hash)
+  return ['#general', '#cert', '#datetime', '#security', '#telegram', '#email', '#license'].includes(route.hash)
 })
 function toggleSettingsMenu() {
   if (!expanded.value && !pinned.value) {
@@ -304,10 +269,10 @@ function logout() {
   background: var(--dm-bg);
 }
 
-/* ---------- 侧边栏(仿 3x-ui:右侧 72px ↔ 220px,悬停展开) ---------- */
+/* ---------- 侧边栏(仿 3x-ui:左侧 72px ↔ 220px,悬停展开) ---------- */
 .app-sider {
   position: fixed;
-  right: 0;
+  left: 0;
   top: 0;
   bottom: 0;
   z-index: 40;
@@ -315,7 +280,7 @@ function logout() {
   display: flex;
   flex-direction: column;
   background: var(--dm-surface);
-  border-left: 1px solid var(--dm-line);
+  border-right: 1px solid var(--dm-line);
   transition: width 0.25s ease;
   overflow: visible;
 }
@@ -428,15 +393,19 @@ function logout() {
 .nav-item.is-collapsed {
   justify-content: center;
   padding: 0;
+  gap: 0;
 }
 .nav-item.is-collapsed .nav-label {
   display: none;
+}
+.nav-item.is-collapsed .nav-icon {
+  margin: 0;
 }
 .nav-icon {
   flex-shrink: 0;
 }
 
-/* 面板设置子菜单(展开式) */
+/* 面板设置子菜单(仿 3x-ui antd Menu:子项带图标) */
 .nav-caret {
   margin-left: auto;
   color: var(--dm-muted);
@@ -452,9 +421,10 @@ function logout() {
 .sub-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 12px 0 34px;
+  gap: 10px;
+  height: 34px;
+  margin: 2px 4px;
+  padding: 0 10px;
   border-radius: 8px;
   color: var(--dm-muted);
   font-size: 12.5px;
@@ -467,16 +437,14 @@ function logout() {
   background: var(--dm-surface2);
 }
 .sub-item.active {
+  background: color-mix(in srgb, var(--dm-brand) 12%, transparent);
   color: var(--dm-brand);
   font-weight: 600;
 }
-.sub-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.5;
+.sub-icon {
   flex-shrink: 0;
+  color: currentColor;
+  opacity: 0.85;
 }
 
 /* 底部登出(仿 3x-ui sider-utility) */
@@ -541,15 +509,15 @@ function logout() {
 .panel-main {
   flex: 1;
   min-width: 0;
-  margin-right: 72px;
+  margin-left: 72px;
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  transition: margin-right 0.25s ease;
+  transition: margin-left 0.25s ease;
 }
 .panel-main.expanded {
-  margin-right: 220px;
+  margin-left: 220px;
 }
 
 .app-header {
