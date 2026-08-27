@@ -1,13 +1,16 @@
 # ================= Stage 1: 前端构建 =================
-FROM node:22-alpine AS web
+# --platform=$BUILDPLATFORM:始终在构建机原生平台执行(避免 QEMU 模拟 node 极慢)
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json* ./
 RUN npm install --no-audit --no-fund --registry=https://registry.npmmirror.com
 COPY web/ ./
 RUN npm run build
 
-# ================= Stage 2: Go 后端编译(静态二进制) =================
-FROM golang:1.26-alpine AS build
+# ================= Stage 2: Go 后端编译(原生交叉编译,不需要 QEMU) =================
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+ARG TARGETOS
+ARG TARGETARCH
 RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 # 国内代理加速;moby client 模块自带坏的 replace,用自身 replace 覆盖
@@ -16,9 +19,9 @@ COPY go.mod go.sum ./
 COPY main.go web.go ./
 COPY internal/ ./internal/
 COPY --from=web /web/dist ./web/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o docker-manager .
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o docker-manager .
 
-# ================= Stage 3: 运行镜像 =================
+# ================= Stage 3: 运行镜像(目标平台) =================
 FROM alpine:3.20
 ARG TARGETARCH
 RUN apk add --no-cache ca-certificates tini curl \
