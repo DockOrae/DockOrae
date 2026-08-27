@@ -1,17 +1,66 @@
 name: Release Docker Manager Go
 
 on:
+  # 每天北京时间 11:00 / 4:00 自动检测版本(UTC 3:00 / 20:00)
+  schedule:
+    - cron: "0 3,20 * * *"
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
+    inputs:
+      branch:
+        description: '指定编译的版本号(如 v1.1.0)'
+        required: false
+        default: ''
+      info:
+        description: '发布 Release 的补充说明'
+        required: false
+        default: ''
+      force:
+        description: '强制使用手动编译'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  TZ: Asia/Shanghai
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.getversion.outputs.tag }}
+      ver: ${{ steps.getversion.outputs.ver }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      - name: 获取版本号
+        id: getversion
+        run: |
+          # ver = 当前仓库最新 Release 的 tag;tag = 代码(main.go Version)中的版本号
+          ver=$(curl -s https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
+          [ "$ver" = "null" ] && ver="none"
+          tag="v$(grep 'const Version' main.go | grep -o '"[0-9.]*"' | tr -d '"')"
+          echo "代码版本号: ${tag}"
+          echo "当前仓库最新 Release: ${ver}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "ver=${ver}" >> "$GITHUB_OUTPUT"
+
+      - name: 删除流程记录
+        uses: Mattraks/delete-workflow-runs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          retain_days: 0
+          keep_minimum_runs: 0
+
   build:
-    permissions:
-      contents: write
+    needs: check
+    # 手动强制构建,或自动检测到代码版本与已发布版本不同(该 tag 不存在)才构建
+    if: ${{ github.event.inputs.force == 'true' || (github.event.inputs.force != 'true' && needs.check.outputs.tag != needs.check.outputs.ver) }}
     strategy:
-      # 单一平台故障不取消其他六个
       fail-fast: false
       matrix:
         platform:
@@ -24,8 +73,19 @@ jobs:
           - s390x
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v7
+
+      - name: 设置版本号
+        run: |
+          if [[ -n "${{ github.event.inputs.branch }}" ]]; then
+            TAG="${{ github.event.inputs.branch }}"
+          else
+            TAG="${{ needs.check.outputs.tag }}"
+          fi
+          echo "发布版本: ${TAG}"
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S')" >> "$GITHUB_ENV"
 
       - name: Setup Go
         uses: actions/setup-go@v7
@@ -42,7 +102,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: web/package-lock.json
 
-      - name: Build frontend bundle
+      - name: 前端构建
         working-directory: web
         run: |
           npm ci --no-audit --no-fund
@@ -50,7 +110,7 @@ jobs:
 
       # 纯 Go 项目(modernc sqlite 无 cgo),CGO_ENABLED=0 原生交叉编译,
       # 不需要交叉工具链;armv5/6/7 通过 GOARM 区分
-      - name: Build binary
+      - name: 编译
         run: |
           export CGO_ENABLED=0
           export GOOS=linux
@@ -63,23 +123,27 @@ jobs:
           go build -trimpath -ldflags="-s -w" -o docker-manager-go .
           file docker-manager-go
 
-      - name: Package
+      - name: 打包
         run: |
           mkdir docker-manager-go
           cp docker-manager-go docker-manager-go/
           cp README.md docker-manager-go/ 2>/dev/null || true
           tar -zcvf docker-manager-go-linux-${{ matrix.platform }}.tar.gz docker-manager-go
 
-      - name: Upload artifact
+      - name: 上传 artifact
         uses: actions/upload-artifact@v7
         with:
           name: docker-manager-go-linux-${{ matrix.platform }}
           path: ./docker-manager-go-linux-${{ matrix.platform }}.tar.gz
 
-      - name: Upload files to GH release
-        uses: svenstaro/upload-release-action@v2
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref_name }}
-          file: docker-manager-go-linux-${{ matrix.platform }}.tar.gz
+          token: ${{ github.token }}
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          body: |
+            > ### ![](https://img.shields.io/badge/编译时间-${{ env.build_time }}-8267?logo=github&labelColor=需)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.TAG }}/total?label=下载次数&logo=github)
+
+            ${{ github.event.inputs.info }}
+          files: docker-manager-go-linux-*.tar.gz
