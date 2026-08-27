@@ -69,7 +69,10 @@ func systemLogin(c *gin.Context, st *state.AppState) error {
 	}
 	u := st.FindUser(req.Username)
 	if u == nil || !auth.VerifyPassword(req.Password, u.PasswordHash) {
-		// 登录失败 → 通知
+		// 登录失败 → 通知 + 事件记录
+		if st.DB != nil {
+			st.DB.AddEvent("login_fail", req.Username, "invalid credentials", c.ClientIP())
+		}
 		notify.Notify(st.Settings, notify.EvLoginFail, "面板登录失败",
 			"用户: "+req.Username+"\nIP: "+c.ClientIP()+"\n时间: "+time.Now().Format("2006-01-02 15:04:05"))
 		return NewApiError(401, "login.errPwd")
@@ -80,6 +83,9 @@ func systemLogin(c *gin.Context, st *state.AppState) error {
 		return nil
 	}
 	token := auth.MakeToken(st.Cfg.JWTSecret, u.Username, st.Settings.SessionTTLSeconds())
+	if st.DB != nil {
+		st.DB.AddEvent("login", u.Username, "password", c.ClientIP())
+	}
 	notify.Notify(st.Settings, notify.EvLogin, "面板登录成功",
 		"用户: "+u.Username+"\nIP: "+c.ClientIP()+"\n时间: "+time.Now().Format("2006-01-02 15:04:05"))
 	c.JSON(200, gin.H{
@@ -105,9 +111,15 @@ func systemLoginTotp(c *gin.Context, st *state.AppState) error {
 		return NewApiError(401, "login.errTotpCode")
 	}
 	if !auth.VerifyTotp(*u.TotpSecret, req.Code) {
+		if st.DB != nil {
+			st.DB.AddEvent("login_fail", req.Username, "invalid totp", c.ClientIP())
+		}
 		return NewApiError(401, "login.errTotpCode")
 	}
 	token := auth.MakeToken(st.Cfg.JWTSecret, u.Username, st.Settings.SessionTTLSeconds())
+	if st.DB != nil {
+		st.DB.AddEvent("login", u.Username, "totp", c.ClientIP())
+	}
 	c.JSON(200, gin.H{
 		"token": token, "username": u.Username,
 		"nickname": u.Nickname, "avatar": u.Avatar,

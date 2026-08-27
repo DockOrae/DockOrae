@@ -7,11 +7,10 @@
       @mouseenter="onEnter"
       @mouseleave="onLeave"
     >
-      <!-- 品牌区 -->
+      <!-- 品牌区(只留 logo 图标) -->
       <div class="sider-brand">
         <div class="brand-block" @click="$router.push('/')">
           <img src="/logo.svg" alt="logo" class="brand-logo" />
-          <span v-if="expanded || pinned" class="brand-text">Docker Manager</span>
         </div>
         <div v-if="expanded || pinned" class="brand-actions">
           <button
@@ -22,9 +21,8 @@
             :aria-label="t(pinned ? 'nav.unpin' : 'nav.pin')"
             @click="togglePinned"
           >
-            <Icon :name="pinned ? 'pinFilled' : 'pin'" size="14" />
+            <Icon :name="pinned ? 'pinFilled' : 'pin'" size="16" />
           </button>
-          <SwitchAppearance />
         </div>
       </div>
 
@@ -68,7 +66,6 @@
               :to="'/settings' + sub.hash"
               class="sub-item"
               :class="{ active: isSettingsChild && route.path === '/settings' && route.hash === sub.hash }"
-              @click="settingsOpen = false"
             >
               <Icon :name="sub.icon" size="14" class="sub-icon" />
               {{ t(sub.labelKey) }}
@@ -102,6 +99,7 @@
       <header class="app-header">
         <h1 class="page-title">{{ t($route.meta.title || '') }}</h1>
         <div class="header-actions">
+          <SwitchAppearance />
           <ToggleLocale />
           <a
             href="https://manager.kejizero.xyz"
@@ -170,7 +168,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
@@ -225,19 +223,28 @@ const navs = [
   { to: '/compose', labelKey: 'nav.compose', icon: 'compose' },
 ]
 
-// 面板设置子菜单(仿 3x-ui:常规/安全/TG/邮件/许可证;证书与日期时间在常规页内横向 tab)
+// 面板设置子菜单(仿 3x-ui:常规/安全/TG/邮件/许可证/关于;证书与日期时间在常规页内横向 tab)
 const settingsSubs = [
   { hash: '#general', labelKey: 'settings.general', icon: 'settings' },
   { hash: '#security', labelKey: 'settings.securitySettings', icon: 'lock' },
   { hash: '#telegram', labelKey: 'settings.telegramBot', icon: 'send' },
   { hash: '#email', labelKey: 'settings.emailSettings', icon: 'mail' },
   { hash: '#license', labelKey: 'license.title', icon: 'key' },
+  { hash: '#about', labelKey: 'settings.about', icon: 'info' },
 ]
 const settingsOpen = ref(false)
 const isSettingsChild = computed(() => {
   if (route.path !== '/settings') return false
-  return ['#general', '#cert', '#datetime', '#security', '#telegram', '#email', '#license'].includes(route.hash)
+  return ['#general', '#cert', '#about', '#datetime', '#security', '#telegram', '#email', '#license'].includes(route.hash)
 })
+// 仿 3x-ui:进入设置页自动展开子菜单(人在子菜单里不收起),离开后收起
+watch(
+  () => route.path,
+  (p) => {
+    settingsOpen.value = p === '/settings'
+  },
+  { immediate: true }
+)
 function toggleSettingsMenu() {
   if (!expanded.value && !pinned.value) {
     // 折叠态:悬停已展开,点击直接进常规
@@ -290,6 +297,7 @@ function logout() {
 
 /* 品牌区 */
 .sider-brand {
+  position: relative;
   display: flex;
   align-items: center;
   height: 56px;
@@ -303,6 +311,7 @@ function logout() {
 .brand-block {
   display: flex;
   align-items: center;
+  justify-content: center; /* 展开/收起 logo 都居中(仿 3x-ui) */
   gap: 8px;
   min-width: 0;
   cursor: pointer;
@@ -314,20 +323,15 @@ function logout() {
   object-fit: contain;
   flex-shrink: 0;
 }
-.brand-text {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--dm-text);
-  letter-spacing: 0.3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* 图钉按钮悬浮右侧,不挤占 logo 居中位置 */
 .brand-actions {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
 }
 .brand-btn {
   display: flex;
@@ -344,8 +348,8 @@ function logout() {
 }
 .brand-btn:hover,
 .brand-btn.active {
-  color: var(--dm-brand);
-  background: color-mix(in srgb, var(--dm-brand) 10%, transparent);
+  color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 10%, transparent);
 }
 
 /* 导航菜单(仿 3x-ui antd Menu) */
@@ -374,18 +378,10 @@ function logout() {
   color: var(--dm-text);
   background: var(--dm-surface2);
 }
+/* 选中态(仿 3x-ui AppSidebar.css:主题色 20% 背景块 + 主题色文字,即"底光标") */
 .nav-item.active {
-  color: var(--dm-brand);
-  background: color-mix(in srgb, var(--dm-brand) 12%, transparent);
-}
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  width: 3px;
-  height: 20px;
-  border-radius: 0 3px 3px 0;
-  background: var(--dm-brand);
+  color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
 }
 .nav-item {
   position: relative;
@@ -405,6 +401,12 @@ function logout() {
   flex-shrink: 0;
 }
 
+/* 面板设置按钮(<button> 的 width:auto 是 fit-content,必须显式占满,
+   否则收起态按钮只包住图标贴在左侧、图标不居中) */
+.menu-group .nav-item {
+  width: 100%;
+}
+
 /* 面板设置子菜单(仿 3x-ui antd Menu:子项带图标) */
 .nav-caret {
   margin-left: auto;
@@ -419,6 +421,7 @@ function logout() {
   padding: 2px 0 6px;
 }
 .sub-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -437,8 +440,8 @@ function logout() {
   background: var(--dm-surface2);
 }
 .sub-item.active {
-  background: color-mix(in srgb, var(--dm-brand) 12%, transparent);
-  color: var(--dm-brand);
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+  color: var(--color-brand);
   font-weight: 600;
 }
 .sub-icon {
@@ -498,7 +501,7 @@ function logout() {
   transition: color 0.15s, background 0.15s;
 }
 .sider-version:hover {
-  color: var(--dm-brand);
+  color: var(--color-brand);
   background: var(--dm-surface2);
 }
 .sider-version.is-collapsed {

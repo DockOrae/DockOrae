@@ -743,8 +743,8 @@ onBeforeUnmount(() => {
   transition: all 0.15s;
 }
 .ab-btn:hover {
-  color: var(--dm-brand);
-  border-color: var(--dm-brand);
+  color: var(--color-brand);
+  border-color: var(--color-brand);
 }
 
 /* ---------- 健康条 ---------- */
@@ -785,7 +785,7 @@ onBeforeUnmount(() => {
   transition: all 0.15s;
 }
 .stat-chip:hover {
-  border-color: var(--dm-brand);
+  border-color: var(--color-brand);
   color: var(--dm-text);
 }
 .stat-chip b {
@@ -824,7 +824,7 @@ onBeforeUnmount(() => {
   align-self: flex-start;
 }
 .vital-icon {
-  color: var(--dm-brand);
+  color: var(--color-brand);
 }
 .vital-label {
   font-size: 13px;

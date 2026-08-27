@@ -79,6 +79,8 @@ func panelSettingsSave(c *gin.Context, st *state.AppState) error {
 	if err := st.Settings.Update(patch); err != nil {
 		return BadRequest("保存失败: " + err.Error())
 	}
+	// 设置变更后重启 Telegram 周期报告调度
+	notify.StartReporter(st.Settings, st.Cfg.DataDir)
 	c.JSON(200, gin.H{"ok": true, "needRestart": true})
 	return nil
 }
@@ -89,6 +91,29 @@ func panelSettingsSave(c *gin.Context, st *state.AppState) error {
 func panelLogs(c *gin.Context, st *state.AppState) error {
 	lines := 500
 	c.JSON(200, gin.H{"logs": LogRing.Lines(lines)})
+	return nil
+}
+
+// panelEvents 操作/登录事件记录(存 SQLite,仿 3x-ui access log)
+func panelEvents(c *gin.Context, st *state.AppState) error {
+	if st.DB == nil {
+		c.JSON(200, gin.H{"events": []any{}})
+		return nil
+	}
+	list, err := st.DB.RecentEvents(200)
+	if err != nil {
+		return err
+	}
+	c.JSON(200, gin.H{"events": list})
+	return nil
+}
+
+// panelTestEmail 发送测试邮件(仿 3x-ui testSmtp)
+func panelTestEmail(c *gin.Context, st *state.AppState) error {
+	if err := notify.SendTestEmail(st.Settings); err != nil {
+		return BadRequest("邮件发送失败: " + err.Error())
+	}
+	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
@@ -218,6 +243,8 @@ func panelRestore(c *gin.Context, st *state.AppState) error {
 		out.Close()
 	}
 
+	// 恢复前:关闭数据库连接(替换 db 文件前必须释放句柄,Windows 下占用无法删除)
+	st.ReloadDB()
 	// 备份当前数据目录(恢复到失败可回滚)
 	rollback := filepath.Join(st.Cfg.DataDir, ".restore-backup")
 	_ = os.RemoveAll(rollback)
@@ -238,9 +265,8 @@ func panelRestore(c *gin.Context, st *state.AppState) error {
 	}
 	_ = os.RemoveAll(rollback)
 
-	// 恢复后重载用户与设置
-	_ = st.ReloadUsers()
-	_ = st.Settings.Update(map[string]any{})
+	// 恢复后重载数据库与内存状态
+	st.ReloadDB()
 
 	notify.Notify(st.Settings, notify.EvSystem, "面板数据恢复", "数据目录已从备份恢复")
 	c.JSON(200, gin.H{"ok": true, "needRestart": true})

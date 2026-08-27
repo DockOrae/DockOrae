@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/db"
 )
 
 // Settings 面板设置(存 data_dir/settings.json,仿 3x-ui webSetting)
@@ -29,13 +31,18 @@ type Settings struct {
 	TgBotToken     string   `json:"tgBotToken"`
 	TgAdminChatId  string   `json:"tgAdminChatId"`
 	TgNotifyEvents []string `json:"tgNotifyEvents"`
+	TgRunTime      string   `json:"tgRunTime"`   // 周期报告频率(@every 1h / @daily / crontab 表达式;空 = 不启用)
+	TgBotBackup    bool     `json:"tgBotBackup"` // 周期报告附带数据库备份文件
 	// 邮件
 	EmailEnable       bool     `json:"emailEnable"`
 	SmtpHost          string   `json:"smtpHost"`
 	SmtpPort          int      `json:"smtpPort"`
 	SmtpUser          string   `json:"smtpUser"`
 	SmtpPass          string   `json:"smtpPass"`
-	SmtpFrom          string   `json:"smtpFrom"`
+	SmtpFrom          string   `json:"smtpFrom"`       // 发件人地址
+	SmtpFromName      string   `json:"smtpFromName"`   // 发件人名称(From 头显示名,可选)
+	SmtpTo            string   `json:"smtpTo"`         // 收件人,逗号分隔(空 = 发给自己)
+	SmtpEncryption    string   `json:"smtpEncryption"` // SMTP 加密:none / ssl / starttls
 	EmailNotifyEvents []string `json:"emailNotifyEvents"`
 }
 
@@ -43,7 +50,11 @@ type Store struct {
 	mu   sync.Mutex
 	path string
 	s    *Settings
+	// SQLite 后端(非空时优先写库;旧 settings.json 首次启动迁移进库)
+	conn *db.DB
 }
+
+const settingsKey = "main"
 
 func Default(envPort string) *Settings {
 	port := uint16(8080)
@@ -60,17 +71,39 @@ func Default(envPort string) *Settings {
 	}
 }
 
-func Load(dataDir string, envPort string) (*Store, error) {
+// Load 加载设置:优先 SQLite(仿 3x-ui),库为空时迁移旧 settings.json。
+// shared 为外部已打开的数据库连接(与 users/events 共享),nil 时自行打开。
+func Load(dataDir string, envPort string, shared *db.DB) (*Store, error) {
 	path := filepath.Join(dataDir, "settings.json")
-	s := Default(envPort)
-	if raw, err := os.ReadFile(path); err == nil {
-		if json.Unmarshal(raw, s) != nil {
-			// 解析失败用默认值
-		} else {
-			normalize(s)
+	st := &Store{path: path, s: Default(envPort)}
+	if shared != nil {
+		st.conn = shared
+	} else if d, err := db.Open(dataDir); err == nil {
+		st.conn = d
+	}
+	if st.conn != nil {
+		raw, _ := st.conn.GetSetting(settingsKey)
+		if raw != "" {
+			// 已入库:直接读库
+			if json.Unmarshal([]byte(raw), st.s) == nil {
+				normalize(st.s)
+				return st, nil
+			}
+		} else if oldRaw, err := os.ReadFile(path); err == nil && json.Unmarshal(oldRaw, st.s) == nil {
+			// 旧 JSON 迁移进库
+			normalize(st.s)
+			_ = st.saveDB()
+			return st, nil
 		}
 	}
-	st := &Store{path: path, s: s}
+	// 无库且无旧文件:默认值
+	if raw, err := os.ReadFile(path); err == nil {
+		if json.Unmarshal(raw, st.s) != nil {
+			// 解析失败用默认值
+		} else {
+			normalize(st.s)
+		}
+	}
 	_ = st.Save()
 	return st, nil
 }
@@ -115,7 +148,30 @@ func (st *Store) Save() error {
 	if err != nil {
 		return err
 	}
+	// SQLite 优先;JSON 文件保留为兼容快照(备份/迁移兜底)
+	if st.conn != nil {
+		if err := st.saveDB(); err == nil {
+			return nil
+		}
+	}
 	return os.WriteFile(st.path, out, 0o600)
+}
+
+// saveDB 写设置到 SQLite(整个 Settings 对象一行 JSON)
+func (st *Store) saveDB() error {
+	raw, err := json.Marshal(st.s)
+	if err != nil {
+		return err
+	}
+	return st.conn.PutSetting(settingsKey, string(raw))
+}
+
+// Close 关闭数据库连接(进程退出时)
+func (st *Store) Close() error {
+	if st.conn != nil {
+		return st.conn.Close()
+	}
+	return nil
 }
 
 // SessionTTL 会话时长转 JWT TTL 秒

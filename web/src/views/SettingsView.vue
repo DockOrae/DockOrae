@@ -1,27 +1,8 @@
 <template>
   <div class="settings-page">
-    <!-- 左侧分类菜单(仿 3x-ui:全部子项在面板设置下) -->
-    <aside class="settings-menu">
-      <div class="menu-group">
-        <button type="button" class="menu-item" :class="{ active: panelOpen }" @click="panelOpen = !panelOpen">
-          <Icon name="settings" size="15" class="menu-icon" />
-          <span class="menu-label">{{ t('settings.panelSettings') }}</span>
-          <Icon name="chevronsRight" size="12" class="menu-caret" :class="{ open: panelOpen }" />
-        </button>
-        <Transition name="dm-expand">
-          <div v-if="panelOpen" class="menu-sub">
-            <button v-for="sub in subSections" :key="sub.key" type="button" class="sub-item" :class="{ active: active === sub.key }" @click="go(sub.key)">
-              <Icon :name="sub.icon" size="14" class="sub-icon" />
-              {{ t(sub.labelKey) }}
-            </button>
-          </div>
-        </Transition>
-      </div>
-    </aside>
-
-    <!-- 右侧内容区 -->
+    <!-- 右侧内容区(导航由侧边栏"面板设置"子菜单承担) -->
     <main class="settings-content">
-      <!-- ============ 常规(个人资料在最上面 + 横向 tab:常规|证书|日期和时间) ============ -->
+      <!-- ============ 常规(个人资料/镜像加速在常规 tab 内 + 横向 tab:常规|证书|日期和时间) ============ -->
       <section v-if="active === 'general' || active === 'cert' || active === 'datetime'" class="space-y-4 fade-up">
         <!-- 操作栏:保存 + 重启面板(仿 3x-ui 顶部) -->
         <div class="card p-4">
@@ -38,39 +19,6 @@
           </div>
         </div>
 
-        <!-- 个人资料(放到常规里面,最上面) -->
-        <div class="card p-5">
-          <h2 class="card-title">{{ t('settings.profile') }}</h2>
-          <div class="flex items-center gap-4 mb-5">
-            <img :src="avatarPreview" alt="avatar" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-white/15 shadow-lg" />
-            <div class="flex-1">
-              <button class="btn btn-ghost btn-sm" @click="avatarInput?.click()">
-                <Icon name="image" size="13" /> {{ t('settings.' + (user.avatar ? 'changeAvatar' : 'uploadAvatar')) }}
-              </button>
-              <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadAvatar" />
-              <p class="text-[11px] text-muted mt-1.5">{{ t('settings.avatarNote') }}</p>
-            </div>
-          </div>
-          <form class="space-y-4" @submit.prevent="saveProfile">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="label">{{ t('settings.username') }}</label>
-                <input v-model="profile.username" class="input" maxlength="32" />
-                <p class="text-[11px] text-muted mt-1">{{ t('settings.usernameNote') }}</p>
-              </div>
-              <div>
-                <label class="label">{{ t('settings.nickname') }}</label>
-                <input v-model="profile.nickname" class="input" maxlength="32" :placeholder="t('settings.nicknamePh')" />
-              </div>
-            </div>
-            <div v-if="profileErr" class="text-xs text-danger">{{ profileErr }}</div>
-            <button type="submit" class="btn btn-brand" :disabled="profileLoading">
-              <span v-if="profileLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              {{ t('settings.saveProfile') }}
-            </button>
-          </form>
-        </div>
-
         <!-- 横向 tab(仿 3x-ui GeneralTab) -->
         <div class="h-tabs">
           <button
@@ -85,7 +33,7 @@
           </button>
         </div>
 
-        <!-- 常规:web 设置 -->
+        <!-- 常规:web 设置(镜像加速已合并进本卡) -->
         <div v-if="active === 'general'" class="card p-5">
           <div class="setting-row">
             <div class="sr-info">
@@ -132,6 +80,33 @@
             </div>
             <input v-model="allowlistText" class="input sr-input" :placeholder="t('settings.ipLimitAllowlistPh')" />
           </div>
+
+          <!-- 镜像加速(合并进 web 设置卡,setting-row 风格) -->
+          <div class="setting-row items-start">
+            <div class="sr-info">
+              <div class="sr-label flex items-center gap-1.5">
+                <Icon name="image" size="14" class="text-brand" />
+                {{ t('settings.mirrors') }}
+              </div>
+              <div class="sr-desc">{{ t('settings.mirrorHelper') }}</div>
+              <span v-if="mirrorPath" class="block text-[11px] text-muted truncate max-w-[240px] mt-1" :title="mirrorPath">{{ mirrorPath }}</span>
+            </div>
+            <div class="sr-input !w-[420px]">
+              <textarea
+                v-model="mirrorsText"
+                class="input !h-24 code-panel font-mono text-[12px] leading-relaxed w-full"
+                :placeholder="t('settings.mirrorPlaceholder')"
+                spellcheck="false"
+              />
+              <div class="flex items-center gap-3 mt-2">
+                <button class="btn btn-primary btn-sm" :disabled="savingMirrors" @click="saveMirrors">
+                  <Icon name="save" size="13" /> {{ t('settings.saveMirrors') }}
+                </button>
+                <span v-if="mirrorMsg" class="text-[11px]" :class="mirrorOk ? 'text-ok' : 'text-danger'">{{ mirrorMsg }}</span>
+              </div>
+              <p class="text-[11px] text-muted mt-2 leading-relaxed">{{ t('settings.mirrorRestartHint') }}</p>
+            </div>
+          </div>
         </div>
 
         <!-- 证书 -->
@@ -170,51 +145,15 @@
             <input v-model="form.datePickerType" class="input sr-input" placeholder="gregorian" />
           </div>
         </div>
-
-        <!-- 镜像加速(仅常规) -->
-        <div v-if="active === 'general'" class="card p-5">
-          <div class="flex items-center gap-2 mb-3">
-            <Icon name="image" size="16" class="text-brand" />
-            <h2 class="text-sm font-semibold">{{ t('settings.mirrors') }}</h2>
-            <span v-if="mirrorPath" class="ml-auto text-[11px] text-muted truncate max-w-[220px]" :title="mirrorPath">{{ mirrorPath }}</span>
-          </div>
-          <p class="text-[12px] text-muted mb-3 leading-relaxed">{{ t('settings.mirrorHelper') }}</p>
-          <textarea v-model="mirrorsText" class="input !h-28 code-panel font-mono text-[12px] leading-relaxed" :placeholder="t('settings.mirrorPlaceholder')" spellcheck="false" />
-          <div class="flex items-center gap-3 mt-3">
-            <button class="btn btn-primary btn-sm" :disabled="savingMirrors" @click="saveMirrors">
-              <Icon name="save" size="13" /> {{ t('settings.saveMirrors') }}
-            </button>
-            <span v-if="mirrorMsg" class="text-[11px]" :class="mirrorOk ? 'text-ok' : 'text-danger'">{{ mirrorMsg }}</span>
-          </div>
-          <p class="text-[11px] text-muted mt-3 leading-relaxed">{{ t('settings.mirrorRestartHint') }}</p>
-        </div>
-
-        <!-- 关于(仅常规) -->
-        <div v-if="active === 'general'" class="card p-5">
-          <h2 class="card-title">{{ t('settings.about') }}</h2>
-          <dl class="text-[13px] space-y-2">
-            <div class="flex"><dt class="text-muted w-28">{{ t('settings.panelName') }}</dt><dd class="font-medium">{{ t('app.name') }}</dd></div>
-            <div class="flex"><dt class="text-muted w-28">{{ t('settings.version') }}</dt><dd>{{ t('app.version') }}</dd></div>
-            <div class="flex"><dt class="text-muted w-28">{{ t('settings.stack') }}</dt><dd>Go (gin + Docker SDK) + Vue 3</dd></div>
-            <div class="flex items-center gap-2">
-              <dt class="text-muted w-28">{{ t('settings.source') }}</dt>
-              <dd>
-                <a href="https://github.com/MinimaxFlora/Docker_Manager_Go" target="_blank" rel="noopener" class="link flex items-center gap-1">
-                  github.com/MinimaxFlora/Docker_Manager_Go <Icon name="external" size="12" />
-                </a>
-              </dd>
-            </div>
-          </dl>
-        </div>
       </section>
 
       <!-- ============ 安全设定(横向 tab:管理员凭证|双重认证 + 重启按钮) ============ -->
       <section v-if="active === 'security'" class="space-y-4 fade-up">
         <div class="card p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button class="btn btn-brand" :disabled="credLoading" @click="saveCredential">
-              <span v-if="credLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              <Icon v-else name="check" size="14" /> {{ t('settings.saveCredentials') }}
+            <button class="btn btn-brand" :disabled="accountLoading" @click="saveAccount">
+              <span v-if="accountLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <Icon v-else name="check" size="14" /> {{ t('settings.saveAccount') }}
             </button>
             <button class="btn btn-primary" @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
@@ -236,26 +175,52 @@
           </button>
         </div>
 
-        <!-- 管理员凭证 -->
+        <!-- 管理员凭证(个人资料 + 密码修改合并,仿 3x-ui admin) -->
         <div v-if="secTab === 'credentials'" class="card p-5">
+          <h2 class="card-title">{{ t('settings.adminCredentials') }}</h2>
+
+          <!-- 头像 -->
+          <div class="flex items-center gap-4 mb-5">
+            <img :src="avatarPreview" alt="avatar" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-white/15 shadow-lg" />
+            <div class="flex-1">
+              <button class="btn btn-ghost btn-sm" @click="avatarInput?.click()">
+                <Icon name="image" size="13" /> {{ t('settings.' + (user.avatar ? 'changeAvatar' : 'uploadAvatar')) }}
+              </button>
+              <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadAvatar" />
+              <p class="text-[11px] text-muted mt-1.5">{{ t('settings.avatarNote') }}</p>
+            </div>
+          </div>
+
+          <!-- 账号信息 -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="label">{{ t('settings.oldUsername') }}</label>
-              <input v-model="cred.oldUsername" class="input" :placeholder="t('settings.oldUsernamePh')" autocomplete="username" />
+              <label class="label">{{ t('settings.username') }}</label>
+              <input v-model="profile.username" class="input" maxlength="32" />
+              <p class="text-[11px] text-muted mt-1">{{ t('settings.usernameNote') }}</p>
             </div>
+            <div>
+              <label class="label">{{ t('settings.nickname') }}</label>
+              <input v-model="profile.nickname" class="input" maxlength="32" :placeholder="t('settings.nicknamePh')" />
+            </div>
+          </div>
+
+          <!-- 修改密码 -->
+          <div class="flex items-center gap-2 mt-6 mb-3">
+            <Icon name="lock" size="15" class="text-brand" />
+            <h3 class="text-[13px] font-semibold">{{ t('settings.changePwd') }}</h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="label">{{ t('settings.oldPassword') }}</label>
               <input v-model="cred.oldPassword" type="password" class="input" autocomplete="current-password" />
-            </div>
-            <div>
-              <label class="label">{{ t('settings.newUsername') }}</label>
-              <input v-model="cred.newUsername" class="input" :placeholder="t('settings.newUsernamePh')" autocomplete="username" />
             </div>
             <div>
               <label class="label">{{ t('settings.newPassword') }}</label>
               <input v-model="cred.newPassword" type="password" class="input" autocomplete="new-password" />
             </div>
           </div>
+
+          <div v-if="profileErr || credErr" class="text-xs text-danger mt-3">{{ profileErr || credErr }}</div>
           <p class="text-[11px] text-muted mt-4">{{ t('settings.saveNeedRestart') }}</p>
         </div>
 
@@ -316,7 +281,7 @@
         </div>
       </section>
 
-      <!-- ============ Telegram 机器人 ============ -->
+      <!-- ============ Telegram 机器人(仿 3x-ui:面板设置 | 通知 两个子 tab) ============ -->
       <section v-if="active === 'telegram'" class="space-y-4 fade-up">
         <div class="card p-4">
           <div class="flex items-center gap-3 flex-wrap">
@@ -327,13 +292,23 @@
             <button class="btn btn-primary" @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
             </button>
-            <button class="btn btn-ghost" :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</button>
             <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
         </div>
 
-        <div class="card p-5">
+        <!-- 子 tab(仿 3x-ui TelegramTab) -->
+        <div class="h-tabs">
+          <button type="button" class="h-tab" :class="{ active: tgTab === 'panel' }" @click="tgTab = 'panel'">
+            <Icon name="settings" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.panelSettings') }}
+          </button>
+          <button type="button" class="h-tab" :class="{ active: tgTab === 'notify' }" @click="tgTab = 'notify'">
+            <Icon name="clock" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.notifications') }}
+          </button>
+        </div>
+
+        <!-- 面板设置 -->
+        <div v-if="tgTab === 'panel'" class="card p-5">
           <h2 class="card-title">{{ t('settings.telegramBot') }}</h2>
           <p class="text-[12px] text-muted mb-4">{{ t('settings.telegramDesc') }}</p>
 
@@ -363,22 +338,78 @@
             <input v-model="form.tgAdminChatId" class="input sr-input" :placeholder="t('settings.tgAdminChatIdPh')" />
           </div>
 
+          <div class="mt-4">
+            <button class="btn btn-ghost" :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</button>
+          </div>
+        </div>
+
+        <!-- 通知(仿 3x-ui TelegramTab notifications) -->
+        <div v-if="tgTab === 'notify'" class="card p-5">
+          <div class="setting-row items-start">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.telegramNotifyTime') }}</div>
+              <div class="sr-desc">{{ t('settings.telegramNotifyTimeDesc') }}</div>
+            </div>
+            <div class="sr-input !w-[340px]">
+              <select v-model="notifyMode" class="input w-full mb-2" @change="onNotifyModeChange">
+                <option value="every">{{ t('settings.notifyEvery') }}</option>
+                <option value="@hourly">{{ t('settings.notifyHourly') }}</option>
+                <option value="@daily">{{ t('settings.notifyDaily') }}</option>
+                <option value="@weekly">{{ t('settings.notifyWeekly') }}</option>
+                <option value="@monthly">{{ t('settings.notifyMonthly') }}</option>
+                <option value="custom">{{ t('settings.notifyCustom') }}</option>
+              </select>
+              <div v-if="notifyMode === 'every'" class="flex gap-2">
+                <input v-model.number="notifyNum" type="number" min="1" class="input flex-1" :placeholder="t('settings.notifyInterval')" @input="onNotifyEveryChange" />
+                <select v-model="notifyUnit" class="input flex-1" @change="onNotifyEveryChange">
+                  <option value="s">{{ t('settings.notifySeconds') }}</option>
+                  <option value="m">{{ t('settings.notifyMinutes') }}</option>
+                  <option value="h">{{ t('settings.notifyHours') }}</option>
+                </select>
+              </div>
+              <input
+                v-if="notifyMode === 'custom'"
+                v-model="notifyCustom"
+                class="input w-full font-mono"
+                placeholder="0 30 8 * * *"
+                @input="onNotifyCustomChange"
+              />
+            </div>
+          </div>
+
           <div class="setting-row">
             <div class="sr-info">
-              <div class="sr-label">{{ t('settings.notifyEvents') }}</div>
-              <div class="sr-desc">{{ t('settings.notifyEventsDesc') }}</div>
+              <div class="sr-label">{{ t('settings.tgNotifyBackup') }}</div>
+              <div class="sr-desc">{{ t('settings.tgNotifyBackupDesc') }}</div>
             </div>
-            <div class="event-checkboxes">
-              <label v-for="ev in notifyEventOptions" :key="ev.key" class="ev-item">
-                <input type="checkbox" :value="ev.key" v-model="tgEvents" />
-                <span>{{ ev.label }}</span>
-              </label>
+            <button type="button" class="switch" :class="{ on: form.tgBotBackup }" @click="form.tgBotBackup = !form.tgBotBackup">
+              <span class="switch-knob" />
+            </button>
+          </div>
+
+          <div class="setting-row items-start">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.tgEventBusNotify') }}</div>
+              <div class="sr-desc">{{ t('settings.tgEventBusNotifyDesc') }}</div>
+            </div>
+            <div class="notify-groups">
+              <div v-for="g in notifyGroups" :key="g.key" class="ng-group">
+                <div class="ng-title">
+                  <Icon :name="g.icon" size="13" />
+                  {{ t(g.labelKey) }}
+                  <span class="ng-count">{{ countSel(g) }}/{{ g.events.length }}</span>
+                </div>
+                <label v-for="ev in g.events" :key="ev.key" class="ng-item">
+                  <input type="checkbox" :value="ev.key" v-model="tgEvents" />
+                  <span>{{ t(ev.labelKey) }}</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ============ 邮件 ============ -->
+      <!-- ============ 邮件(仿 3x-ui:SMTP 设置 | 通知 两个子 tab) ============ -->
       <section v-if="active === 'email'" class="space-y-4 fade-up">
         <div class="card p-4">
           <div class="flex items-center gap-3 flex-wrap">
@@ -389,12 +420,24 @@
             <button class="btn btn-primary" @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
             </button>
+            <button class="btn btn-ghost" :disabled="panelLoading" @click="emailTest">{{ t('settings.testSmtp') }}</button>
             <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
         </div>
 
-        <div class="card p-5">
+        <!-- 子 tab(仿 3x-ui EmailTab) -->
+        <div class="h-tabs">
+          <button type="button" class="h-tab" :class="{ active: emailTab === 'smtp' }" @click="emailTab = 'smtp'">
+            <Icon name="mail" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.smtpSettings') }}
+          </button>
+          <button type="button" class="h-tab" :class="{ active: emailTab === 'notify' }" @click="emailTab = 'notify'">
+            <Icon name="clock" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.notifications') }}
+          </button>
+        </div>
+
+        <!-- SMTP 设置 -->
+        <div v-if="emailTab === 'smtp'" class="card p-5">
           <h2 class="card-title">{{ t('settings.smtpSettings') }}</h2>
 
           <div class="setting-row">
@@ -449,14 +492,52 @@
 
           <div class="setting-row">
             <div class="sr-info">
-              <div class="sr-label">{{ t('settings.notifyEvents') }}</div>
-              <div class="sr-desc">{{ t('settings.notifyEventsDesc') }}</div>
+              <div class="sr-label">{{ t('settings.smtpFromName') }}</div>
+              <div class="sr-desc">{{ t('settings.smtpFromNameDesc') }}</div>
             </div>
-            <div class="event-checkboxes">
-              <label v-for="ev in notifyEventOptions" :key="ev.key" class="ev-item">
-                <input type="checkbox" :value="ev.key" v-model="emailEvents" />
-                <span>{{ ev.label }}</span>
-              </label>
+            <input v-model="form.smtpFromName" class="input sr-input" :placeholder="t('settings.smtpFromNamePh')" />
+          </div>
+
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.smtpTo') }}</div>
+              <div class="sr-desc">{{ t('settings.smtpToDesc') }}</div>
+            </div>
+            <input v-model="form.smtpTo" class="input sr-input" :placeholder="t('settings.smtpToPh')" />
+          </div>
+
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.smtpEncryption') }}</div>
+              <div class="sr-desc">{{ t('settings.smtpEncryptionDesc') }}</div>
+            </div>
+            <select v-model="form.smtpEncryption" class="input sr-input w-44">
+              <option value="none">{{ t('settings.encNone') }}</option>
+              <option value="ssl">SSL/TLS</option>
+              <option value="starttls">STARTTLS</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 通知 -->
+        <div v-if="emailTab === 'notify'" class="card p-5">
+          <div class="setting-row items-start">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.smtpEventBusNotify') }}</div>
+              <div class="sr-desc">{{ t('settings.smtpEventBusNotifyDesc') }}</div>
+            </div>
+            <div class="notify-groups">
+              <div v-for="g in notifyGroups" :key="g.key" class="ng-group">
+                <div class="ng-title">
+                  <Icon :name="g.icon" size="13" />
+                  {{ t(g.labelKey) }}
+                  <span class="ng-count">{{ countSel(g, 'email') }}/{{ g.events.length }}</span>
+                </div>
+                <label v-for="ev in g.events" :key="ev.key" class="ng-item">
+                  <input type="checkbox" :value="ev.key" v-model="emailEvents" />
+                  <span>{{ t(ev.labelKey) }}</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -552,6 +633,26 @@
           </div>
         </div>
       </section>
+
+      <!-- ============ 关于(侧边栏"面板设置"子菜单,位于许可证下面) ============ -->
+      <section v-if="active === 'about'" class="fade-up">
+        <div class="card p-5">
+          <h2 class="card-title">{{ t('settings.about') }}</h2>
+          <dl class="text-[13px] space-y-2">
+            <div class="flex"><dt class="text-muted w-28">{{ t('settings.panelName') }}</dt><dd class="font-medium">{{ t('app.name') }}</dd></div>
+            <div class="flex"><dt class="text-muted w-28">{{ t('settings.version') }}</dt><dd>{{ t('app.version') }}</dd></div>
+            <div class="flex"><dt class="text-muted w-28">{{ t('settings.stack') }}</dt><dd>Go (gin + Docker SDK) + Vue 3</dd></div>
+            <div class="flex items-center gap-2">
+              <dt class="text-muted w-28">{{ t('settings.source') }}</dt>
+              <dd>
+                <a href="https://github.com/MinimaxFlora/Docker_Manager_Go" target="_blank" rel="noopener" class="link flex items-center gap-1">
+                  github.com/MinimaxFlora/Docker_Manager_Go <Icon name="external" size="12" />
+                </a>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
     </main>
   </div>
 </template>
@@ -570,15 +671,8 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-// 分类切换(#general/#security/#telegram/#email/#license;常规页内 tab:#general/#cert/#datetime)
-const SECTIONS = ['general', 'cert', 'datetime', 'security', 'telegram', 'email', 'license']
-const subSections = [
-  { key: 'general', labelKey: 'settings.general', icon: 'settings' },
-  { key: 'security', labelKey: 'settings.securitySettings', icon: 'lock' },
-  { key: 'telegram', labelKey: 'settings.telegramBot', icon: 'send' },
-  { key: 'email', labelKey: 'settings.emailSettings', icon: 'mail' },
-  { key: 'license', labelKey: 'license.title', icon: 'key' },
-]
+// 分类切换(#general/#security/#telegram/#email/#license/#about;常规页内 tab:#general/#cert/#datetime)
+const SECTIONS = ['general', 'cert', 'datetime', 'security', 'telegram', 'email', 'license', 'about']
 // 常规页内横向 tab(仿 3x-ui GeneralTab)
 const generalTabs = [
   { key: 'general', labelKey: 'settings.general' },
@@ -592,7 +686,6 @@ const securityTabs = [
 ]
 const active = ref('general')
 const secTab = ref('credentials')
-const panelOpen = ref(true)
 function go(section) {
   active.value = section
   router.replace({ hash: '#' + section })
@@ -603,7 +696,6 @@ watch(
     const key = String(h || '').replace('#', '')
     if (SECTIONS.includes(key)) {
       active.value = key
-      if (key === 'general' || key === 'cert' || key === 'datetime') panelOpen.value = true
     }
   },
   { immediate: true }
@@ -622,24 +714,110 @@ const mutedStyle = { color: '#8b93a7', background: 'rgba(139,147,167,.12)', bord
 const dangerStyle = { color: '#f87171', background: 'rgba(248,113,113,.12)', border: '1px solid rgba(248,113,113,.3)' }
 const fmtDate = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString() : '-')
 
-// 通知事件选项(对应后端 notify 类型)
-const notifyEventOptions = [
-  { key: 'login', label: t('notify.login') },
-  { key: 'login_fail', label: t('notify.loginFail') },
-  { key: 'password', label: t('notify.password') },
-  { key: 'license', label: t('notify.license') },
-  { key: 'container', label: t('notify.container') },
-  { key: 'image', label: t('notify.image') },
-  { key: 'network', label: t('notify.network') },
-  { key: 'volume', label: t('notify.volume') },
+// 子 tab 状态(仿 3x-ui TelegramTab/EmailTab:面板设置|通知、SMTP 设置|通知)
+const tgTab = ref('panel')
+const emailTab = ref('smtp')
+
+// 通知事件分组(仿 3x-ui NotificationGroup:分组标题 + 计数 + 事件勾选)
+const notifyGroups = [
+  {
+    key: 'account', icon: 'user', labelKey: 'notify.groupAccount',
+    events: [
+      { key: 'login', labelKey: 'notify.login' },
+      { key: 'login_fail', labelKey: 'notify.loginFail' },
+      { key: 'password', labelKey: 'notify.password' },
+      { key: 'license', labelKey: 'notify.license' },
+      { key: 'system', labelKey: 'notify.system' },
+    ],
+  },
+  {
+    key: 'docker', icon: 'container', labelKey: 'notify.groupDocker',
+    events: [
+      { key: 'container', labelKey: 'notify.container' },
+      { key: 'image', labelKey: 'notify.image' },
+      { key: 'network', labelKey: 'notify.network' },
+      { key: 'volume', labelKey: 'notify.volume' },
+    ],
+  },
 ]
+// 某分组已勾选数量(仿 3x-ui NotificationHeader count/total)
+function countSel(g, kind = 'tg') {
+  const list = kind === 'email' ? emailEvents.value : tgEvents.value
+  return g.events.filter((e) => list.includes(e.key)).length
+}
+
+// ---------- Telegram 周期报告时间(仿 3x-ui NotifyTimeField) ----------
+const notifyMode = ref('every') // every | @hourly | @daily | @weekly | @monthly | custom
+const notifyNum = ref(1)
+const notifyUnit = ref('m')
+const notifyCustom = ref('')
+const EVERY_RE = /^@every\s+(\d+)\s*([smh])$/i
+
+function parseNotifyTime(raw) {
+  const v = (raw || '').trim()
+  const m = v.match(EVERY_RE)
+  if (m) {
+    notifyMode.value = 'every'
+    notifyNum.value = Math.max(1, Number(m[1]) || 1)
+    notifyUnit.value = m[2].toLowerCase()
+    notifyCustom.value = ''
+    return
+  }
+  if (['@hourly', '@daily', '@weekly', '@monthly'].includes(v)) {
+    notifyMode.value = v
+    notifyNum.value = 1
+    notifyUnit.value = 'h'
+    notifyCustom.value = ''
+    return
+  }
+  notifyMode.value = 'custom'
+  notifyNum.value = 1
+  notifyUnit.value = 'h'
+  notifyCustom.value = v
+}
+
+function composeNotifyTime() {
+  if (notifyMode.value === 'every') return `@every ${Math.max(1, notifyNum.value || 1)}${notifyUnit.value}`
+  if (notifyMode.value === 'custom') return notifyCustom.value
+  return notifyMode.value
+}
+
+function onNotifyEveryChange() {
+  form.tgRunTime = composeNotifyTime()
+}
+function onNotifyModeChange() {
+  // 切到自定义时,用当前选择的 crontab 等价表达式做种子(仿 3x-ui toCrontab)
+  if (notifyMode.value === 'custom' && !notifyCustom.value.trim()) {
+    notifyCustom.value = toCrontab()
+  }
+  form.tgRunTime = composeNotifyTime()
+}
+function onNotifyCustomChange() {
+  form.tgRunTime = notifyCustom.value
+}
+function toCrontab() {
+  switch (notifyMode.value) {
+    case '@hourly': return '0 0 * * * *'
+    case '@daily': return '0 0 0 * * *'
+    case '@weekly': return '0 0 0 * * 0'
+    case '@monthly': return '0 0 0 1 * *'
+    case 'every': {
+      const n = Math.max(1, notifyNum.value || 1)
+      if (notifyUnit.value === 's') return `*/${n} * * * * *`
+      if (notifyUnit.value === 'm') return `0 */${n} * * * *`
+      return `0 0 */${n} * * *`
+    }
+    default: return notifyCustom.value
+  }
+}
 
 // ---------- 面板设置 ----------
 const form = reactive({
   webListen: '', webDomain: '', webPort: 8080, webBasePath: '/', sessionMaxAge: 10080,
   webCertFile: '', webKeyFile: '', timeZone: 'Asia/Shanghai', datePickerType: 'gregorian',
-  tgEnable: false, tgBotToken: '', tgAdminChatId: '',
+  tgEnable: false, tgBotToken: '', tgAdminChatId: '', tgRunTime: '', tgBotBackup: false,
   emailEnable: false, smtpHost: '', smtpPort: 25, smtpUser: '', smtpPass: '', smtpFrom: '',
+  smtpFromName: '', smtpTo: '', smtpEncryption: 'none',
   tgNotifyEvents: [], emailNotifyEvents: [],
 })
 const allowlistText = ref('')
@@ -665,16 +843,22 @@ async function loadPanelSettings() {
       tgEnable: !!s.tgEnable,
       tgBotToken: s.tgBotToken || '',
       tgAdminChatId: s.tgAdminChatId || '',
+      tgRunTime: s.tgRunTime || '',
+      tgBotBackup: !!s.tgBotBackup,
       emailEnable: !!s.emailEnable,
       smtpHost: s.smtpHost || '',
       smtpPort: s.smtpPort || 25,
       smtpUser: s.smtpUser || '',
       smtpPass: s.smtpPass || '',
       smtpFrom: s.smtpFrom || '',
+      smtpFromName: s.smtpFromName || '',
+      smtpTo: s.smtpTo || '',
+      smtpEncryption: s.smtpEncryption || 'none',
     })
     allowlistText.value = (s.ipLimitAllowlist || []).join(', ')
     tgEvents.value = s.tgNotifyEvents || []
     emailEvents.value = s.emailNotifyEvents || []
+    parseNotifyTime(s.tgRunTime || '')
   } catch { /* 静默 */ }
 }
 
@@ -695,6 +879,8 @@ async function savePanel() {
     tgEnable: form.tgEnable,
     tgBotToken: form.tgBotToken.trim(),
     tgAdminChatId: form.tgAdminChatId.trim(),
+    tgRunTime: form.tgRunTime.trim(),
+    tgBotBackup: form.tgBotBackup,
     tgNotifyEvents: [...tgEvents.value],
     emailEnable: form.emailEnable,
     smtpHost: form.smtpHost.trim(),
@@ -702,6 +888,9 @@ async function savePanel() {
     smtpUser: form.smtpUser.trim(),
     smtpPass: form.smtpPass.trim(),
     smtpFrom: form.smtpFrom.trim(),
+    smtpFromName: form.smtpFromName.trim(),
+    smtpTo: form.smtpTo.trim(),
+    smtpEncryption: form.smtpEncryption || 'none',
     emailNotifyEvents: [...emailEvents.value],
   }
   panelLoading.value = true
@@ -722,7 +911,17 @@ async function tgTest() {
   toastOk(t('settings.tgTestSent'))
 }
 
-// ---------- 个人资料 ----------
+// 测试邮件(仿 3x-ui testSmtp:后端实际发一封测试邮件)
+async function emailTest() {
+  try {
+    await api('/system/test-email', { method: 'POST' })
+    toastOk(t('settings.testSmtpSent'))
+  } catch (e) {
+    toastErr(e.message)
+  }
+}
+
+// ---------- 账号与凭证(个人资料 + 密码修改合并) ----------
 const profile = reactive({ username: user.username || 'admin', nickname: user.nickname || '' })
 watch(
   () => [user.username, user.nickname],
@@ -732,27 +931,9 @@ watch(
   }
 )
 const profileErr = ref('')
-const profileLoading = ref(false)
+const accountLoading = ref(false)
 const avatarInput = ref(null)
 const avatarPreview = computed(() => avatarUrl() || '/logo.jpg')
-
-async function saveProfile() {
-  profileErr.value = ''
-  profileLoading.value = true
-  try {
-    const r = await api('/profile', { method: 'POST', json: { username: profile.username.trim(), nickname: profile.nickname.trim() || null } })
-    if (r.token) setToken(r.token)
-    applyUser(r)
-    profile.username = user.username
-    profile.nickname = user.nickname || ''
-    toastOk(t('settings.toastProfileSaved'))
-  } catch (e) {
-    profileErr.value = e.message
-    toastErr(e.message)
-  } finally {
-    profileLoading.value = false
-  }
-}
 
 async function uploadAvatar(ev) {
   const file = ev.target.files?.[0]
@@ -776,44 +957,47 @@ async function uploadAvatar(ev) {
   reader.readAsDataURL(file)
 }
 
-// ---------- 管理员凭证 ----------
-const cred = reactive({ oldUsername: '', oldPassword: '', newUsername: '', newPassword: '' })
+// 合并保存:用户名/昵称(资料)+ 密码(凭证),一个按钮搞定
+const cred = reactive({ oldPassword: '', newPassword: '' })
 const credErr = ref('')
-const credLoading = ref(false)
 
-async function saveCredential() {
+async function saveAccount() {
+  profileErr.value = ''
   credErr.value = ''
-  if (!cred.oldPassword) {
+  const u = profile.username.trim()
+  const n = profile.nickname.trim() || null
+  const profileChanged = u !== user.username || n !== (user.nickname || null)
+  const pwdChanged = !!cred.newPassword
+  if (pwdChanged && !cred.oldPassword) {
     credErr.value = t('settings.pwdFillAll')
     return
   }
-  if (cred.newPassword) {
-    if (cred.newPassword.length < 6) {
-      credErr.value = t('settings.pwdMinLen')
-      return
-    }
-    try {
+  if (pwdChanged && cred.newPassword.length < 6) {
+    credErr.value = t('settings.pwdMinLen')
+    return
+  }
+  accountLoading.value = true
+  try {
+    if (pwdChanged) {
       await api('/password', { method: 'POST', json: { old_password: cred.oldPassword, new_password: cred.newPassword } })
       user.mustChangePassword = false
-    } catch (e) {
-      credErr.value = e.message
-      toastErr(e.message)
-      return
     }
-  }
-  if (cred.newUsername && cred.newUsername !== user.username) {
-    try {
-      const r = await api('/profile', { method: 'POST', json: { username: cred.newUsername, nickname: null } })
+    if (profileChanged) {
+      const r = await api('/profile', { method: 'POST', json: { username: u, nickname: n } })
       if (r.token) setToken(r.token)
       applyUser(r)
-    } catch (e) {
-      credErr.value = e.message
-      toastErr(e.message)
-      return
+      profile.username = user.username
+      profile.nickname = user.nickname || ''
     }
+    cred.oldPassword = cred.newPassword = ''
+    toastOk(t('settings.toastCredentialsSaved'))
+  } catch (e) {
+    credErr.value = e.message
+    profileErr.value = e.message
+    toastErr(e.message)
+  } finally {
+    accountLoading.value = false
   }
-  cred.oldUsername = cred.oldPassword = cred.newUsername = cred.newPassword = ''
-  toastOk(t('settings.toastCredentialsSaved'))
 }
 
 // ---------- 双因素验证 ----------
@@ -1016,99 +1200,6 @@ onMounted(() => {
   align-items: flex-start;
 }
 
-/* ---------- 左侧菜单(仿 3x-ui 设置菜单) ---------- */
-.settings-menu {
-  width: 210px;
-  flex-shrink: 0;
-  background: var(--dm-surface);
-  border: 1px solid var(--dm-line);
-  border-radius: 12px;
-  padding: 8px;
-  position: sticky;
-  top: 0;
-}
-.menu-group {
-  margin-bottom: 2px;
-}
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  height: 38px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--dm-muted);
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s, color 0.15s;
-}
-.menu-item:hover {
-  color: var(--dm-text);
-  background: var(--dm-surface2);
-}
-.menu-item.active {
-  color: var(--dm-brand);
-  background: color-mix(in srgb, var(--dm-brand) 10%, transparent);
-  font-weight: 600;
-}
-.menu-icon {
-  flex-shrink: 0;
-}
-.menu-caret {
-  margin-left: auto;
-  transition: transform 0.2s;
-  flex-shrink: 0;
-}
-.menu-caret.open {
-  transform: rotate(90deg);
-}
-.menu-sub {
-  padding: 2px 0 4px;
-}
-.sub-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  height: 32px;
-  padding: 0 12px 0 30px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--dm-muted);
-  font-size: 12.5px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s, color 0.15s;
-}
-.sub-item:hover {
-  color: var(--dm-text);
-  background: var(--dm-surface2);
-}
-.sub-item.active {
-  background: color-mix(in srgb, var(--dm-brand) 12%, transparent);
-  color: var(--dm-brand);
-  font-weight: 600;
-}
-.sub-icon {
-  flex-shrink: 0;
-  color: currentColor;
-  opacity: 0.85;
-}
-
-.dm-expand-enter-active,
-.dm-expand-leave-active {
-  transition: opacity 0.15s ease;
-}
-.dm-expand-enter-from,
-.dm-expand-leave-to {
-  opacity: 0;
-}
-
 /* ---------- 右侧内容 ---------- */
 .settings-content {
   flex: 1;
@@ -1125,13 +1216,12 @@ onMounted(() => {
   gap: 8px;
 }
 
-/* 横向 tab(仿 3x-ui antd Tabs) */
+/* 横向 tab(仿 3x-ui antd Tabs:选中项底部一条主题色 ink 线,无滚动条) */
 .h-tabs {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--dm-line);
   padding: 0 4px;
-  overflow-x: auto;
 }
 .h-tab {
   position: relative;
@@ -1149,17 +1239,17 @@ onMounted(() => {
   color: var(--dm-text);
 }
 .h-tab.active {
-  color: var(--dm-brand);
+  color: var(--color-brand);
 }
 .h-tab.active::after {
   content: '';
   position: absolute;
-  left: 8px;
-  right: 8px;
+  left: 0;
+  right: 0;
   bottom: -1px;
   height: 2px;
   border-radius: 2px 2px 0 0;
-  background: var(--dm-brand);
+  background: var(--color-brand);
 }
 
 /* 设置行(仿 3x-ui SettingListItem) */
@@ -1208,8 +1298,8 @@ onMounted(() => {
   flex-shrink: 0;
 }
 .switch.on {
-  background: var(--dm-brand);
-  border-color: var(--dm-brand);
+  background: var(--color-brand);
+  border-color: var(--color-brand);
 }
 .switch-knob {
   position: absolute;
@@ -1224,6 +1314,62 @@ onMounted(() => {
 }
 .switch.on .switch-knob {
   left: 20px;
+}
+
+/* 通知事件分组(仿 3x-ui NotificationGroup:分组卡片 + 标题 + 计数 + 事件行) */
+.notify-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 460px;
+}
+.ng-group {
+  border: 1px solid var(--dm-line);
+  border-radius: 10px;
+  background: var(--dm-surface2/40);
+  padding: 10px 12px;
+}
+.ng-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--dm-text);
+  margin-bottom: 6px;
+}
+.ng-title svg {
+  color: var(--color-brand);
+}
+.ng-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dm-muted);
+  background: var(--dm-surface2);
+  border: 1px solid var(--dm-line);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.ng-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--dm-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+}
+.ng-item:hover {
+  background: var(--dm-surface2);
+  color: var(--dm-text);
+}
+.ng-item input {
+  accent-color: var(--color-brand);
 }
 
 /* 通知事件多选 */
@@ -1248,22 +1394,12 @@ onMounted(() => {
   user-select: none;
 }
 .ev-item input {
-  accent-color: var(--dm-brand);
+  accent-color: var(--color-brand);
 }
 
 @media (max-width: 900px) {
   .settings-page {
     flex-direction: column;
-  }
-  .settings-menu {
-    width: 100%;
-    position: static;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-  }
-  .menu-group {
-    width: 100%;
   }
   .sr-input {
     width: 100%;

@@ -53,6 +53,8 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.GET("/system/settings", H(panelSettings).Handler(st))
 	p.PUT("/system/settings", H(panelSettingsSave).Handler(st))
 	p.GET("/system/logs", H(panelLogs).Handler(st))
+	p.GET("/system/events", H(panelEvents).Handler(st))
+	p.POST("/system/test-email", H(panelTestEmail).Handler(st))
 	p.GET("/system/config", H(panelConfig).Handler(st))
 	p.GET("/system/backup", H(panelBackup).Handler(st))
 	p.POST("/system/restore", H(panelRestore).Handler(st))

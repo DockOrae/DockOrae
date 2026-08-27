@@ -114,8 +114,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   color: var(--dm-text);
 }
 .locale-item.active {
-  color: var(--dm-brand);
-  background: color-mix(in srgb, var(--dm-brand) 10%, transparent);
+  color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 10%, transparent);
   font-weight: 600;
 }
 .locale-check {

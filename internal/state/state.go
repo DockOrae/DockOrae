@@ -17,6 +17,7 @@ import (
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/db"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/notify"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
 )
@@ -98,6 +99,7 @@ type AppState struct {
 	Docker       *client.Client
 	Cfg          *config.Config
 	Settings     *settings.Store
+	DB           *db.DB // SQLite(users/settings/events)
 	UsersMu      sync.Mutex
 	Users        []StoredUser
 	Events       *EventHub
@@ -115,7 +117,14 @@ func New(cfg *config.Config) (*AppState, error) {
 	if err != nil {
 		return nil, err
 	}
-	st, err := settings.Load(cfg.DataDir, os.Getenv("PORT"))
+	// SQLite 优先(仿 3x-ui:users/settings/events 全量入库);打开失败降级 JSON
+	var database *db.DB
+	if d, err := db.Open(cfg.DataDir); err == nil {
+		database = d
+	} else {
+		log.Printf("sqlite open failed, falling back to JSON: %v", err)
+	}
+	st, err := settings.Load(cfg.DataDir, os.Getenv("PORT"), database)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +137,7 @@ func New(cfg *config.Config) (*AppState, error) {
 		Docker:     docker,
 		Cfg:        cfg,
 		Settings:   st,
+		DB:         database,
 		Events:     NewEventHub(),
 		ComposeDir: composeDir,
 		AvatarDir:  avatarDir,
@@ -137,6 +147,7 @@ func New(cfg *config.Config) (*AppState, error) {
 		return nil, err
 	}
 	as.SpawnEventWatcher()
+	notify.StartReporter(as.Settings, cfg.DataDir)
 	return as, nil
 }
 
@@ -151,7 +162,49 @@ func newDockerClient() (*client.Client, error) {
 	return client.NewClientWithOpts()
 }
 
+// initUsers 从 SQLite 加载用户;库为空时迁移旧 users.json,再没有则创建默认 admin
 func (s *AppState) initUsers() error {
+	if s.DB != nil {
+		usersFile := filepath.Join(s.Cfg.DataDir, "users.json")
+		if _, err := s.DB.ImportUsers(usersFile); err != nil {
+			log.Printf("users import failed: %v", err)
+		}
+		list, err := s.DB.ListUsers()
+		if err == nil {
+			s.Users = make([]StoredUser, 0, len(list))
+			for _, u := range list {
+				s.Users = append(s.Users, StoredUser{
+					Username:           u.Username,
+					PasswordHash:       u.PasswordHash,
+					Nickname:           u.Nickname,
+					Avatar:             u.Avatar,
+					MustChangePassword: u.MustChangePassword,
+					TotpSecret:         u.TotpSecret,
+				})
+			}
+			if len(s.Users) > 0 {
+				return nil
+			}
+		} else {
+			log.Printf("users load failed: %v", err)
+		}
+		// 库为空:创建默认 admin 并入库
+		hash, err := auth.HashPassword("123456")
+		if err != nil {
+			return err
+		}
+		admin := StoredUser{Username: "admin", PasswordHash: hash, MustChangePassword: true}
+		s.Users = []StoredUser{admin}
+		if err := s.DB.UpsertUser(db.User{
+			Username: admin.Username, PasswordHash: admin.PasswordHash, MustChangePassword: true,
+		}); err != nil {
+			return err
+		}
+		log.Println("Created default user admin / 123456 (change password after first login)")
+		return nil
+	}
+
+	// 无 SQLite(降级路径):维持旧 JSON 行为
 	usersFile := filepath.Join(s.Cfg.DataDir, "users.json")
 	if raw, err := os.ReadFile(usersFile); err == nil {
 		var v struct {
@@ -184,6 +237,21 @@ func (s *AppState) SaveUsers() error {
 	s.UsersMu.Lock()
 	users := append([]StoredUser(nil), s.Users...)
 	s.UsersMu.Unlock()
+	if s.DB != nil {
+		list := make([]db.User, 0, len(users))
+		for _, u := range users {
+			list = append(list, db.User{
+				Username:           u.Username,
+				PasswordHash:       u.PasswordHash,
+				Nickname:           u.Nickname,
+				Avatar:             u.Avatar,
+				MustChangePassword: u.MustChangePassword,
+				TotpSecret:         u.TotpSecret,
+				TotpEnabled:        u.TotpSecret != nil,
+			})
+		}
+		return s.DB.ReplaceUsers(list)
+	}
 	out, err := json.MarshalIndent(map[string]any{"users": users}, "", "  ")
 	if err != nil {
 		return err
@@ -191,9 +259,30 @@ func (s *AppState) SaveUsers() error {
 	return os.WriteFile(filepath.Join(s.Cfg.DataDir, "users.json"), out, 0o600)
 }
 
-// ReloadUsers 从磁盘重新加载用户(备份恢复后调用)
+// ReloadUsers 从数据库重新加载用户(备份恢复后调用)
 func (s *AppState) ReloadUsers() error {
 	return s.initUsers()
+}
+
+// ReloadDB 关闭并重开 SQLite(备份恢复替换 db 文件前必须调用,
+// 否则 Windows 下文件被占用无法删除);失败时降级 JSON
+func (s *AppState) ReloadDB() {
+	if s.Settings != nil {
+		_ = s.Settings.Close()
+	}
+	if s.DB != nil {
+		_ = s.DB.Close()
+	}
+	s.DB = nil
+	if d, err := db.Open(s.Cfg.DataDir); err == nil {
+		s.DB = d
+	} else {
+		log.Printf("sqlite reopen failed, falling back to JSON: %v", err)
+	}
+	if st, err := settings.Load(s.Cfg.DataDir, os.Getenv("PORT"), s.DB); err == nil {
+		s.Settings = st
+	}
+	_ = s.initUsers()
 }
 
 func (s *AppState) FindUser(username string) *StoredUser {
