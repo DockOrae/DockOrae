@@ -120,13 +120,14 @@ jobs:
             armv6) export GOARCH=arm GOARM=6 ;;
             armv5) export GOARCH=arm GOARM=5 ;;
           esac
-          go build -trimpath -ldflags="-s -w" -o docker-manager-go .
-          file docker-manager-go
+          go build -trimpath -ldflags="-s -w" -o docker-manager-go-bin .
+          file docker-manager-go-bin
 
       - name: 打包
         run: |
           mkdir docker-manager-go
-          cp docker-manager-go docker-manager-go/
+          cp docker-manager-go-bin docker-manager-go/
+          mv docker-manager-go/docker-manager-go-bin docker-manager-go/docker-manager-go
           cp README.md docker-manager-go/ 2>/dev/null || true
           tar -zcvf docker-manager-go-linux-${{ matrix.platform }}.tar.gz docker-manager-go
 
