@@ -482,8 +482,8 @@ export default {
     webListenPh: 'empty = all IPs',
     webForceSSL: 'Force HTTPS (SSL only)',
     webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
-    webDomain: 'Certificate domain (HTTPS)',
-    webDomainDesc: 'Domain covered by the HTTPS certificate; leave empty to accept any domain or IP',
+    webDomain: 'Panel domain',
+    webDomainDesc: 'When set, the panel is accessible only via this domain (IP access disabled); leave empty to allow IP or any domain',
     webDomainPh: 'e.g. dk.kejizero.xyz',
 
     webPort: 'Panel listen port',

@@ -483,8 +483,8 @@ export default {
     webListenPh: '留空 = 监听所有 IP',
     webForceSSL: '强制 HTTPS(仅允许 HTTPS 访问)',
     webForceSSLDesc: '开启后面板只接受 HTTPS 连接;若证书加载失败将拒绝启动,不再降级为 HTTP',
-    webDomain: '证书域名(HTTPS)',
-    webDomainDesc: 'HTTPS 证书对应的域名;留空则通过 IP 或任意域名访问',
+    webDomain: '面板监听域名',
+    webDomainDesc: '设置后仅可通过该域名访问面板,IP 访问将被拒绝;留空则可通过 IP 或任意域名访问',
     webDomainPh: '例如: dk.kejizero.xyz',
 
     webPort: '面板监听端口',

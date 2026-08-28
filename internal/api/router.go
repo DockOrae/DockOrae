@@ -14,6 +14,23 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
+	// 面板监听域名(webDomain):设置后仅该域名可访问,IP/其他域名访问返回 404;
+	// 本机回环(localhost/127.0.0.1/::1)放行,便于本地运维与安装脚本调用 API
+	r.Use(func(c *gin.Context) {
+		domain := strings.TrimSpace(st.Settings.Get().WebDomain)
+		if domain != "" {
+			host := c.Request.Host
+			if i := strings.Index(host, ":"); i >= 0 {
+				host = host[:i]
+			}
+			lh := strings.ToLower(host)
+			if lh != "localhost" && lh != "127.0.0.1" && lh != "::1" && !strings.EqualFold(lh, strings.ToLower(domain)) {
+				c.AbortWithStatusJSON(404, gin.H{"error": "not found"})
+				return
+			}
+		}
+		c.Next()
+	})
 
 	if basePath == "" || basePath == "/" {
 		basePath = ""

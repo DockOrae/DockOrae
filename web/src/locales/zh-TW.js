@@ -537,8 +537,8 @@ export default {
     webListenPh: '留空 = 所有 IP',
     webForceSSL: '強制 HTTPS(僅允許 HTTPS 訪問)',
     webForceSSLDesc: '開啟後面板僅接受 HTTPS 連線;若憑證載入失敗將拒絕啟動,不再降級為 HTTP',
-    webDomain: '憑證網域(HTTPS)',
-    webDomainDesc: 'HTTPS 憑證對應的網域;留空則透過 IP 或任意網域訪問',
+    webDomain: '面板監聽網域',
+    webDomainDesc: '設定後僅可透過此網域訪問面板,IP 訪問將被拒絕;留空則可透過 IP 或任意網域訪問',
     webDomainPh: '例如: dk.kejizero.xyz',
 
     webPort: '面板監聽連接埠',

@@ -55,6 +55,13 @@
           </div>
           <div class="setting-row">
             <div class="sr-info">
+              <div class="sr-label">{{ t('settings.webDomain') }}</div>
+              <div class="sr-desc">{{ t('settings.webDomainDesc') }}</div>
+            </div>
+            <input v-model="form.webDomain" class="input sr-input" :placeholder="t('settings.webDomainPh')" />
+          </div>
+          <div class="setting-row">
+            <div class="sr-info">
               <div class="sr-label">{{ t('settings.webPort') }}</div>
               <div class="sr-desc">{{ t('settings.webPortDesc') }}</div>
             </div>
@@ -106,23 +113,6 @@
 
         <!-- 证书 -->
         <div v-if="active === 'cert'" class="card p-5">
-          <p class="text-[12px] text-muted mb-4">{{ t('settings.certDesc') }}</p>
-          <div class="setting-row">
-            <div class="sr-info">
-              <div class="sr-label">{{ t('settings.webForceSSL') }}</div>
-              <div class="sr-desc">{{ t('settings.webForceSSLDesc') }}</div>
-            </div>
-            <button type="button" class="switch" :class="{ on: form.webForceSSL }" @click="form.webForceSSL = !form.webForceSSL">
-              <span class="switch-knob" />
-            </button>
-          </div>
-          <div class="setting-row">
-            <div class="sr-info">
-              <div class="sr-label">{{ t('settings.webDomain') }}</div>
-              <div class="sr-desc">{{ t('settings.webDomainDesc') }}</div>
-            </div>
-            <input v-model="form.webDomain" class="input sr-input" :placeholder="t('settings.webDomainPh')" />
-          </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webCertFile') }}</div>
