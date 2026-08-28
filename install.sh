@@ -335,26 +335,50 @@ set_panel_https() {
 # 注意:PUT /api/system/settings 是补丁合并语义(只更新传入字段),直接传三个字段即可。
 # 不要 GET→sed→PUT 全量:gin 返回紧凑 JSON(冒号后无空格),旧 sed 模式匹配不到会静默失败,
 # 导致证书路径永远写不进配置(面板一直 HTTP 模式,https 打不开)——本 bug 已修。
+# 安全入口(webBasePath)适配:面板设置了 /入口 时,不带前缀的 API 请求会 302,
+# 先探测 public-config 的重定向 Location 拼出带前缀的 base。
 set_panel_https_via_container() {
   local domain="$1" cert="$2" key="$3"
   docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" || return 1
   local ok
   ok=$(docker exec -i "$CONTAINER_NAME" sh <<EOF
 base=http://localhost:8080
-token=\$(wget -qO- --post-data='{"username":"admin","password":"123456"}' --header='Content-Type: application/json' \$base/api/login 2>/dev/null | sed 's/.*"token":"\([^"]*\)".*/\1/')
+loc=\$(wget -qO- --server-response "\$base/api/system/public-config" 2>&1 | tr -d '\r' | grep -i '^Location:' | head -1 | awk '{print \$2}')
+case "\$loc" in
+  http*) base="\${loc%/api/system/public-config}" ;;
+  /*) base="http://localhost:8080\${loc%/api/system/public-config}" ;;
+esac
+token=\$(wget -qO- --post-data='{"username":"admin","password":"123456"}' --header='Content-Type: application/json' "\$base/api/login" 2>/dev/null | sed 's/.*"token":"\\([^\"]*\\)".*/\\1/')
 [ -z "\$token" ] && exit 1
 payload='{"webDomain":"$domain","webCertFile":"$cert","webKeyFile":"$key"}'
-wget -qO- --method=PUT --post-data="\$payload" --header='Content-Type: application/json' --header="Authorization: Bearer \$token" \$base/api/system/settings 2>/dev/null
+wget -qO- --method=PUT --post-data="\$payload" --header='Content-Type: application/json' --header="Authorization: Bearer \$token" "\$base/api/system/settings" 2>/dev/null
 EOF
 )
   [[ "$ok" == *"needRestart"* ]]
 }
 
+# 探测面板安全入口(webBasePath):返回 API 根地址(含入口前缀),供宿主 curl 调用
+# 注意:302 Location 可能是相对路径(/dm123/api/...),需拼上主机
+get_api_base() {
+  local loc
+  loc=$(curl -sI "http://127.0.0.1:${DM_PORT}/api/system/public-config" 2>/dev/null | tr -d '\r' | grep -i '^Location:' | head -1 | sed 's/^[Ll]ocation: //')
+  if [ -n "$loc" ]; then
+    case "$loc" in
+      http://*|https://*) ;;
+      /*) loc="http://127.0.0.1:${DM_PORT}${loc}" ;;
+      *) loc="http://127.0.0.1:${DM_PORT}/${loc}" ;;
+    esac
+    echo "${loc%/api/system/public-config}"
+  else
+    echo "http://127.0.0.1:${DM_PORT}"
+  fi
+}
+
 # 二进制方式:宿主 curl 调面板 API(同样是补丁合并,直接 PUT 三个字段)
 set_panel_https_via_host() {
   local domain="$1" cert="$2" key="$3"
-  local base="http://127.0.0.1:${DM_PORT}"
-  local token resp
+  local base token resp
+  base=$(get_api_base)
   token=$(curl -s -X POST "$base/api/login" -H 'Content-Type: application/json' -d '{"username":"admin","password":"123456"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
   [ -z "$token" ] && return 1
   resp=$(curl -s -X PUT -H 'Content-Type: application/json' -H "Authorization: Bearer $token" \
