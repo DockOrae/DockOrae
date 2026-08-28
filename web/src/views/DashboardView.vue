@@ -157,7 +157,7 @@
       <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/containers')">
         <div class="count-card-head">
           <div class="ov-kicker">{{ t('nav.containers') }}</div>
-          <span class="count-card-icon"><Icon name="container" size="20" /></span>
+          <span class="count-card-icon"><Icon name="container" size="28" /></span>
         </div>
         <div class="count-card-num">{{ counts.total }}</div>
         <div class="count-card-sub">{{ t('dashboard.running') }} {{ counts.running }} · {{ t('dashboard.stopped') }} {{ counts.total - counts.running }}</div>
@@ -167,7 +167,7 @@
       <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/images')">
         <div class="count-card-head">
           <div class="ov-kicker">{{ t('nav.images') }}</div>
-          <span class="count-card-icon"><Icon name="image" size="20" /></span>
+          <span class="count-card-icon"><Icon name="image" size="28" /></span>
         </div>
         <div class="count-card-num">{{ counts.images }}</div>
         <div class="count-card-sub">{{ t('dashboard.totalSize') }} {{ imageSizeText }}</div>
@@ -177,7 +177,7 @@
       <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/volumes')">
         <div class="count-card-head">
           <div class="ov-kicker">{{ t('nav.volumes') }}</div>
-          <span class="count-card-icon"><Icon name="volume" size="20" /></span>
+          <span class="count-card-icon"><Icon name="volume" size="28" /></span>
         </div>
         <div class="count-card-num">{{ counts.volumes }}</div>
         <div class="count-card-sub">{{ t('dashboard.mounted') }} {{ mountedVolumes }} · {{ t('dashboard.unmounted') }} {{ counts.volumes - mountedVolumes }}</div>
@@ -1008,13 +1008,13 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-/* ---------- 容器/镜像/卷数量卡(数量 + 图标,点击跳转) ---------- */
+/* ---------- 容器/镜像/卷数量卡(大图标 + 数量,点击跳转) ---------- */
 .count-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: var(--ov-pad);
-  min-height: 150px;
+  gap: 10px;
+  padding: 22px;
+  min-height: 170px;
   justify-content: center;
 }
 .count-card-head {
@@ -1026,14 +1026,23 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--color-brand) 12%, transparent);
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 20%, transparent),
+    color-mix(in srgb, var(--color-brand) 6%, transparent)
+  );
   color: var(--color-brand);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-brand) 20%, transparent);
+  transition: transform 0.15s ease;
+}
+.count-card:hover .count-card-icon {
+  transform: scale(1.06);
 }
 .count-card-num {
-  font-size: 46px;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.02em;
