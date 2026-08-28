@@ -93,6 +93,12 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 
 	p.GET("/ws/events", H(systemEventsWS).Handler(st))
 
+	p.GET("/apps", H(appstoreList).Handler(st))
+	p.GET("/apps/:key", H(appstoreDetail).Handler(st))
+	p.POST("/apps/:key/install", H(appstoreInstall).Handler(st))
+	p.POST("/apps/:key/uninstall", H(appstoreUninstall).Handler(st))
+	p.POST("/apps/:key/upgrade", H(appstoreUpgrade).Handler(st))
+
 	p.GET("/containers", H(containersList).Handler(st))
 	p.POST("/containers", H(containersCreate).Handler(st))
 	p.POST("/containers/prune", H(containersPrune).Handler(st))

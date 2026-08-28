@@ -8,6 +8,7 @@ const routes = [
     component: () => import('./layouts/MainLayout.vue'),
     children: [
       { path: '', name: 'dashboard', component: () => import('./views/DashboardView.vue'), meta: { title: 'nav.systemStatus' } },
+      { path: 'apps', name: 'appstore', component: () => import('./views/AppStoreView.vue'), meta: { title: 'nav.appStore' } },
       { path: 'containers', name: 'containers', component: () => import('./views/ContainersView.vue'), meta: { title: 'nav.containers' } },
       { path: 'containers/new', name: 'container-create', component: () => import('./views/ContainerCreateView.vue'), meta: { title: 'createContainer.title' } },
       { path: 'containers/:id', name: 'container-detail', component: () => import('./views/ContainerDetailView.vue'), meta: { title: 'containerDetail.title' } },
