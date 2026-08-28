@@ -37,3 +37,4 @@ bash <(curl -Ls https://raw.githubusercontent.com/MinimaxFlora/Docker_Manager_Go
 - GitHub 源码: <https://github.com/MinimaxFlora/Docker_Manager_Go>
 - 发布与更新: `bash install.sh update`
 - 个人使用免费;Pro 许可证支持离线激活
+<!-- 触发描述更新 -->
