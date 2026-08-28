@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -163,4 +165,127 @@ func ContainerRemove(st *state.AppState, ctx context.Context, id string, force, 
 
 func ContainersPrune(st *state.AppState, ctx context.Context) (container.PruneReport, error) {
 	return docker.PruneContainers(st.Docker, ctx, client.ContainerPruneOptions{})
+}
+
+// ---------------- WebSocket 业务(日志/统计/终端) ----------------
+
+// ContainerLogsStream 容器日志流(业务:构建日志选项;上层负责传输)
+func ContainerLogsStream(st *state.AppState, ctx context.Context, id string, tail int64) (io.ReadCloser, error) {
+	return docker.ContainerLogs(st.Docker, ctx, id, client.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Tail:       strconv.FormatInt(tail, 10),
+	})
+}
+
+// ContainerStatsPump 解码容器 stats 流并计算前端展示字段(cpu_pct/mem/net/pids),
+// 每帧通过 emit 回调交给上层发送;返回 nil 表示流结束或被 emit 终止
+func ContainerStatsPump(st *state.AppState, ctx context.Context, id string, emit func(payload map[string]any) bool) error {
+	stats, err := docker.ContainerStats(st.Docker, ctx, id, client.ContainerStatsOptions{Stream: true})
+	if err != nil {
+		return err
+	}
+	defer stats.Body.Close()
+
+	prev := [2]uint64{}
+	hasPrev := false
+	dec := json.NewDecoder(stats.Body)
+	for {
+		var s container.StatsResponse
+		if dec.Decode(&s) != nil {
+			return nil
+		}
+		cpuTotal := s.CPUStats.CPUUsage.TotalUsage
+		sys := s.CPUStats.SystemUsage
+		cpuPct := 0.0
+		if hasPrev {
+			d1 := cpuTotal - prev[0]
+			d2 := sys - prev[1]
+			if d2 > 0 {
+				cpuPct = float64(d1) / float64(d2) * float64(s.CPUStats.OnlineCPUs) * 100.0
+			}
+		}
+		prev = [2]uint64{cpuTotal, sys}
+		hasPrev = true
+
+		memUsage := s.MemoryStats.Usage
+		memLimit := s.MemoryStats.Limit
+		if memLimit < 1 {
+			memLimit = 1
+		}
+		var netRx, netTx uint64
+		for _, n := range s.Networks {
+			netRx += n.RxBytes
+			netTx += n.TxBytes
+		}
+		payload := map[string]any{
+			"cpu_pct":   Round2(cpuPct),
+			"mem_usage": memUsage,
+			"mem_limit": memLimit,
+			"mem_pct":   Round2(float64(memUsage) / float64(memLimit) * 100.0),
+			"net_rx":    netRx,
+			"net_tx":    netTx,
+			"pids":      s.PidsStats.Current,
+		}
+		if !emit(payload) {
+			return nil
+		}
+	}
+}
+
+// Round2 保留两位小数(monitor 速率与 stats 展示共用)
+func Round2(v float64) float64 {
+	return float64(int64(v*100+0.5)) / 100.0
+}
+
+// TerminalSession exec 终端会话:业务层持有 exec 生命周期,
+// 上层只做 WS ↔ Reader/Stdin 的字节桥接与协议分发
+type TerminalSession struct {
+	Reader io.Reader
+	Stdin  io.Writer
+	execID string
+	cli    *client.Client
+	ctx    context.Context
+	cancel context.CancelFunc
+	close  func()
+}
+
+// CreateTerminal 创建 TTY exec 并 attach(返回会话,失败时资源已清理)
+func CreateTerminal(st *state.AppState, ctx context.Context, id, shell string) (*TerminalSession, error) {
+	execID, err := docker.ExecCreate(st.Docker, ctx, id, client.ExecCreateOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		TTY:          true,
+		Cmd:          []string{shell},
+	})
+	if err != nil {
+		return nil, err
+	}
+	attach, err := docker.ExecAttach(st.Docker, ctx, execID, client.ExecAttachOptions{TTY: true})
+	if err != nil {
+		return nil, err
+	}
+	sctx, cancel := context.WithCancel(ctx)
+	return &TerminalSession{
+		Reader: attach.Reader,
+		Stdin:  attach.Conn,
+		execID: execID,
+		cli:    st.Docker,
+		ctx:    sctx,
+		cancel: cancel,
+		close:  attach.Close,
+	}, nil
+}
+
+// Resize 调整 TTY 尺寸
+func (s *TerminalSession) Resize(w, h int) error {
+	return docker.ExecResize(s.cli, s.ctx, s.execID, client.ExecResizeOptions{Width: uint(w), Height: uint(h)})
+}
+
+// Close 终止会话(取消 ctx + 关闭 hijacked 连接)
+func (s *TerminalSession) Close() {
+	s.cancel()
+	s.close()
 }
