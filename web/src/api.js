@@ -20,19 +20,41 @@ export function setToken(t) {
   else localStorage.removeItem(TOKEN_KEY)
 }
 
+/** 登录前可访问:安全入口(webBasePath)等前端启动配置(不带 token) */
+let cachedBase = ''
+export async function getPublicConfig() {
+  try {
+    const res = await fetch('/api/system/public-config', { cache: 'no-store' })
+    if (!res.ok) return {}
+    const j = await res.json()
+    cachedBase = j.basePath && j.basePath !== '/' ? j.basePath.replace(/\/$/, '') : ''
+    return j
+  } catch {
+    return {}
+  }
+}
+
+/** 安全入口前缀(API/WS/页面跳转统一使用;留空 = 无前缀) */
+export function apiBase() {
+  return cachedBase
+}
+export function entrancePath(p) {
+  return cachedBase ? cachedBase + p : p
+}
+
 export async function api(path, opts = {}) {
   const headers = { ...(opts.headers || {}) }
   if (opts.json !== undefined) headers['Content-Type'] = 'application/json'
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch('/api' + path, { ...opts, headers, body: opts.json !== undefined ? JSON.stringify(opts.json) : opts.body })
+  const res = await fetch(entrancePath('/api' + path), { ...opts, headers, body: opts.json !== undefined ? JSON.stringify(opts.json) : opts.body })
   if (res.status === 401) {
     // 登录/2FA 接口的 401 带具体错误消息(如 login.errPwd),优先展示
     let msg = ''
     try { msg = (await res.json()).error || '' } catch { /* ignore */ }
     if (msg) throw new Error(errMsg(msg))
     setToken(null)
-    if (!location.pathname.startsWith('/login')) location.href = '/login'
+    if (!location.pathname.endsWith('/login')) location.href = entrancePath('/login')
     throw new Error(errMsg('err.notLogin'))
   }
   if (!res.ok) {
@@ -44,7 +66,7 @@ export async function api(path, opts = {}) {
 }
 
 export function wsUrl(path) {
-  const p = '/api' + path
+  const p = entrancePath('/api' + path)
   const sep = p.includes('?') ? '&' : '?'
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${p}${sep}token=${encodeURIComponent(getToken() || '')}`
 }
@@ -54,7 +76,7 @@ export async function pullImageStream(payload, onLine) {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch('/api/images/pull', { method: 'POST', headers, body: JSON.stringify(payload) })
+  const res = await fetch(entrancePath('/api/images/pull'), { method: 'POST', headers, body: JSON.stringify(payload) })
   if (!res.ok) {
     let msg
     try { msg = (await res.json()).error } catch { msg = res.statusText }

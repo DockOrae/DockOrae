@@ -19,13 +19,17 @@ func serveStatic(basePath string) gin.HandlerFunc {
 	}
 	return func(c *gin.Context) {
 		p := c.Request.URL.Path
-		// 带前缀的部署:非 basePath 请求跳转到 basePath
+		// 安全入口(webBasePath 非 /):非入口前缀的请求 302 到入口(保留路径),
+		// 使页面与 API 都能带前缀到达;静态资源(/assets、logo)直接服务不要求前缀
 		if basePath != "" {
-			if !strings.HasPrefix(p, basePath) {
-				c.Redirect(302, basePath)
+			if strings.HasPrefix(p, "/assets/") || p == "/logo.svg" || p == "/favicon.ico" {
+				// 直接服务(不剥离前缀)
+			} else if !strings.HasPrefix(p, basePath) {
+				c.Redirect(302, basePath+p)
 				return
+			} else {
+				p = strings.TrimPrefix(p, basePath)
 			}
-			p = strings.TrimPrefix(p, basePath)
 		}
 		// 未知 /api 路径返回 404,其余交给 SPA
 		if strings.HasPrefix(p, "/api/") || p == "/api" {

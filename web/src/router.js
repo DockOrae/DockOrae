@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken } from './api'
+import { getToken, getPublicConfig } from './api'
 
 const routes = [
   { path: '/login', name: 'login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
@@ -22,14 +22,22 @@ const routes = [
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-})
+// 安全入口(webBasePath)作为 router base:设置后页面 URL 带 /<入口> 前缀,
+// 后端会把不带入口的请求 302 重定向到入口路径。
+export async function createAppRouter() {
+  const cfg = await getPublicConfig()
+  const base = cfg.basePath && cfg.basePath !== '/' ? cfg.basePath.replace(/\/$/, '') : ''
+  const router = createRouter({
+    history: createWebHistory(base),
+    routes,
+  })
 
-router.beforeEach((to) => {
-  if (!to.meta.public && !getToken()) return { name: 'login' }
-  if (to.name === 'login' && getToken()) return { name: 'dashboard' }
-})
+  router.beforeEach((to) => {
+    if (!to.meta.public && !getToken()) return { name: 'login' }
+    if (to.name === 'login' && getToken()) return { name: 'dashboard' }
+  })
 
-export default router
+  return router
+}
+
+export default null

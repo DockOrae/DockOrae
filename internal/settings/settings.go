@@ -15,9 +15,10 @@ import (
 type Settings struct {
 	// 常规
 	WebListen       string   `json:"webListen"`       // 面板监听 IP,空 = 监听所有
-	WebDomain       string   `json:"webDomain"`       // 面板监听域名
+	WebDomain       string   `json:"webDomain"`       // 面板监听域名(白名单):设置后仅该域名可访问
 	WebPort         uint16   `json:"webPort"`         // 面板监听端口(重启面板生效)
-	WebBasePath     string   `json:"webBasePath"`     // URI 路径,必须以 / 开头结尾
+	WebBasePath     string   `json:"webBasePath"`     // 安全入口:URI 路径,必须以 / 开头结尾;设置后仅可通过该路径访问面板
+	NoAuthSetting   string   `json:"noAuthSetting"`   // 未认证设置:未登录访问 API 返回的状态码(200/400/401/403/404/408/416/444/500),默认 401
 	SessionMaxAge   int      `json:"sessionMaxAge"`   // 会话时长(分钟)
 	IPLimitAllowlist []string `json:"ipLimitAllowlist"` // IP 白名单(CIDR 逗号分隔)
 	// 证书
@@ -70,6 +71,7 @@ func Default(envPort string) *Settings {
 		WebDomain:     "",
 		WebPort:       port,
 		WebBasePath:   "/",
+		NoAuthSetting: "401",
 		SessionMaxAge: 7 * 24 * 60, // 7 天(分钟)
 		TimeZone:      "Asia/Shanghai",
 		NtpServer:     "pool.ntp.org",
@@ -131,6 +133,9 @@ func normalize(s *Settings) {
 	}
 	if s.NtpServer == "" {
 		s.NtpServer = "pool.ntp.org"
+	}
+	if s.NoAuthSetting == "" {
+		s.NoAuthSetting = "401"
 	}
 }
 

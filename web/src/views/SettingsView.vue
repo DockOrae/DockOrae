@@ -72,7 +72,16 @@
               <div class="sr-label">{{ t('settings.webBasePath') }}</div>
               <div class="sr-desc">{{ t('settings.webBasePathDesc') }}</div>
             </div>
-            <input v-model="form.webBasePath" class="input sr-input" placeholder="/" />
+            <input v-model="form.webBasePath" class="input sr-input" :placeholder="t('settings.webBasePathPh')" />
+          </div>
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.noAuthSetting') }}</div>
+              <div class="sr-desc">{{ t('settings.noAuthSettingDesc') }}</div>
+            </div>
+            <select v-model="form.noAuthSetting" class="input sr-input">
+              <option v-for="opt in NOAUTH_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
           </div>
           <div class="setting-row">
             <div class="sr-info">
@@ -103,7 +112,7 @@
               <textarea
                 v-model="mirrorsText"
                 class="input !h-24 text-[12px] leading-relaxed w-full"
-                style="resize: vertical"
+                style="resize: both"
                 :placeholder="t('settings.mirrorPlaceholder')"
                 spellcheck="false"
               />
@@ -882,7 +891,7 @@ function toCrontab() {
 
 // ---------- 面板设置 ----------
 const form = reactive({
-  webListen: '', webDomain: '', webPort: 8080, webBasePath: '/', sessionMaxAge: 10080,
+  webListen: '', webDomain: '', webPort: 8080, webBasePath: '/', noAuthSetting: '401', sessionMaxAge: 10080,
   webCertFile: '', webKeyFile: '', webForceSSL: false, timeZone: 'Asia/Shanghai', datePickerType: 'gregorian', ntpServer: 'pool.ntp.org',
   tgEnable: false, tgBotToken: '', tgAdminChatId: '', tgRunTime: '', tgBotBackup: false,
   tgLang: '', tgBotAPIServer: '',
@@ -896,6 +905,12 @@ const emailEvents = ref([])
 const panelLoading = ref(false)
 const panelErr = ref('')
 const panelSaved = ref(false)
+
+// 未认证设置选项(仿 1Panel noAuthSetting)
+const NOAUTH_OPTIONS = ['200', '400', '401', '403', '404', '408', '416', '444', '500'].map((v) => ({
+  value: v,
+  label: `${v} - ${t('settings.noAuth' + v)}`,
+}))
 // 服务器端已配置的密钥(脱敏后非空):输入框留空,避免把脱敏值回传覆盖真值
 const tgTokenConfigured = ref(false)
 const smtpPassConfigured = ref(false)
@@ -908,6 +923,7 @@ async function loadPanelSettings() {
       webDomain: s.webDomain || '',
       webPort: s.webPort || 8080,
       webBasePath: s.webBasePath || '/',
+      noAuthSetting: s.noAuthSetting || '401',
       sessionMaxAge: s.sessionMaxAge || 10080,
       webCertFile: s.webCertFile || '',
       webKeyFile: s.webKeyFile || '',
@@ -951,6 +967,7 @@ async function savePanel() {
     webDomain: form.webDomain.trim(),
     webPort: Number(form.webPort) || 8080,
     webBasePath: form.webBasePath.trim() || '/',
+    noAuthSetting: form.noAuthSetting || '401',
     sessionMaxAge: Number(form.sessionMaxAge) || 10080,
     ipLimitAllowlist: allowlistText.value.split(',').map((s) => s.trim()).filter(Boolean),
     webCertFile: form.webCertFile.trim(),

@@ -411,6 +411,17 @@ func systemChangePassword(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
+// ---------------- 前端启动配置(登录前可访问) ----------------
+
+// systemPublicConfig 返回前端启动所需配置:安全入口(webBasePath,router base)
+func systemPublicConfig(c *gin.Context, st *state.AppState) error {
+	s := st.Settings.Get()
+	c.JSON(200, gin.H{
+		"basePath": s.WebBasePath,
+	})
+	return nil
+}
+
 // ---------------- 双因素验证 (TOTP) ---------------- 
 
 type totpSetupReq struct {

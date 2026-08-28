@@ -43,6 +43,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	// ---------- public ----------
 	api.GET("/health", H(systemHealth).Handler(st))
 	api.GET("/system/default-account", H(systemDefaultAccount).Handler(st))
+	api.GET("/system/public-config", H(systemPublicConfig).Handler(st))
 	api.GET("/system/wallpaper", H(wallpaperGet).Handler(st))
 	api.POST("/login", H(systemLogin).Handler(st))
 	api.POST("/login/totp", H(systemLoginTotp).Handler(st))
