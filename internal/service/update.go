@@ -27,7 +27,7 @@ import (
 )
 
 // AppVersion 面板当前版本(发版时与 cmd/docker-manager/main.go 的 Version 同步;CI 以 main.go 字面量为准)
-const AppVersion = "1.0.0"
+const AppVersion = "1.0.1"
 
 const (
 	updateGitHubURL  = "https://api.github.com/repos/MinimaxFlora/Docker_Manager_Go/releases/latest"
