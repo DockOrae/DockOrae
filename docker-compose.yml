@@ -1,23 +1,126 @@
+# ============================================================
+# Docker Manager Go — 面板 Docker Compose 部署
+# 默认配置开箱即用;可选功能已注释,按需取消注释启用
+# ============================================================
 services:
   docker-manager:
     image: zhaoweiwen123/docker-manager-go:latest
     container_name: docker-manager
     restart: unless-stopped
+
+    # ---- 端口映射 ----
+    # 默认 HTTP 访问: http://<服务器IP>:8080
     ports:
       - "8080:8080"
+      # HTTPS 域名绑定后(面板 设置 → 常规 → 证书):
+      #   注释掉上面的 8080 一行,启用下面这行,即可 https://域名 直访(无需端口号)
+      # - "443:8080"
+      # 仅本机访问(不对外暴露,面板自己走反向代理时用):
+      # - "127.0.0.1:8080:8080"
+
+    # ---- 环境变量 ----
     environment:
-      - DATA_DIR=/data
-      - PORT=8080
-      - TZ=Asia/Shanghai
+      - DATA_DIR=/data          # 面板数据目录(SQLite 数据库、设置、用户、应用商店数据)
+      - PORT=8080               # 面板监听端口
+      - TZ=Asia/Shanghai        # 容器时区
+      # 远程 Docker 主机:面板直接操作远程 daemon(同时注释掉 docker.sock 挂载)
+      # - DOCKER_HOST=tcp://<host>:2375
+      # 应用商店数据仓库/下载地址覆盖(内网镜像、离线环境):
+      # - DM_APPSTORE_REPO=MinimaxFlora/docker-manager-apps
+      # - DM_APPSTORE_URL=https://<内网镜像>/docker-manager-apps.tar.gz
+
+    # ---- 数据卷 ----
     volumes:
+      # Docker 守护进程 socket:面板管理本机 Docker 的入口,必须挂载
       - /var/run/docker.sock:/var/run/docker.sock
+      # 面板数据(数据库、设置、用户、应用商店数据)
       - ./data:/data
+      # HTTPS 证书目录(域名绑定后把 fullchain.pem / privkey.pem 放这里)
       - ./cert:/data/cert:ro
-      # 宿主机根文件系统:终端页可直接进入宿主机 shell(chroot /host)
+      # 宿主机根文件系统:终端页 chroot /host 进宿主机 shell;在线更新也经它定位宿主 docker-compose.yml
       - /:/host:ro
-      # 宿主机 Docker 配置:面板设置中的「镜像加速」读写此文件
+      # 宿主机 Docker 配置:面板「镜像加速」读写此文件(daemon.json)
       - /etc/docker:/host/etc/docker:ro
-    # 开启后可在面板中自动重启宿主机 Docker(nsenter),默认关闭
+      # Docker rootless 部署:注释掉上面标准 socket,改用下面这行
+      # - /run/user/1000/docker.sock:/var/run/docker.sock
+
+    # ---- 可选功能(按需取消注释) ----
+
+    # 特权模式:工具箱「重启 Docker」生效(nsenter 操作宿主 systemctl),默认关闭
     # privileged: true
-    # 若宿主机 Docker 使用 rootless,把 socket 路径换成:
-    # - /run/user/1000/docker.sock:/var/run/docker.sock
+
+    # ---- 安全加固 ----
+    # 禁用容器内写文件系统(面板数据仍走卷),降低入侵后写入风险
+    # read_only: true
+    # 删除默认能力 + 禁止提权(需配合上面的 / 与 docker.sock 挂载按需取舍)
+    # cap_drop:
+    #   - ALL
+    # security_opt:
+    #   - no-new-privileges:true
+
+    # ---- 资源限制 ----
+    # CPU/内存上限(按服务器规格调整)
+    # mem_limit: 1g
+    # cpus: "2.0"
+    # 进程数上限(防 fork 炸弹)
+    # pids_limit: 512
+
+    # ---- 容器日志限制(防止日志撑爆磁盘) ----
+    # logging:
+    #   driver: json-file
+    #   options:
+    #     max-size: "10m"
+    #     max-file: "3"
+
+    # ---- 健康检查(面板存活探针,镜像内置 curl) ----
+    # healthcheck:
+    #   test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/system/public-config"]
+    #   interval: 30s
+    #   timeout: 5s
+    #   retries: 3
+    #   start_period: 10s
+
+    # ---- 生命周期 ----
+    # 停止/重启时给面板的优雅退出时间(默认 10s;数据量大或正执行任务时调大)
+    # stop_grace_period: 30s
+
+    # ---- 自定义网络(固定容器 IP / 与其它服务互通) ----
+    # networks:
+    #   dm-net:
+    #     ipv4_address: 172.20.0.10
+    #
+    # networks:
+    #   dm-net:
+    #     driver: bridge
+    #     ipam:
+    #       config:
+    #         - subnet: 172.20.0.0/24
+
+# ============================================================
+# 附加服务(可选,按需取消注释整段)
+# ============================================================
+
+# ---- Watchtower:面板容器镜像自动更新(默认每天 03:00 检查) ----
+# 注意:面板自身有「在线更新」功能(设置 → 更新),二选一即可;
+#       watchtower 还会顺带更新它自己所在 compose 栈的其它容器,确认无误再启用
+# watchtower:
+#   image: containrrr/watchtower
+#   container_name: watchtower
+#   restart: unless-stopped
+#   volumes:
+#     - /var/run/docker.sock:/var/run/docker.sock
+#   environment:
+#     - TZ=Asia/Shanghai
+#     - WATCHTOWER_CLEANUP=true          # 更新后清理旧镜像
+#     - WATCHTOWER_SCHEDULE=0 0 3 * * *  # cron:每天 03:00
+#     # 只更新面板容器(避免动到其它服务):
+#     # - WATCHTOWER_SCOPE=dm
+#   # 配合上面的 scope 使用:给面板容器打上标签
+#   # (在 docker-manager 服务下加 labels: - com.centurylinklabs.watchtower.scope=dm)
+
+# ---- 定时备份(宿主机 cron 示例:每天 02:00 打包面板数据) ----
+# 在宿主机 crontab 添加(路径按实际修改):
+#   0 2 * * * tar -czf /backup/dm-$(date +\%F).tar.gz -C /path/to/compose/data . && \
+#            find /backup -name 'dm-*.tar.gz' -mtime +7 -delete
+# 说明:./data 目录即面板全部数据(数据库/设置/用户/应用商店/已装应用编排),停面板备份更稳:
+#   docker compose stop && tar ... && docker compose start
