@@ -18,19 +18,37 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-// ContainersList 容器列表(精简字段)
-func ContainersList(st *state.AppState, ctx context.Context, all bool) ([]model.ContainerListItem, error) {
-	items, err := docker.ListContainers(st.Docker, ctx, client.ContainerListOptions{All: all})
+// ContainerService 容器业务:依赖显式注入(docker client + license 检查 + compose 数据目录),
+// 不直接依赖 AppState;license 与 composeDir 可注入,便于测试。
+type ContainerService struct {
+	docker  *client.Client
+	license func() bool
+	// composeDir 面板 compose 数据目录(用于"外部容器不显示"过滤)
+	composeDir string
+}
+
+// NewContainerService 生产构造:从 AppState 提取实际依赖
+func NewContainerService(st *state.AppState) *ContainerService {
+	return &ContainerService{
+		docker:     st.Docker,
+		license:    func() bool { return LicenseActive(st) },
+		composeDir: st.ComposeDir,
+	}
+}
+
+// List 容器列表(精简字段,过滤外部容器)
+func (s *ContainerService) List(ctx context.Context, all bool) ([]model.ContainerListItem, error) {
+	items, err := docker.ListContainers(s.docker, ctx, client.ContainerListOptions{All: all})
 	if err != nil {
 		return nil, err
 	}
-	return filterManagedContainers(st, model.ToContainerItems(items)), nil
+	return s.managedFilter(model.ToContainerItems(items)), nil
 }
 
-// filterManagedContainers 只保留面板管理的容器(1Panel 同款:外部创建的隐藏):
+// managedFilter 只保留面板管理的容器(1Panel 同款:外部创建的隐藏):
 // 1) 有 createdBy 标签(面板创建 / 应用商店安装,如 createdBy=Apps)
 // 2) compose 项目在面板数据目录(面板接管 / 面板编排的栈)
-func filterManagedContainers(st *state.AppState, items []model.ContainerListItem) []model.ContainerListItem {
+func (s *ContainerService) managedFilter(items []model.ContainerListItem) []model.ContainerListItem {
 	kept := items[:0]
 	for _, c := range items {
 		if _, ok := c.Labels["createdBy"]; ok {
@@ -38,7 +56,7 @@ func filterManagedContainers(st *state.AppState, items []model.ContainerListItem
 			continue
 		}
 		if proj := c.Labels["com.docker.compose.project"]; proj != "" {
-			if _, err := os.Stat(ComposeFile(st, proj)); err == nil {
+			if _, err := os.Stat(composeFile(s.composeDir, proj)); err == nil {
 				kept = append(kept, c)
 				continue
 			}
@@ -47,21 +65,33 @@ func filterManagedContainers(st *state.AppState, items []model.ContainerListItem
 	return kept
 }
 
-// ContainerInspect 容器详情(原始 JSON 由 handler 透传)
-func ContainerInspect(st *state.AppState, ctx context.Context, id string) (container.InspectResponse, error) {
-	return docker.InspectContainer(st.Docker, ctx, id)
+// Inspect 容器详情(原始 JSON 由 handler 透传)
+func (s *ContainerService) Inspect(ctx context.Context, id string) (container.InspectResponse, error) {
+	return docker.InspectContainer(s.docker, ctx, id)
 }
 
-// ContainerCreate 创建容器(许可证限制 + 参数组装)
-func ContainerCreate(st *state.AppState, ctx context.Context, req model.CreateContainerReq) (string, error) {
+// Create 创建容器(许可证限制 + 参数转换)
+func (s *ContainerService) Create(ctx context.Context, req model.CreateContainerReq) (string, error) {
 	// 许可证限制:未激活时禁止创建容器(1Panel 商业版功能锁定)
-	if !LicenseActive(st) {
+	if !s.license() {
 		return "", NewApiError(403, "license.required")
 	}
 	if req.Image == "" {
 		return "", BadRequest("container.imageEmpty")
 	}
+	cfg, hc, err := buildContainerConfig(req)
+	if err != nil {
+		return "", err
+	}
+	return docker.CreateContainer(s.docker, ctx, client.ContainerCreateOptions{
+		Config:     cfg,
+		HostConfig: hc,
+		Name:       req.Name,
+	})
+}
 
+// buildContainerConfig 参数 → Docker Config/HostConfig(纯转换,无副作用,可单测)
+func buildContainerConfig(req model.CreateContainerReq) (*container.Config, *container.HostConfig, error) {
 	exposed := network.PortSet{}
 	bindings := network.PortMap{}
 	for _, p := range req.Ports {
@@ -94,7 +124,7 @@ func ContainerCreate(st *state.AppState, ctx context.Context, req model.CreateCo
 		case v.Volume != nil && *v.Volume != "":
 			src = *v.Volume
 		default:
-			return "", BadRequest("container.mountSrcMissing")
+			return nil, nil, BadRequest("container.mountSrcMissing")
 		}
 		mode := "rw"
 		if v.Mode != nil && *v.Mode != "" {
@@ -133,67 +163,62 @@ func ContainerCreate(st *state.AppState, ctx context.Context, req model.CreateCo
 	if req.Network != nil && *req.Network != "" {
 		hc.NetworkMode = container.NetworkMode(*req.Network)
 	}
-
-	return docker.CreateContainer(st.Docker, ctx, client.ContainerCreateOptions{
-		Config:     cfg,
-		HostConfig: hc,
-		Name:       req.Name,
-	})
+	return cfg, hc, nil
 }
 
-// ContainerStart/Stop/Restart/Kill/Pause/Unpause/Rename/Remove 生命周期(1:1 透传)
-func ContainerStart(st *state.AppState, ctx context.Context, id string) error {
-	return docker.StartContainer(st.Docker, ctx, id)
+// Start/Stop/Restart/Kill/Pause/Unpause/Rename/Remove/Prune 生命周期(1:1 透传)
+func (s *ContainerService) Start(ctx context.Context, id string) error {
+	return docker.StartContainer(s.docker, ctx, id)
 }
 
-func ContainerStop(st *state.AppState, ctx context.Context, id string, timeout *int) error {
+func (s *ContainerService) Stop(ctx context.Context, id string, timeout *int) error {
 	opts := client.ContainerStopOptions{}
 	if timeout != nil {
 		opts.Timeout = timeout
 	}
-	return docker.StopContainer(st.Docker, ctx, id, opts)
+	return docker.StopContainer(s.docker, ctx, id, opts)
 }
 
-func ContainerRestart(st *state.AppState, ctx context.Context, id string, timeout *int) error {
+func (s *ContainerService) Restart(ctx context.Context, id string, timeout *int) error {
 	opts := client.ContainerRestartOptions{}
 	if timeout != nil {
 		opts.Timeout = timeout
 	}
-	return docker.RestartContainer(st.Docker, ctx, id, opts)
+	return docker.RestartContainer(s.docker, ctx, id, opts)
 }
 
-func ContainerKill(st *state.AppState, ctx context.Context, id string) error {
-	return docker.KillContainer(st.Docker, ctx, id, "SIGKILL")
+func (s *ContainerService) Kill(ctx context.Context, id string) error {
+	return docker.KillContainer(s.docker, ctx, id, "SIGKILL")
 }
 
-func ContainerPause(st *state.AppState, ctx context.Context, id string) error {
-	return docker.PauseContainer(st.Docker, ctx, id)
+func (s *ContainerService) Pause(ctx context.Context, id string) error {
+	return docker.PauseContainer(s.docker, ctx, id)
 }
 
-func ContainerUnpause(st *state.AppState, ctx context.Context, id string) error {
-	return docker.UnpauseContainer(st.Docker, ctx, id)
+func (s *ContainerService) Unpause(ctx context.Context, id string) error {
+	return docker.UnpauseContainer(s.docker, ctx, id)
 }
 
-func ContainerRename(st *state.AppState, ctx context.Context, id, newName string) error {
-	return docker.RenameContainer(st.Docker, ctx, id, newName)
+func (s *ContainerService) Rename(ctx context.Context, id, newName string) error {
+	return docker.RenameContainer(s.docker, ctx, id, newName)
 }
 
-func ContainerRemove(st *state.AppState, ctx context.Context, id string, force, removeVolumes bool) error {
-	return docker.RemoveContainer(st.Docker, ctx, id, client.ContainerRemoveOptions{
+func (s *ContainerService) Remove(ctx context.Context, id string, force, removeVolumes bool) error {
+	return docker.RemoveContainer(s.docker, ctx, id, client.ContainerRemoveOptions{
 		Force:         force,
 		RemoveVolumes: removeVolumes,
 	})
 }
 
-func ContainersPrune(st *state.AppState, ctx context.Context) (container.PruneReport, error) {
-	return docker.PruneContainers(st.Docker, ctx, client.ContainerPruneOptions{})
+func (s *ContainerService) Prune(ctx context.Context) (container.PruneReport, error) {
+	return docker.PruneContainers(s.docker, ctx, client.ContainerPruneOptions{})
 }
 
 // ---------------- WebSocket 业务(日志/统计/终端) ----------------
 
-// ContainerLogsStream 容器日志流(业务:构建日志选项;上层负责传输)
-func ContainerLogsStream(st *state.AppState, ctx context.Context, id string, tail int64) (io.ReadCloser, error) {
-	return docker.ContainerLogs(st.Docker, ctx, id, client.ContainerLogsOptions{
+// LogsStream 容器日志流(业务:构建日志选项;上层负责传输)
+func (s *ContainerService) LogsStream(ctx context.Context, id string, tail int64) (io.ReadCloser, error) {
+	return docker.ContainerLogs(s.docker, ctx, id, client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
@@ -201,10 +226,10 @@ func ContainerLogsStream(st *state.AppState, ctx context.Context, id string, tai
 	})
 }
 
-// ContainerStatsPump 解码容器 stats 流并计算前端展示字段(cpu_pct/mem/net/pids),
+// StatsPump 解码容器 stats 流并计算前端展示字段(cpu_pct/mem/net/pids),
 // 每帧通过 emit 回调交给上层发送;返回 nil 表示流结束或被 emit 终止
-func ContainerStatsPump(st *state.AppState, ctx context.Context, id string, emit func(payload map[string]any) bool) error {
-	stats, err := docker.ContainerStats(st.Docker, ctx, id, client.ContainerStatsOptions{Stream: true})
+func (s *ContainerService) StatsPump(ctx context.Context, id string, emit func(payload map[string]any) bool) error {
+	stats, err := docker.ContainerStats(s.docker, ctx, id, client.ContainerStatsOptions{Stream: true})
 	if err != nil {
 		return err
 	}
@@ -214,30 +239,30 @@ func ContainerStatsPump(st *state.AppState, ctx context.Context, id string, emit
 	hasPrev := false
 	dec := json.NewDecoder(stats.Body)
 	for {
-		var s container.StatsResponse
-		if dec.Decode(&s) != nil {
+		var st container.StatsResponse
+		if dec.Decode(&st) != nil {
 			return nil
 		}
-		cpuTotal := s.CPUStats.CPUUsage.TotalUsage
-		sys := s.CPUStats.SystemUsage
+		cpuTotal := st.CPUStats.CPUUsage.TotalUsage
+		sys := st.CPUStats.SystemUsage
 		cpuPct := 0.0
 		if hasPrev {
 			d1 := cpuTotal - prev[0]
 			d2 := sys - prev[1]
 			if d2 > 0 {
-				cpuPct = float64(d1) / float64(d2) * float64(s.CPUStats.OnlineCPUs) * 100.0
+				cpuPct = float64(d1) / float64(d2) * float64(st.CPUStats.OnlineCPUs) * 100.0
 			}
 		}
 		prev = [2]uint64{cpuTotal, sys}
 		hasPrev = true
 
-		memUsage := s.MemoryStats.Usage
-		memLimit := s.MemoryStats.Limit
+		memUsage := st.MemoryStats.Usage
+		memLimit := st.MemoryStats.Limit
 		if memLimit < 1 {
 			memLimit = 1
 		}
 		var netRx, netTx uint64
-		for _, n := range s.Networks {
+		for _, n := range st.Networks {
 			netRx += n.RxBytes
 			netTx += n.TxBytes
 		}
@@ -248,7 +273,7 @@ func ContainerStatsPump(st *state.AppState, ctx context.Context, id string, emit
 			"mem_pct":   Round2(float64(memUsage) / float64(memLimit) * 100.0),
 			"net_rx":    netRx,
 			"net_tx":    netTx,
-			"pids":      s.PidsStats.Current,
+			"pids":      st.PidsStats.Current,
 		}
 		if !emit(payload) {
 			return nil
@@ -274,8 +299,8 @@ type TerminalSession struct {
 }
 
 // CreateTerminal 创建 TTY exec 并 attach(返回会话,失败时资源已清理)
-func CreateTerminal(st *state.AppState, ctx context.Context, id, shell string) (*TerminalSession, error) {
-	execID, err := docker.ExecCreate(st.Docker, ctx, id, client.ExecCreateOptions{
+func (s *ContainerService) CreateTerminal(ctx context.Context, id, shell string) (*TerminalSession, error) {
+	execID, err := docker.ExecCreate(s.docker, ctx, id, client.ExecCreateOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -285,7 +310,7 @@ func CreateTerminal(st *state.AppState, ctx context.Context, id, shell string) (
 	if err != nil {
 		return nil, err
 	}
-	attach, err := docker.ExecAttach(st.Docker, ctx, execID, client.ExecAttachOptions{TTY: true})
+	attach, err := docker.ExecAttach(s.docker, ctx, execID, client.ExecAttachOptions{TTY: true})
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +319,7 @@ func CreateTerminal(st *state.AppState, ctx context.Context, id, shell string) (
 		Reader: attach.Reader,
 		Stdin:  attach.Conn,
 		execID: execID,
-		cli:    st.Docker,
+		cli:    s.docker,
 		ctx:    sctx,
 		cancel: cancel,
 		close:  attach.Close,
@@ -312,14 +337,14 @@ func (s *TerminalSession) Close() {
 	s.close()
 }
 
-// ContainerRecreate 重建容器(1Panel 同款):用原配置创建新容器 → 停删旧容器 → 启动新容器
-func ContainerRecreate(st *state.AppState, ctx context.Context, id string) error {
-	insp, err := docker.InspectContainer(st.Docker, ctx, id)
+// Recreate 重建容器(1Panel 同款):用原配置创建新容器 → 停删旧容器 → 启动新容器
+func (s *ContainerService) Recreate(ctx context.Context, id string) error {
+	insp, err := docker.InspectContainer(s.docker, ctx, id)
 	if err != nil {
 		return err
 	}
 	name := strings.TrimPrefix(insp.Name, "/")
-	newID, err := docker.CreateContainer(st.Docker, ctx, client.ContainerCreateOptions{
+	newID, err := docker.CreateContainer(s.docker, ctx, client.ContainerCreateOptions{
 		Name:             name,
 		Config:           insp.Config,
 		HostConfig:       insp.HostConfig,
@@ -328,9 +353,75 @@ func ContainerRecreate(st *state.AppState, ctx context.Context, id string) error
 	if err != nil {
 		return err
 	}
-	_ = docker.StopContainer(st.Docker, ctx, id, client.ContainerStopOptions{})
-	if err := docker.RemoveContainer(st.Docker, ctx, id, client.ContainerRemoveOptions{Force: true}); err != nil {
+	_ = docker.StopContainer(s.docker, ctx, id, client.ContainerStopOptions{})
+	if err := docker.RemoveContainer(s.docker, ctx, id, client.ContainerRemoveOptions{Force: true}); err != nil {
 		return err
 	}
-	return docker.StartContainer(st.Docker, ctx, newID)
+	return docker.StartContainer(s.docker, ctx, newID)
+}
+
+// ---------------- 兼容层:包级函数委托(API 层暂保持 st 签名,行为不变) ----------------
+
+func ContainersList(st *state.AppState, ctx context.Context, all bool) ([]model.ContainerListItem, error) {
+	return NewContainerService(st).List(ctx, all)
+}
+
+func ContainerInspect(st *state.AppState, ctx context.Context, id string) (container.InspectResponse, error) {
+	return NewContainerService(st).Inspect(ctx, id)
+}
+
+func ContainerCreate(st *state.AppState, ctx context.Context, req model.CreateContainerReq) (string, error) {
+	return NewContainerService(st).Create(ctx, req)
+}
+
+func ContainerStart(st *state.AppState, ctx context.Context, id string) error {
+	return NewContainerService(st).Start(ctx, id)
+}
+
+func ContainerStop(st *state.AppState, ctx context.Context, id string, timeout *int) error {
+	return NewContainerService(st).Stop(ctx, id, timeout)
+}
+
+func ContainerRestart(st *state.AppState, ctx context.Context, id string, timeout *int) error {
+	return NewContainerService(st).Restart(ctx, id, timeout)
+}
+
+func ContainerKill(st *state.AppState, ctx context.Context, id string) error {
+	return NewContainerService(st).Kill(ctx, id)
+}
+
+func ContainerPause(st *state.AppState, ctx context.Context, id string) error {
+	return NewContainerService(st).Pause(ctx, id)
+}
+
+func ContainerUnpause(st *state.AppState, ctx context.Context, id string) error {
+	return NewContainerService(st).Unpause(ctx, id)
+}
+
+func ContainerRename(st *state.AppState, ctx context.Context, id, newName string) error {
+	return NewContainerService(st).Rename(ctx, id, newName)
+}
+
+func ContainerRemove(st *state.AppState, ctx context.Context, id string, force, removeVolumes bool) error {
+	return NewContainerService(st).Remove(ctx, id, force, removeVolumes)
+}
+
+func ContainersPrune(st *state.AppState, ctx context.Context) (container.PruneReport, error) {
+	return NewContainerService(st).Prune(ctx)
+}
+
+func ContainerLogsStream(st *state.AppState, ctx context.Context, id string, tail int64) (io.ReadCloser, error) {
+	return NewContainerService(st).LogsStream(ctx, id, tail)
+}
+
+func ContainerStatsPump(st *state.AppState, ctx context.Context, id string, emit func(payload map[string]any) bool) error {
+	return NewContainerService(st).StatsPump(ctx, id, emit)
+}
+
+func CreateTerminal(st *state.AppState, ctx context.Context, id, shell string) (*TerminalSession, error) {
+	return NewContainerService(st).CreateTerminal(ctx, id, shell)
+}
+
+func ContainerRecreate(st *state.AppState, ctx context.Context, id string) error {
+	return NewContainerService(st).Recreate(ctx, id)
 }

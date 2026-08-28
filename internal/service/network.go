@@ -12,29 +12,39 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-// NetworksList 网络列表(精简字段)
-func NetworksList(st *state.AppState, ctx context.Context) ([]model.NetworkListItem, error) {
-	items, err := docker.ListNetworks(st.Docker, ctx, client.NetworkListOptions{})
+// NetworkService 网络业务:依赖注入(docker client)
+type NetworkService struct {
+	docker *client.Client
+}
+
+// NewNetworkService 生产构造:从 AppState 提取实际依赖
+func NewNetworkService(st *state.AppState) *NetworkService {
+	return &NetworkService{docker: st.Docker}
+}
+
+// List 网络列表(精简字段)
+func (s *NetworkService) List(ctx context.Context) ([]model.NetworkListItem, error) {
+	items, err := docker.ListNetworks(s.docker, ctx, client.NetworkListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return model.ToNetworkItems(items), nil
 }
 
-// NetworkInspect 网络详情(原始 JSON 透传)
-func NetworkInspect(st *state.AppState, ctx context.Context, id string) (network.Inspect, error) {
-	net, _, err := docker.InspectNetwork(st.Docker, ctx, id)
+// Inspect 网络详情(原始 JSON 透传)
+func (s *NetworkService) Inspect(ctx context.Context, id string) (network.Inspect, error) {
+	net, _, err := docker.InspectNetwork(s.docker, ctx, id)
 	return net, err
 }
 
-// NetworkRaw 网络详情原始 JSON(handler 透传)
-func NetworkRaw(st *state.AppState, ctx context.Context, id string) ([]byte, error) {
-	_, raw, err := docker.InspectNetwork(st.Docker, ctx, id)
+// Raw 网络详情原始 JSON(handler 透传)
+func (s *NetworkService) Raw(ctx context.Context, id string) ([]byte, error) {
+	_, raw, err := docker.InspectNetwork(s.docker, ctx, id)
 	return raw, err
 }
 
-// NetworkCreate 创建网络
-func NetworkCreate(st *state.AppState, ctx context.Context, req model.CreateNetworkReq) (string, error) {
+// Create 创建网络
+func (s *NetworkService) Create(ctx context.Context, req model.CreateNetworkReq) (string, error) {
 	if req.Name == "" {
 		return "", BadRequest("network.nameEmpty")
 	}
@@ -61,18 +71,44 @@ func NetworkCreate(st *state.AppState, ctx context.Context, req model.CreateNetw
 		}
 		opts.IPAM = &network.IPAM{Driver: "default", Config: []network.IPAMConfig{ipamCfg}}
 	}
-	return docker.CreateNetwork(st.Docker, ctx, req.Name, opts)
+	return docker.CreateNetwork(s.docker, ctx, req.Name, opts)
 }
 
-// NetworkRemove 删除网络
-func NetworkRemove(st *state.AppState, ctx context.Context, id string) error {
-	return docker.RemoveNetwork(st.Docker, ctx, id, client.NetworkRemoveOptions{})
+// Remove 删除网络
+func (s *NetworkService) Remove(ctx context.Context, id string) error {
+	return docker.RemoveNetwork(s.docker, ctx, id, client.NetworkRemoveOptions{})
 }
 
-// NetworksPrune 清理未使用网络
-func NetworksPrune(st *state.AppState, ctx context.Context) (network.PruneReport, error) {
-	return docker.PruneNetworks(st.Docker, ctx, client.NetworkPruneOptions{})
+// Prune 清理未使用网络
+func (s *NetworkService) Prune(ctx context.Context) (network.PruneReport, error) {
+	return docker.PruneNetworks(s.docker, ctx, client.NetworkPruneOptions{})
 }
 
 // Ptr 泛型指针(等价旧 api 包 ptr)
 func Ptr[T any](v T) *T { return &v }
+
+// ---------------- 兼容层:包级函数委托 ----------------
+
+func NetworksList(st *state.AppState, ctx context.Context) ([]model.NetworkListItem, error) {
+	return NewNetworkService(st).List(ctx)
+}
+
+func NetworkInspect(st *state.AppState, ctx context.Context, id string) (network.Inspect, error) {
+	return NewNetworkService(st).Inspect(ctx, id)
+}
+
+func NetworkRaw(st *state.AppState, ctx context.Context, id string) ([]byte, error) {
+	return NewNetworkService(st).Raw(ctx, id)
+}
+
+func NetworkCreate(st *state.AppState, ctx context.Context, req model.CreateNetworkReq) (string, error) {
+	return NewNetworkService(st).Create(ctx, req)
+}
+
+func NetworkRemove(st *state.AppState, ctx context.Context, id string) error {
+	return NewNetworkService(st).Remove(ctx, id)
+}
+
+func NetworksPrune(st *state.AppState, ctx context.Context) (network.PruneReport, error) {
+	return NewNetworkService(st).Prune(ctx)
+}

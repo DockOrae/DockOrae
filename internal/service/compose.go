@@ -44,22 +44,40 @@ func ValidateProject(p string) (string, error) {
 	return p, nil
 }
 
-func ProjectDir(st *state.AppState, project string) string {
-	return filepath.Join(st.ComposeDir, project)
+// ComposeService 栈业务:依赖注入(docker client + 数据目录 + license 检查)
+type ComposeService struct {
+	docker     *client.Client
+	composeDir string
+	license    func() bool
 }
 
-func ComposeFile(st *state.AppState, project string) string {
-	return filepath.Join(ProjectDir(st, project), "docker-compose.yml")
+// NewComposeService 生产构造:从 AppState 提取实际依赖
+func NewComposeService(st *state.AppState) *ComposeService {
+	return &ComposeService{
+		docker:     st.Docker,
+		composeDir: st.ComposeDir,
+		license:    func() bool { return LicenseActive(st) },
+	}
 }
 
-// ComposeCommand 构造 compose 命令(未启动;流式执行由 api 层控制)
-func ComposeCommand(st *state.AppState, project string, args ...string) *exec.Cmd {
-	return exec.Command(ComposeBin(), append([]string{"-p", project, "-f", ComposeFile(st, project)}, args...)...)
+// projectDir 项目目录(composeDir + project)
+func projectDir(composeDir, project string) string {
+	return filepath.Join(composeDir, project)
 }
 
-// RunCompose 同步执行 compose 命令,返回 {ok, output}
-func RunCompose(st *state.AppState, project string, args ...string) (map[string]any, error) {
-	cmd := ComposeCommand(st, project, args...)
+// composeFile 项目编排文件路径
+func composeFile(composeDir, project string) string {
+	return filepath.Join(projectDir(composeDir, project), "docker-compose.yml")
+}
+
+// Command 构造 compose 命令(未启动;流式执行由 api 层控制)
+func (s *ComposeService) Command(project string, args ...string) *exec.Cmd {
+	return exec.Command(ComposeBin(), append([]string{"-p", project, "-f", composeFile(s.composeDir, project)}, args...)...)
+}
+
+// Run 同步执行 compose 命令,返回 {ok, output}
+func (s *ComposeService) Run(project string, args ...string) (map[string]any, error) {
+	cmd := s.Command(project, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(out))
@@ -72,11 +90,11 @@ func RunCompose(st *state.AppState, project string, args ...string) (map[string]
 	return map[string]any{"ok": true, "output": output}, nil
 }
 
-// ComposeList 栈列表:按 compose label 统计容器,计算状态
-func ComposeList(st *state.AppState, ctx context.Context) ([]model.ComposeProject, error) {
+// List 栈列表:按 compose label 统计容器,计算状态;外部 compose 不显示
+func (s *ComposeService) List(ctx context.Context) ([]model.ComposeProject, error) {
 	filters := make(client.Filters)
 	filters.Add("label", "com.docker.compose.project")
-	items, err := docker.ListContainers(st.Docker, ctx, client.ContainerListOptions{
+	items, err := docker.ListContainers(s.docker, ctx, client.ContainerListOptions{
 		All:     true,
 		Filters: filters,
 	})
@@ -104,7 +122,7 @@ func ComposeList(st *state.AppState, ctx context.Context) ([]model.ComposeProjec
 
 	out := make([]model.ComposeProject, 0, len(names))
 	for _, name := range names {
-		_, hasFile := os.Stat(ComposeFile(st, name))
+		_, hasFile := os.Stat(composeFile(s.composeDir, name))
 		if hasFile != nil {
 			continue // 外部 compose(宿主直接部署):面板不管理,不显示
 		}
@@ -120,17 +138,17 @@ func ComposeList(st *state.AppState, ctx context.Context) ([]model.ComposeProjec
 			Services: total,
 			Running:  running,
 			Status:   status,
-			Managed:  hasFile == nil,
+			Managed:  true,
 		})
 	}
 	return out, nil
 }
 
-// ComposeInspect 栈详情:容器列表(精简)+ 编排文件内容
-func ComposeInspect(st *state.AppState, ctx context.Context, project string) (model.ComposeInspect, error) {
+// Inspect 栈详情:容器列表(精简)+ 编排文件内容
+func (s *ComposeService) Inspect(ctx context.Context, project string) (model.ComposeInspect, error) {
 	filters := make(client.Filters)
 	filters.Add("label", "com.docker.compose.project="+project)
-	items, err := docker.ListContainers(st.Docker, ctx, client.ContainerListOptions{
+	items, err := docker.ListContainers(s.docker, ctx, client.ContainerListOptions{
 		All:     true,
 		Filters: filters,
 	})
@@ -139,46 +157,84 @@ func ComposeInspect(st *state.AppState, ctx context.Context, project string) (mo
 	}
 	var yaml *string
 	managed := false
-	if raw, err := os.ReadFile(ComposeFile(st, project)); err == nil {
+	if raw, err := os.ReadFile(composeFile(s.composeDir, project)); err == nil {
 		s := string(raw)
 		yaml = &s
 		managed = true
 	}
 	return model.ComposeInspect{
-		Project: project,
-		Managed: managed,
+		Project:    project,
+		Managed:    managed,
 		Containers: model.ToContainerItems(items),
 		Yaml:       yaml,
 	}, nil
 }
 
-// ComposeSaveYaml 校验许可证并写入编排文件(composeUp/composeUpdate 共用)
-func ComposeSaveYaml(st *state.AppState, project, yaml string) error {
-	if !LicenseActive(st) {
+// SaveYaml 校验许可证并写入编排文件(composeUp/composeUpdate 共用)
+func (s *ComposeService) SaveYaml(project, yaml string) error {
+	if !s.license() {
 		return NewApiError(403, "license.required")
 	}
-	dir := ProjectDir(st, project)
+	dir := projectDir(s.composeDir, project)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(ComposeFile(st, project), []byte(yaml), 0o644)
+	return os.WriteFile(composeFile(s.composeDir, project), []byte(yaml), 0o644)
 }
 
-// ComposeRemove 停栈并删除编排目录
-func ComposeRemove(st *state.AppState, project string) error {
-	_, _ = RunCompose(st, project, "down")
-	return os.RemoveAll(ProjectDir(st, project))
+// Remove 停栈并删除编排目录
+func (s *ComposeService) Remove(project string) error {
+	_, _ = s.Run(project, "down")
+	return os.RemoveAll(projectDir(s.composeDir, project))
 }
 
-// ComposeAdopt 接管外部创建的栈:把 yaml 保存到面板数据目录,使其变为面板管理。
+// Adopt 接管外部创建的栈:把 yaml 保存到面板数据目录,使其变为面板管理。
 // 仅保存文件不部署(用户后续可编辑/up);不做许可证限制(接管≠创建)。
-func ComposeAdopt(st *state.AppState, project, yaml string) error {
+func (s *ComposeService) Adopt(project, yaml string) error {
 	if strings.TrimSpace(yaml) == "" {
 		return BadRequest("compose.yamlEmpty")
 	}
-	dir := ProjectDir(st, project)
+	dir := projectDir(s.composeDir, project)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(ComposeFile(st, project), []byte(yaml), 0o644)
+	return os.WriteFile(composeFile(s.composeDir, project), []byte(yaml), 0o644)
+}
+
+// ---------------- 兼容层:包级函数委托(API 层暂保持 st 签名,行为不变) ----------------
+
+func ProjectDir(st *state.AppState, project string) string {
+	return projectDir(st.ComposeDir, project)
+}
+
+func ComposeFile(st *state.AppState, project string) string {
+	return composeFile(st.ComposeDir, project)
+}
+
+func ComposeCommand(st *state.AppState, project string, args ...string) *exec.Cmd {
+	return NewComposeService(st).Command(project, args...)
+}
+
+func RunCompose(st *state.AppState, project string, args ...string) (map[string]any, error) {
+	return NewComposeService(st).Run(project, args...)
+}
+
+func ComposeList(st *state.AppState, ctx context.Context) ([]model.ComposeProject, error) {
+	return NewComposeService(st).List(ctx)
+}
+
+func ComposeInspect(st *state.AppState, ctx context.Context, project string) (model.ComposeInspect, error) {
+	return NewComposeService(st).Inspect(ctx, project)
+}
+
+func ComposeSaveYaml(st *state.AppState, project, yaml string) error {
+	return NewComposeService(st).SaveYaml(project, yaml)
+}
+
+func ComposeRemove(st *state.AppState, project string) error {
+	return NewComposeService(st).Remove(project)
+}
+
+func ComposeAdopt(st *state.AppState, project, yaml string) error {
+	return NewComposeService(st).Adopt(project, yaml)
 }

@@ -11,23 +11,33 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-// VolumesList 卷列表
-func VolumesList(st *state.AppState, ctx context.Context) ([]volume.Volume, error) {
-	return docker.ListVolumes(st.Docker, ctx, client.VolumeListOptions{})
+// VolumeService 卷业务:依赖注入(docker client)
+type VolumeService struct {
+	docker *client.Client
 }
 
-// VolumeRaw 卷详情原始 JSON
-func VolumeRaw(st *state.AppState, ctx context.Context, name string) ([]byte, error) {
-	_, raw, err := docker.InspectVolume(st.Docker, ctx, name)
+// NewVolumeService 生产构造:从 AppState 提取实际依赖
+func NewVolumeService(st *state.AppState) *VolumeService {
+	return &VolumeService{docker: st.Docker}
+}
+
+// List 卷列表
+func (s *VolumeService) List(ctx context.Context) ([]volume.Volume, error) {
+	return docker.ListVolumes(s.docker, ctx, client.VolumeListOptions{})
+}
+
+// Raw 卷详情原始 JSON
+func (s *VolumeService) Raw(ctx context.Context, name string) ([]byte, error) {
+	_, raw, err := docker.InspectVolume(s.docker, ctx, name)
 	return raw, err
 }
 
-// VolumeCreate 创建卷(固定 local 驱动;NFS 卷由前端生成 local+driver_opts)
-func VolumeCreate(st *state.AppState, ctx context.Context, req model.CreateVolumeReq) (volume.Volume, error) {
+// Create 创建卷(固定 local 驱动;NFS 卷由前端生成 local+driver_opts)
+func (s *VolumeService) Create(ctx context.Context, req model.CreateVolumeReq) (volume.Volume, error) {
 	if req.Name == "" {
 		return volume.Volume{}, BadRequest("volume.nameEmpty")
 	}
-	return docker.CreateVolume(st.Docker, ctx, client.VolumeCreateOptions{
+	return docker.CreateVolume(s.docker, ctx, client.VolumeCreateOptions{
 		Name:       req.Name,
 		Driver:     "local",
 		DriverOpts: req.DriverOpts,
@@ -35,12 +45,34 @@ func VolumeCreate(st *state.AppState, ctx context.Context, req model.CreateVolum
 	})
 }
 
-// VolumeRemove 删除卷
-func VolumeRemove(st *state.AppState, ctx context.Context, name string, force bool) error {
-	return docker.RemoveVolume(st.Docker, ctx, name, force)
+// Remove 删除卷
+func (s *VolumeService) Remove(ctx context.Context, name string, force bool) error {
+	return docker.RemoveVolume(s.docker, ctx, name, force)
 }
 
-// VolumesPrune 清理未使用卷
+// Prune 清理未使用卷
+func (s *VolumeService) Prune(ctx context.Context) (volume.PruneReport, error) {
+	return docker.PruneVolumes(s.docker, ctx, client.VolumePruneOptions{})
+}
+
+// ---------------- 兼容层:包级函数委托 ----------------
+
+func VolumesList(st *state.AppState, ctx context.Context) ([]volume.Volume, error) {
+	return NewVolumeService(st).List(ctx)
+}
+
+func VolumeRaw(st *state.AppState, ctx context.Context, name string) ([]byte, error) {
+	return NewVolumeService(st).Raw(ctx, name)
+}
+
+func VolumeCreate(st *state.AppState, ctx context.Context, req model.CreateVolumeReq) (volume.Volume, error) {
+	return NewVolumeService(st).Create(ctx, req)
+}
+
+func VolumeRemove(st *state.AppState, ctx context.Context, name string, force bool) error {
+	return NewVolumeService(st).Remove(ctx, name, force)
+}
+
 func VolumesPrune(st *state.AppState, ctx context.Context) (volume.PruneReport, error) {
-	return docker.PruneVolumes(st.Docker, ctx, client.VolumePruneOptions{})
+	return NewVolumeService(st).Prune(ctx)
 }

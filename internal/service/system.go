@@ -23,11 +23,11 @@ import (
 // PublicUser 用户公开信息(不含密码/totp secret)
 func PublicUser(u *state.StoredUser) map[string]any {
 	return map[string]any{
-		"username":            u.Username,
-		"nickname":            u.Nickname,
-		"avatar":              u.Avatar,
+		"username":             u.Username,
+		"nickname":             u.Nickname,
+		"avatar":               u.Avatar,
 		"must_change_password": u.MustChangePassword,
-		"totp_enabled":        u.TotpSecret != nil,
+		"totp_enabled":         u.TotpSecret != nil,
 	}
 }
 
