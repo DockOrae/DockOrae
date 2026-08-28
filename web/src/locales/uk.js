@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'Заплановані завдання виконуватимуться відповідно до цього часового поясу',
     datePickerType: 'Засіб вибору дати',
     datePickerTypeDesc: 'Тип календаря, який використовується для вибору дат закінчення терміну дії',
+    ntpServer: 'NTP-сервер',
+    ntpServerDesc: 'Сервер синхронізації часу (порожньо = pool.ntp.org)',
     adminCredentials: 'Облікові дані адміністратора',
     oldUsername: 'Старе ім’я користувача',
     oldUsernamePh: 'Поточне ім’я користувача для входу',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n} хв тому',
     hoursAgo: '{n} год тому',
     daysAgo: '{n} дн тому',
+    daysShort: 'д',
+    hoursShort: 'год',
+    minShort: 'хв',
   },
   menu: {
     theme: 'Тема',

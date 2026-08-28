@@ -504,6 +504,8 @@ export default {
     timeZoneDesc: '定时任务将按照该时区的时间运行',
     datePickerType: '日期选择器',
     datePickerTypeDesc: '选择器日历类型指定到期日期',
+    ntpServer: 'NTP 服务器',
+    ntpServerDesc: '系统时间同步服务器,留空使用默认 pool.ntp.org',
     adminCredentials: '管理员凭证',
     oldUsername: '原用户名',
     oldUsernamePh: '当前登录用户名',
@@ -760,6 +762,9 @@ export default {
     minutesAgo: '{n} 分钟前',
     hoursAgo: '{n} 小时前',
     daysAgo: '{n} 天前',
+    daysShort: '天',
+    hoursShort: '小时',
+    minShort: '分钟',
   },
   status: {
     restart: '重启',

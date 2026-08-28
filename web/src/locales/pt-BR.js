@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'As tarefas agendadas serão executadas de acordo com este fuso horário',
     datePickerType: 'Seletor de data',
     datePickerTypeDesc: 'Tipo de calendário usado pelo seletor de data para datas de expiração',
+    ntpServer: 'Servidor NTP',
+    ntpServerDesc: 'Servidor de sincronização de horário (vazio usa pool.ntp.org)',
     adminCredentials: 'Credenciais do administrador',
     oldUsername: 'Nome de usuário antigo',
     oldUsernamePh: 'Nome de usuário atual do login',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n} min atrás',
     hoursAgo: '{n} h atrás',
     daysAgo: '{n} d atrás',
+    daysShort: 'd',
+    hoursShort: 'h',
+    minShort: 'min',
   },
   menu: {
     theme: 'Tema',

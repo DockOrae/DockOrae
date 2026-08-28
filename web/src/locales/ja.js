@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'スケジュールタスクはこのタイムゾーンに従って実行されます',
     datePickerType: '日付ピッカー',
     datePickerTypeDesc: '有効期限の日付ピッカーで使用するカレンダータイプ',
+    ntpServer: 'NTP サーバー',
+    ntpServerDesc: 'システム時刻同期サーバー(空欄でデフォルトの pool.ntp.org)',
     adminCredentials: '管理者資格情報',
     oldUsername: '現在のユーザー名',
     oldUsernamePh: '現在のログインユーザー名',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n} 分前',
     hoursAgo: '{n} 時間前',
     daysAgo: '{n} 日前',
+    daysShort: '日',
+    hoursShort: '時間',
+    minShort: '分',
   },
   menu: {
     theme: 'テーマ',

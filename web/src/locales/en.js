@@ -503,6 +503,8 @@ export default {
     timeZoneDesc: 'Scheduled tasks will run according to this time zone',
     datePickerType: 'Date picker',
     datePickerTypeDesc: 'Calendar type used by the date picker for expiration dates',
+    ntpServer: 'NTP server',
+    ntpServerDesc: 'NTP time sync server, empty uses default pool.ntp.org',
     adminCredentials: 'Admin credentials',
     oldUsername: 'Old username',
     oldUsernamePh: 'Current login username',
@@ -759,6 +761,9 @@ export default {
     minutesAgo: '{n} minutes ago',
     hoursAgo: '{n} hours ago',
     daysAgo: '{n} days ago',
+    daysShort: 'd',
+    hoursShort: 'h',
+    minShort: 'min',
   },
   status: {
     restart: 'Restart',

@@ -102,7 +102,8 @@
             <div class="sr-input !w-[420px]">
               <textarea
                 v-model="mirrorsText"
-                class="input !h-24 code-panel font-mono text-[12px] leading-relaxed w-full resize-y"
+                class="input !h-24 text-[12px] leading-relaxed w-full"
+                style="resize: vertical"
                 :placeholder="t('settings.mirrorPlaceholder')"
                 spellcheck="false"
               />
@@ -136,14 +137,18 @@
               <div class="sr-label">{{ t('settings.timeZone') }}</div>
               <div class="sr-desc">{{ t('settings.timeZoneDesc') }}</div>
             </div>
-            <input v-model="form.timeZone" class="input sr-input" placeholder="Asia/Shanghai" />
+            <select v-model="form.timeZone" class="input sr-input">
+              <option v-for="z in TIMEZONES" :key="z" :value="z">{{ z }}</option>
+            </select>
           </div>
           <div class="setting-row">
             <div class="sr-info">
-              <div class="sr-label">{{ t('settings.datePickerType') }}</div>
-              <div class="sr-desc">{{ t('settings.datePickerTypeDesc') }}</div>
+              <div class="sr-label">{{ t('settings.ntpServer') }}</div>
+              <div class="sr-desc">{{ t('settings.ntpServerDesc') }}</div>
             </div>
-            <input v-model="form.datePickerType" class="input sr-input" placeholder="gregorian" />
+            <select v-model="form.ntpServer" class="input sr-input">
+              <option v-for="n in NTPSERVERS" :key="n" :value="n">{{ n }}</option>
+            </select>
           </div>
         </div>
       </section>
@@ -709,9 +714,11 @@ import Icon from '../components/Icon.vue'
 import { LANGS } from '../i18n'
 import { api, setToken, getRegistryMirrors, saveRegistryMirrors, getLicense, activateLicenseFile, deactivateLicense } from '../api'
 import { toastErr, toastOk } from '../toast'
+import { useConfirm } from '../confirm'
 import { applyUser, loadLicense as refreshLicense, user } from '../store'
 
 const { t } = useI18n()
+const confirmAction = useConfirm()
 const route = useRoute()
 const router = useRouter()
 
@@ -745,12 +752,31 @@ watch(
   { immediate: true }
 )
 
+// 时区选择列表(常用时区)
+const TIMEZONES = [
+  'UTC',
+  'Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Taipei', 'Asia/Singapore', 'Asia/Tokyo',
+  'Asia/Seoul', 'Asia/Kolkata', 'Asia/Dubai', 'Asia/Bangkok', 'Asia/Jakarta', 'Asia/Manila',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Sao_Paulo', 'Australia/Sydney', 'Australia/Perth',
+]
+
+// NTP 时间同步服务器选择列表
+const NTPSERVERS = [
+  'pool.ntp.org', 'time.apple.com', 'time1.google.com', 'time.cloudflare.com',
+  'ntp.tencent.com', 'ntp1.aliyun.com', 'ntp.ntsc.ac.cn', 'cn.ntp.org.cn',
+]
+
 // 重启面板(设置保存后需重启生效)
 function panelRestart() {
-  if (!confirm(t('status.restartConfirm'))) return
-  api('/system/restart', { method: 'POST' })
-    .then(() => toastOk(t('status.restarting')))
-    .catch((e) => toastErr(e.message))
+  confirmAction(t('status.restartConfirm'), { title: t('status.restart'), danger: true, confirmText: t('common.restart') })
+    .then((ok) => {
+      if (!ok) return
+      api('/system/restart', { method: 'POST' })
+        .then(() => toastOk(t('status.restarting')))
+        .catch((e) => toastErr(e.message))
+    })
 }
 
 const okStyle = { color: '#34d399', background: 'rgba(52,211,153,.12)', border: '1px solid rgba(52,211,153,.3)' }
@@ -858,7 +884,7 @@ function toCrontab() {
 // ---------- 面板设置 ----------
 const form = reactive({
   webListen: '', webDomain: '', webPort: 8080, webBasePath: '/', sessionMaxAge: 10080,
-  webCertFile: '', webKeyFile: '', timeZone: 'Asia/Shanghai', datePickerType: 'gregorian',
+  webCertFile: '', webKeyFile: '', timeZone: 'Asia/Shanghai', datePickerType: 'gregorian', ntpServer: 'pool.ntp.org',
   tgEnable: false, tgBotToken: '', tgAdminChatId: '', tgRunTime: '', tgBotBackup: false,
   tgLang: '', tgBotAPIServer: '',
   emailEnable: false, smtpHost: '', smtpPort: 25, smtpUser: '', smtpPass: '', smtpFrom: '',
@@ -888,6 +914,7 @@ async function loadPanelSettings() {
       webKeyFile: s.webKeyFile || '',
       timeZone: s.timeZone || 'Asia/Shanghai',
       datePickerType: s.datePickerType || 'gregorian',
+      ntpServer: s.ntpServer || 'pool.ntp.org',
       tgEnable: !!s.tgEnable,
       tgBotToken: '', // 已配置时留空:避免把脱敏值回传覆盖真 token
       tgAdminChatId: s.tgAdminChatId || '',
@@ -930,6 +957,7 @@ async function savePanel() {
     webKeyFile: form.webKeyFile.trim(),
     timeZone: form.timeZone.trim() || 'Asia/Shanghai',
     datePickerType: form.datePickerType.trim() || 'gregorian',
+    ntpServer: form.ntpServer.trim() || 'pool.ntp.org',
     tgEnable: form.tgEnable,
     tgBotToken: form.tgBotToken.trim(),
     tgAdminChatId: form.tgAdminChatId.trim(),
@@ -1367,7 +1395,7 @@ onMounted(() => {
   line-height: 1.45;
 }
 .sr-input {
-  width: 320px;
+  width: 420px;
   max-width: 45%;
   flex-shrink: 0;
 }

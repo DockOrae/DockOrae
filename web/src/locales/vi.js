@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'Các tác vụ theo lịch sẽ chạy theo múi giờ này',
     datePickerType: 'Bộ chọn ngày',
     datePickerTypeDesc: 'Loại lịch được bộ chọn ngày sử dụng để chọn ngày hết hạn',
+    ntpServer: 'Máy chủ NTP',
+    ntpServerDesc: 'Máy chủ đồng bộ thời gian (để trống dùng pool.ntp.org)',
     adminCredentials: 'Thông tin đăng nhập quản trị viên',
     oldUsername: 'Tên người dùng cũ',
     oldUsernamePh: 'Tên người dùng đang đăng nhập',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n} phút trước',
     hoursAgo: '{n} giờ trước',
     daysAgo: '{n} ngày trước',
+    daysShort: 'ngày',
+    hoursShort: 'giờ',
+    minShort: 'phút',
   },
   menu: {
     theme: 'Giao diện',

@@ -153,112 +153,25 @@
 
     <!-- ============ Docker 统计三卡:容器 / 镜像 / 卷(仿 3x-ui ConnectionsCard 风格) ============ -->
     <div class="ov-docker">
-      <!-- 容器卡(点击跳转容器列表,仿 3x-ui 卡片可点) -->
-      <div class="card ov-tile ov-wide clickable" @click="$router.push('/containers')">
-        <div class="ov-wide-head ov-wide-head-stack">
-          <div class="ov-kicker">{{ t('nav.containers') }}</div>
-          <div class="ov-conn-total">
-            <span class="ov-tile-number">{{ counts.total }}</span>
-            <span class="ov-tile-unit">{{ t('nav.containers') }}</span>
-          </div>
-        </div>
-        <div class="ov-conn-legend">
-          <div class="ov-legend-label">
-            <span class="ov-swatch" style="background: #34d399" />
-            {{ t('dashboard.running') }}
-            <span class="ov-legend-num">{{ counts.running }}</span>
-          </div>
-          <div class="ov-legend-label">
-            <span class="ov-swatch" style="background: #8b93a7" />
-            {{ t('dashboard.stopped') }}
-            <span class="ov-legend-num">{{ counts.total - counts.running }}</span>
-          </div>
-        </div>
-        <div class="ov-wide-chart">
-          <MiniChart
-            :s1="hist.containerCount"
-            color1="#34d399"
-            :height="110"
-            :fill="0.24"
-            :stroke-width="1.5"
-            :show-tooltip="true"
-            :labels="dockerLabels"
-            :y-formatter="fmtInt"
-            :ref-lines="meanRef(hist.containerCount, '#34d399')"
-          />
-        </div>
+      <!-- 容器卡(仅显示数量,点击跳转容器列表) -->
+      <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/containers')">
+        <div class="ov-kicker">{{ t('nav.containers') }}</div>
+        <div class="count-card-num">{{ counts.total }}</div>
+        <div class="count-card-sub">{{ t('dashboard.running') }} {{ counts.running }} · {{ t('dashboard.stopped') }} {{ counts.total - counts.running }}</div>
       </div>
 
-      <!-- 镜像卡(点击跳转镜像列表) -->
-      <div class="card ov-tile ov-wide clickable" @click="$router.push('/images')">
-        <div class="ov-wide-head ov-wide-head-stack">
-          <div class="ov-kicker">{{ t('nav.images') }}</div>
-          <div class="ov-conn-total">
-            <span class="ov-tile-number">{{ counts.images }}</span>
-            <span class="ov-tile-unit">{{ t('nav.images') }}</span>
-          </div>
-        </div>
-        <div class="ov-conn-legend">
-          <div class="ov-legend-label">
-            <span class="ov-swatch" style="background: #60a5fa" />
-            {{ t('dashboard.totalSize') }}
-            <span class="ov-legend-num">{{ imageSizeText }}</span>
-          </div>
-          <div class="ov-legend-label">
-            <span class="ov-swatch" style="background: #c084fc" />
-            {{ t('dashboard.avgSize') }}
-            <span class="ov-legend-num">{{ imageAvgText }}</span>
-          </div>
-        </div>
-        <div class="ov-wide-chart">
-          <MiniChart
-            :s1="hist.imageCount"
-            color1="#60a5fa"
-            :height="110"
-            :fill="0.24"
-            :stroke-width="1.5"
-            :show-tooltip="true"
-            :labels="dockerLabels"
-            :y-formatter="fmtInt"
-            :ref-lines="meanRef(hist.imageCount, '#60a5fa')"
-          />
-        </div>
+      <!-- 镜像卡(仅显示数量,点击跳转镜像列表) -->
+      <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/images')">
+        <div class="ov-kicker">{{ t('nav.images') }}</div>
+        <div class="count-card-num">{{ counts.images }}</div>
+        <div class="count-card-sub">{{ t('dashboard.totalSize') }} {{ imageSizeText }}</div>
       </div>
 
-      <!-- 卷卡(点击跳转卷列表) -->
-      <div class="card ov-tile ov-wide clickable" @click="$router.push('/volumes')">
-        <div class="ov-wide-head ov-wide-head-stack">
-          <div class="ov-kicker">{{ t('nav.volumes') }}</div>
-          <div class="ov-conn-total">
-            <span class="ov-tile-number">{{ counts.volumes }}</span>
-            <span class="ov-tile-unit">{{ t('nav.volumes') }}</span>
-          </div>
-        </div>
-        <div class="ov-conn-legend">
-          <div class="ov-legend-label">
-            <span class="ov-swatch" style="background: #34d399" />
-            {{ t('dashboard.mounted') }}
-            <span class="ov-legend-num">{{ mountedVolumes }}</span>
-          </div>
-          <div class="ov-legend-label">
-            <span class="ov-swatch" style="background: #8b93a7" />
-            {{ t('dashboard.unmounted') }}
-            <span class="ov-legend-num">{{ counts.volumes - mountedVolumes }}</span>
-          </div>
-        </div>
-        <div class="ov-wide-chart">
-          <MiniChart
-            :s1="hist.volumeCount"
-            color1="#fbbf24"
-            :height="110"
-            :fill="0.24"
-            :stroke-width="1.5"
-            :show-tooltip="true"
-            :labels="dockerLabels"
-            :y-formatter="fmtInt"
-            :ref-lines="meanRef(hist.volumeCount, '#fbbf24')"
-          />
-        </div>
+      <!-- 卷卡(仅显示数量,点击跳转卷列表) -->
+      <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/volumes')">
+        <div class="ov-kicker">{{ t('nav.volumes') }}</div>
+        <div class="count-card-num">{{ counts.volumes }}</div>
+        <div class="count-card-sub">{{ t('dashboard.mounted') }} {{ mountedVolumes }} · {{ t('dashboard.unmounted') }} {{ counts.volumes - mountedVolumes }}</div>
       </div>
     </div>
 
@@ -435,9 +348,11 @@ import Icon from '../components/Icon.vue'
 import { api, getToken } from '../api'
 import { formatBytes } from '../util'
 import { toastErr, toastOk } from '../toast'
+import { useConfirm } from '../confirm'
 import { licenseActive } from '../store'
 
 const { t } = useI18n()
+const askConfirm = useConfirm()
 
 // ---------- 基础数据 ----------
 const containers = ref([])
@@ -776,7 +691,8 @@ async function restoreBackup(ev) {
   const file = ev.target.files?.[0]
   ev.target.value = ''
   if (!file) return
-  if (!confirm(t('status.restoreConfirm'))) return
+  const ok = await askConfirm(t('status.restoreConfirm'), { title: t('status.restore'), danger: true, confirmText: t('status.restore') })
+  if (!ok) return
   const fd = new FormData()
   fd.append('file', file)
   try {
@@ -845,8 +761,9 @@ const historyChart = computed(() => {
   }
 })
 
-function panelRestart() {
-  if (!confirm(t('status.restartConfirm'))) return
+async function panelRestart() {
+  const ok = await askConfirm(t('status.restartConfirm'), { title: t('status.restart'), danger: true, confirmText: t('common.restart') })
+  if (!ok) return
   api('/system/restart', { method: 'POST' })
     .then(() => toastOk(t('status.restarting')))
     .catch((e) => toastErr(e.message))
@@ -1080,6 +997,28 @@ onBeforeUnmount(() => {
 }
 .ov-tile.clickable {
   cursor: pointer;
+}
+
+/* ---------- 容器/镜像/卷数量卡(仅显示部署数量,点击跳转) ---------- */
+.count-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--ov-pad);
+  min-height: 150px;
+  justify-content: center;
+}
+.count-card-num {
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--dm-text);
+  font-variant-numeric: tabular-nums;
+}
+.count-card-sub {
+  font-size: 12px;
+  color: var(--ov-faint);
 }
 .ov-tile:hover {
   border-color: color-mix(in srgb, var(--color-brand) 40%, var(--dm-line));

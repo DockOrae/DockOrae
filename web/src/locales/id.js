@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'Tugas terjadwal akan berjalan sesuai zona waktu ini',
     datePickerType: 'Pemilih tanggal',
     datePickerTypeDesc: 'Jenis kalender yang digunakan pemilih tanggal untuk tanggal kedaluwarsa',
+    ntpServer: 'Server NTP',
+    ntpServerDesc: 'Server sinkronisasi waktu (kosong pakai pool.ntp.org)',
     adminCredentials: 'Kredensial admin',
     oldUsername: 'Nama pengguna lama',
     oldUsernamePh: 'Nama pengguna masuk saat ini',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n} menit lalu',
     hoursAgo: '{n} jam lalu',
     daysAgo: '{n} hari lalu',
+    daysShort: 'hari',
+    hoursShort: 'jam',
+    minShort: 'mnt',
   },
   menu: {
     theme: 'Tema',

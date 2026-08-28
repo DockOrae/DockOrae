@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: '예약 작업이 이 시간대 기준으로 실행됩니다',
     datePickerType: '날짜 선택기',
     datePickerTypeDesc: '만료 날짜 선택에 사용되는 달력 유형',
+    ntpServer: 'NTP 서버',
+    ntpServerDesc: '시스템 시간 동기화 서버(비우면 기본값 pool.ntp.org)',
     adminCredentials: '관리자 자격 증명',
     oldUsername: '기존 사용자 이름',
     oldUsernamePh: '현재 로그인 사용자 이름',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n}분 전',
     hoursAgo: '{n}시간 전',
     daysAgo: '{n}일 전',
+    daysShort: '일',
+    hoursShort: '시간',
+    minShort: '분',
   },
   menu: {
     theme: '테마',

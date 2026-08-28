@@ -26,6 +26,7 @@ type Settings struct {
 	// 日期和时间
 	TimeZone       string `json:"timeZone"`       // 时区
 	DatePickerType string `json:"datePickerType"` // 日期选择器日历类型
+	NtpServer      string `json:"ntpServer"`      // NTP 时间同步服务器
 	// Telegram 机器人
 	TgEnable       bool     `json:"tgEnable"`
 	TgBotToken     string   `json:"tgBotToken"`
@@ -70,6 +71,7 @@ func Default(envPort string) *Settings {
 		WebBasePath:   "/",
 		SessionMaxAge: 7 * 24 * 60, // 7 天(分钟)
 		TimeZone:      "Asia/Shanghai",
+		NtpServer:     "pool.ntp.org",
 	}
 }
 
@@ -125,6 +127,9 @@ func normalize(s *Settings) {
 	}
 	if s.TimeZone == "" {
 		s.TimeZone = "Asia/Shanghai"
+	}
+	if s.NtpServer == "" {
+		s.NtpServer = "pool.ntp.org"
 	}
 }
 

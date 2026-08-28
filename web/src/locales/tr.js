@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'Zamanlanmış görevler bu saat dilimine göre çalışır',
     datePickerType: 'Tarih seçici',
     datePickerTypeDesc: 'Tarih seçicinin son kullanma tarihleri için kullandığı takvim türü',
+    ntpServer: 'NTP sunucusu',
+    ntpServerDesc: 'Zaman senkronlama sunucusu (boşsa pool.ntp.org)',
     adminCredentials: 'Yönetici kimlik bilgileri',
     oldUsername: 'Eski kullanıcı adı',
     oldUsernamePh: 'Mevcut giriş kullanıcı adı',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n} dakika önce',
     hoursAgo: '{n} saat önce',
     daysAgo: '{n} gün önce',
+    daysShort: 'g',
+    hoursShort: 'sa',
+    minShort: 'dk',
   },
   menu: {
     theme: 'Tema',

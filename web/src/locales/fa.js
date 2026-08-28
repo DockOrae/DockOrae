@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'وظایف زمان‌بندی‌شده بر اساس این منطقه زمانی اجرا می‌شوند',
     datePickerType: 'انتخاب‌گر تاریخ',
     datePickerTypeDesc: 'نوع تقویم مورد استفاده انتخاب‌گر تاریخ برای تاریخ‌های انقضا',
+    ntpServer: 'سرور NTP',
+    ntpServerDesc: 'سرور همگام‌سازی زمان (خالی = pool.ntp.org)',
     adminCredentials: 'اطلاعات ورود مدیر',
     oldUsername: 'نام کاربری قبلی',
     oldUsernamePh: 'نام کاربری فعلی برای ورود',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: '{n} دقیقه پیش',
     hoursAgo: '{n} ساعت پیش',
     daysAgo: '{n} روز پیش',
+    daysShort: 'روز',
+    hoursShort: 'ساعت',
+    minShort: 'دقیقه',
   },
   menu: {
     theme: 'پوسته',

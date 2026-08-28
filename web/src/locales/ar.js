@@ -558,6 +558,8 @@ export default {
     timeZoneDesc: 'ستعمل المهام المجدولة وفقًا لهذه المنطقة الزمنية',
     datePickerType: 'منتقي التاريخ',
     datePickerTypeDesc: 'نوع التقويم المستخدم في منتقي التاريخ لتواريخ الانتهاء',
+    ntpServer: 'خادم NTP',
+    ntpServerDesc: 'خادم مزامنة الوقت (فارغ = pool.ntp.org)',
     adminCredentials: 'بيانات اعتماد المسؤول',
     oldUsername: 'اسم المستخدم القديم',
     oldUsernamePh: 'اسم مستخدم تسجيل الدخول الحالي',
@@ -795,6 +797,9 @@ export default {
     minutesAgo: 'قبل {n} دقيقة',
     hoursAgo: 'قبل {n} ساعة',
     daysAgo: 'قبل {n} يوم',
+    daysShort: 'ي',
+    hoursShort: 'س',
+    minShort: 'د',
   },
   menu: {
     theme: 'السمة',
