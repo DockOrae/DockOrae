@@ -22,6 +22,7 @@ instructions: |
   - 未认证设置 (noAuthSetting): response code when accessing API without login — 200 help page / 400 / 401 / 403 / 404 / 408 / 416 / 444 (connection closed) / 500, default 401.
   - Login failure events show up in 面板设置 → 日志; 401 响应携带登录失败提示。
   - 应用商店 (App Store): 数据源为 MinimaxFlora/docker-manager-apps 仓库(264 个应用,1Panel 同款结构 data.yml + docker-compose.yml + formFields 参数 + logo.png)。首次使用需在应用商店页点「同步应用商店」下载数据(~240MB,存 DATA_DIR/appstore);同步可用环境变量 DM_APPSTORE_REPO/DM_APPSTORE_URL 覆盖仓库/下载地址。安装流程:选版本 → 填参数表单(1Panel formFields)→ 自动创建 1panel-network 外部网络 → compose up。已安装且版本非最新时卡片显示「可升级」黄色徽标,一键升级会重渲染最新版 compose。
+  - 资源可见性 (1Panel 同款): 容器/Compose 列表只显示面板管理的资源 — 有 createdBy 标签(面板创建=createdBy docker-manager,应用商店=createdBy Apps)或 compose 项目在面板数据目录(面板接管/编排)。宿主机直接部署的外部容器与 compose 不显示;若宿主机资源需在面板管理,用面板"接管"粘贴 compose 即可。
 
 type: knowledge-base
 tags: [docker, docker-manager, panel, go, gin, vue, container, devops]

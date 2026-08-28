@@ -104,6 +104,10 @@ func ComposeList(st *state.AppState, ctx context.Context) ([]model.ComposeProjec
 
 	out := make([]model.ComposeProject, 0, len(names))
 	for _, name := range names {
+		_, hasFile := os.Stat(ComposeFile(st, name))
+		if hasFile != nil {
+			continue // 外部 compose(宿主直接部署):面板不管理,不显示
+		}
 		total, running := projects[name][0], projects[name][1]
 		status := "stopped"
 		if running == total {
@@ -111,7 +115,6 @@ func ComposeList(st *state.AppState, ctx context.Context) ([]model.ComposeProjec
 		} else if running > 0 {
 			status = "partial"
 		}
-		_, hasFile := os.Stat(ComposeFile(st, name))
 		out = append(out, model.ComposeProject{
 			Project:  name,
 			Services: total,

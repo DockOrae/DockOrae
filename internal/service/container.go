@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/netip"
+	"os"
 	"strconv"
 	"strings"
 
@@ -23,7 +24,27 @@ func ContainersList(st *state.AppState, ctx context.Context, all bool) ([]model.
 	if err != nil {
 		return nil, err
 	}
-	return model.ToContainerItems(items), nil
+	return filterManagedContainers(st, model.ToContainerItems(items)), nil
+}
+
+// filterManagedContainers 只保留面板管理的容器(1Panel 同款:外部创建的隐藏):
+// 1) 有 createdBy 标签(面板创建 / 应用商店安装,如 createdBy=Apps)
+// 2) compose 项目在面板数据目录(面板接管 / 面板编排的栈)
+func filterManagedContainers(st *state.AppState, items []model.ContainerListItem) []model.ContainerListItem {
+	kept := items[:0]
+	for _, c := range items {
+		if _, ok := c.Labels["createdBy"]; ok {
+			kept = append(kept, c)
+			continue
+		}
+		if proj := c.Labels["com.docker.compose.project"]; proj != "" {
+			if _, err := os.Stat(ComposeFile(st, proj)); err == nil {
+				kept = append(kept, c)
+				continue
+			}
+		}
+	}
+	return kept
 }
 
 // ContainerInspect 容器详情(原始 JSON 由 handler 透传)
@@ -101,6 +122,7 @@ func ContainerCreate(st *state.AppState, ctx context.Context, req model.CreateCo
 		AttachStdin:  tty,
 		OpenStdin:    tty,
 		ExposedPorts: exposed,
+		Labels:       map[string]string{"createdBy": "docker-manager"},
 	}
 	hc := &container.HostConfig{
 		PortBindings:  bindings,
