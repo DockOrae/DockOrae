@@ -111,8 +111,9 @@
             <div class="sr-input !w-[420px]">
               <textarea
                 v-model="mirrorsText"
+                rows="1"
                 class="input text-[12px] leading-relaxed w-full"
-                style="resize: vertical; height: 96px; min-height: 48px; max-height: 320px"
+                style="resize: vertical; min-height: 36px; max-height: 320px"
                 :placeholder="t('settings.mirrorPlaceholder')"
                 spellcheck="false"
               />
