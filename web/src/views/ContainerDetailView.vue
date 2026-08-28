@@ -9,7 +9,7 @@
             <h2 class="text-base font-semibold truncate">{{ name }}</h2>
             <StatusBadge v-if="inspect" :state="inspect.State?.Status" />
           </div>
-          <div class="text-[11px] text-muted font-mono mt-0.5">{{ shortId(id) }} · {{ inspect?.Config?.Image || '' }}</div>
+          <div class="text-[11px] text-muted font-mono mt-0.5">{{ name }} · {{ inspect?.Config?.Image || '' }}</div>
         </div>
         <div class="ml-auto flex items-center gap-1.5 flex-wrap">
           <button v-if="status !== 'running'" class="btn btn-ok btn-sm" @click="act('start')"><Icon name="play" size="13" /> {{ t('common.start') }}</button>
@@ -74,7 +74,12 @@ const tabs = [
   { key: 'terminal', labelKey: 'containerDetail.tabTerminal' },
 ]
 
-const name = computed(() => containerName(inspect.value) || id.value)
+// 容器名(inspect.Name 带 / 前缀);inspect 未加载时退回 ID 缩写
+const name = computed(() => {
+  const n = inspect.value?.Name
+  if (typeof n === 'string' && n) return n.replace(/^\//, '')
+  return containerName(inspect.value) || shortId(id.value)
+})
 
 async function load() {
   try {
