@@ -11,6 +11,7 @@ export default {
     docs: 'Dokümanlar',
   },
   common: {
+    rebuild: 'Yeniden oluştur',
     ok: 'Tamam',
     cancel: 'İptal',
     save: 'Kaydet',
@@ -363,7 +364,6 @@ export default {
     type: 'Tür',
     typeLocal: 'Yerel',
     typeNfs: 'NFS',
-    typeCustom: 'Özel',
     nfsAddress: 'NFS sunucu adresi',
     nfsAddressPh: 'örn. 192.168.1.10 veya nfs.example.com',
     nfsVersion: 'NFS sürümü',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Bağlama seçenekleri',
     nfsOptionsPh: 'örn. rw,hard(varsayılan rw)',
     driverOpts: 'Sürücü seçenekleri(isteğe bağlı)',
+
     optKey: 'Anahtar',
+
     optValue: 'Değer',
+
     addOpt: 'Seçenek ekle',
+
     labels: 'Etiketler(isteğe bağlı)',
     labelKey: 'Anahtar',
     labelValue: 'Değer',
     addLabel: 'Etiket ekle',
     nfsRequired: 'NFS adresi ve bağlama noktası zorunludur',
+    localHint: 'Standart yerel birim (Docker veri dizini /var/lib/docker/volumes/ altında saklanır)',
     count: 'Toplam {count} birim',
     newVolume: 'Yeni birim',
     thName: 'Ad',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Silindi',
   },
   containerDetail: {
+    title: 'Kapsayıcı Detayları',
     tabOverview: 'Genel bakış',
     tabLogs: 'Günlükler',
     tabStats: 'İstatistikler',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'Uygulama ara...',
+    sync: 'Uygulama mağazasını senkronize et',
+
+    syncDone: 'Senkronize edildi',
+
     all: 'Tümü',
     installed: 'Kurulu',
     count: '{count} uygulama',
+
+
+
     empty: 'Eşleşen uygulama yok',
-    cat_database: 'Veritabanı',
-    cat_service: 'Hizmetler',
-    cat_tools: 'Kapsayıcı Araçları',
     installedTag: 'Kurulu',
+    updatable: 'Güncellenebilir',
+
+    updateAvailableMsg: 'Yeni sürüm mevcut',
+
     ports: 'Bağlantı noktaları',
     install: 'Kur',
     installing: 'Kuruluyor...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'Uygulama bulunamadı',
     toastInstalled: '"{name}" kuruldu',
     toastUpgraded: 'Yükseltme tamamlandı',
+    editCompose: 'compose dosyasını düzenle',
+    composePreview: 'compose dosyası önizleme',
+    refreshPreview: 'Mevcut parametrelerle yeniden oluştur',
+    composeWarn: 'compose dosyasını düzenlemek kurulumun başarısız olmasına neden olabilir',
+    togglePwd: 'Şifreyi göster/gizle',
+    hint_containerName: 'Boş bırakılırsa otomatik oluşturulur',
+    hint_cpuLimit: '0 sınırı kapatır',
+    hint_memLimit: '0 sınırı kapatır',
+    autoGenerate: 'Boş bırakılırsa otomatik oluşturulur',
+    generate: 'Oluştur',
+    enable: 'Etkinleştir',
+    hint_sqlite: 'Yerleşik SQLite kullanılırken veritabanı şifresi gerekmez',
+    param_required: 'Zorunlu alan boş olamaz',
+    param_port: 'Bağlantı noktası 1-65535 arası bir sayı olmalı',
+    param_common: 'Yalnızca harf, rakam, alt çizgi ve tire kullanılabilir',
   },
 }

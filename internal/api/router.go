@@ -47,6 +47,8 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	api.GET("/system/wallpaper", H(wallpaperGet).Handler(st))
 	api.POST("/login", H(systemLogin).Handler(st))
 	api.POST("/login/totp", H(systemLoginTotp).Handler(st))
+	// 应用图标:公开(1Panel 同款,<img> 无 header 可带 token)
+	api.GET("/apps/icon/:key", H(appstoreIcon).Handler(st))
 
 	// ---------- protected ----------
 	p := api.Group("")
@@ -95,6 +97,8 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 
 	p.GET("/apps", H(appstoreList).Handler(st))
 	p.GET("/apps/:key", H(appstoreDetail).Handler(st))
+	p.POST("/apps/sync", H(appstoreSync).Handler(st))
+	p.POST("/apps/:key/preview", H(appstorePreview).Handler(st))
 	p.POST("/apps/:key/install", H(appstoreInstall).Handler(st))
 	p.POST("/apps/:key/uninstall", H(appstoreUninstall).Handler(st))
 	p.POST("/apps/:key/upgrade", H(appstoreUpgrade).Handler(st))
@@ -107,6 +111,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/containers/:id/start", H(containersStart).Handler(st))
 	p.POST("/containers/:id/stop", H(containersStop).Handler(st))
 	p.POST("/containers/:id/restart", H(containersRestart).Handler(st))
+	p.POST("/containers/:id/recreate", H(containersRecreate).Handler(st))
 	p.POST("/containers/:id/kill", H(containersKill).Handler(st))
 	p.POST("/containers/:id/pause", H(containersPause).Handler(st))
 	p.POST("/containers/:id/unpause", H(containersUnpause).Handler(st))
@@ -130,7 +135,6 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 
 	p.GET("/volumes", H(volumesList).Handler(st))
 	p.POST("/volumes", H(volumesCreate).Handler(st))
-	p.GET("/volumes/drivers", H(volumesDrivers).Handler(st))
 	p.POST("/volumes/prune", H(volumesPrune).Handler(st))
 	p.GET("/volumes/:name", H(volumesInspect).Handler(st))
 	p.DELETE("/volumes/:name", H(volumesRemove).Handler(st))

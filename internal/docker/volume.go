@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 )
@@ -44,12 +43,4 @@ func PruneVolumes(cli *client.Client, ctx context.Context, opts client.VolumePru
 		return volume.PruneReport{}, err
 	}
 	return res.Report, nil
-}
-
-func ListPlugins(cli *client.Client, ctx context.Context) ([]plugin.Plugin, error) {
-	res, err := cli.PluginList(ctx, client.PluginListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return res.Items, nil
 }

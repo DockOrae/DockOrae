@@ -11,6 +11,7 @@ export default {
     docs: 'الوثائق',
   },
   common: {
+    rebuild: 'إعادة بناء',
     ok: 'موافق',
     cancel: 'إلغاء',
     save: 'حفظ',
@@ -363,7 +364,6 @@ export default {
     type: 'النوع',
     typeLocal: 'محلي',
     typeNfs: 'NFS',
-    typeCustom: 'مخصص',
     nfsAddress: 'عنوان خادم NFS',
     nfsAddressPh: 'مثل 192.168.1.10 أو nfs.example.com',
     nfsVersion: 'إصدار NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'خيارات التحميل',
     nfsOptionsPh: 'مثل rw,hard(الافتراضي rw)',
     driverOpts: 'خيارات السائق(اختياري)',
+
     optKey: 'المفتاح',
+
     optValue: 'القيمة',
+
     addOpt: 'إضافة خيار',
+
     labels: 'الوسوم(اختياري)',
     labelKey: 'المفتاح',
     labelValue: 'القيمة',
     addLabel: 'إضافة وسم',
     nfsRequired: 'عنوان NFS ونقطة التحميل مطلوبان',
+    localHint: 'وحدة تخزين محلية قياسية (تُخزن في /var/lib/docker/volumes/)',
     count: 'إجمالي {count} وحدة تخزين',
     newVolume: 'وحدة تخزين جديدة',
     thName: 'الاسم',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'تم الحذف',
   },
   containerDetail: {
+    title: 'تفاصيل الحاوية',
     tabOverview: 'نظرة عامة',
     tabLogs: 'السجلات',
     tabStats: 'الإحصائيات',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'البحث عن تطبيقات...',
+    sync: 'مزامنة متجر التطبيقات',
+
+    syncDone: 'تمت المزامنة',
+
     all: 'الكل',
     installed: 'المثبتة',
     count: '{count} تطبيق',
+
+
+
     empty: 'لا توجد تطبيقات مطابقة',
-    cat_database: 'قواعد البيانات',
-    cat_service: 'الخدمات',
-    cat_tools: 'أدوات الحاويات',
     installedTag: 'مثبت',
+    updatable: 'قابل للتحديث',
+
+    updateAvailableMsg: 'يتوفر إصدار جديد',
+
     ports: 'المنافذ',
     install: 'تثبيت',
     installing: 'جارٍ التثبيت...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'التطبيق غير موجود',
     toastInstalled: 'تم تثبيت «{name}»',
     toastUpgraded: 'اكتملت الترقية',
+    editCompose: 'تحرير ملف compose',
+    composePreview: 'معاينة ملف compose',
+    refreshPreview: 'إعادة التوليد بالمعلمات الحالية',
+    composeWarn: 'قد يتسبب تحرير ملف compose في فشل التثبيت',
+    togglePwd: 'إظهار/إخفاء كلمة المرور',
+    hint_containerName: 'يتم توليده تلقائياً عند تركه فارغاً',
+    hint_cpuLimit: '0 يلغي الحد',
+    hint_memLimit: '0 يلغي الحد',
+    autoGenerate: 'اتركه فارغاً للتوليد التلقائي',
+    generate: 'توليد',
+    enable: 'تمكين',
+    hint_sqlite: 'لا حاجة لكلمة مرور قاعدة البيانات عند استخدام SQLite المدمج',
+    param_required: 'لا يمكن ترك الحقل الإلزامي فارغاً',
+    param_port: 'يجب أن يكون المنفذ رقماً بين 1-65535',
+    param_common: 'يُسمح فقط بالأحرف والأرقام والشرطة السفلية والواصلة',
   },
 }

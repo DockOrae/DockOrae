@@ -289,3 +289,26 @@ func (s *TerminalSession) Close() {
 	s.cancel()
 	s.close()
 }
+
+// ContainerRecreate 重建容器(1Panel 同款):用原配置创建新容器 → 停删旧容器 → 启动新容器
+func ContainerRecreate(st *state.AppState, ctx context.Context, id string) error {
+	insp, err := docker.InspectContainer(st.Docker, ctx, id)
+	if err != nil {
+		return err
+	}
+	name := strings.TrimPrefix(insp.Name, "/")
+	newID, err := docker.CreateContainer(st.Docker, ctx, client.ContainerCreateOptions{
+		Name:             name,
+		Config:           insp.Config,
+		HostConfig:       insp.HostConfig,
+		NetworkingConfig: &network.NetworkingConfig{EndpointsConfig: insp.NetworkSettings.Networks},
+	})
+	if err != nil {
+		return err
+	}
+	_ = docker.StopContainer(st.Docker, ctx, id, client.ContainerStopOptions{})
+	if err := docker.RemoveContainer(st.Docker, ctx, id, client.ContainerRemoveOptions{Force: true}); err != nil {
+		return err
+	}
+	return docker.StartContainer(st.Docker, ctx, newID)
+}

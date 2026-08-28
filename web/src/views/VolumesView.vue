@@ -50,9 +50,6 @@
             <button type="button" class="btn btn-sm flex-1" :class="form.type === 'nfs' ? 'btn-brand' : 'btn-ghost'" @click="form.type = 'nfs'">
               {{ t('volumes.typeNfs') }}
             </button>
-            <button type="button" class="btn btn-sm flex-1" :class="form.type === 'custom' ? 'btn-brand' : 'btn-ghost'" @click="form.type = 'custom'">
-              {{ t('volumes.typeCustom') }}
-            </button>
           </div>
         </div>
 
@@ -81,30 +78,25 @@
           </div>
         </template>
 
-        <!-- 自定义驱动 -->
-        <template v-if="form.type === 'custom'">
+        <!-- 本地卷提示 -->
+        <p v-if="form.type === 'local'" class="text-[11px] text-muted">{{ t('volumes.localHint') }}</p>
+
+        <!-- 驱动选项(仅本地;NFS 由上方字段自动生成 driver_opts) -->
+        <template v-if="form.type === 'local'">
           <div>
-            <label class="label">{{ t('volumes.driver') }}</label>
-            <select v-model="form.custom.driver" class="input">
-              <option v-for="d in drivers" :key="d" :value="d">{{ d }}</option>
-            </select>
+            <label class="label">{{ t('volumes.driverOpts') }}</label>
+            <div class="space-y-1.5">
+              <div v-for="(o, i) in form.opts" :key="i" class="flex gap-1.5">
+                <input v-model="o.key" class="input !w-1/2" :placeholder="t('volumes.optKey')" />
+                <input v-model="o.value" class="input !w-1/2" :placeholder="t('volumes.optValue')" />
+                <button type="button" class="btn btn-icon btn-sm text-danger" @click="form.opts.splice(i, 1)"><Icon name="x" size="12" /></button>
+              </div>
+              <button type="button" class="btn btn-ghost btn-xs" @click="form.opts.push({ key: '', value: '' })">
+                <Icon name="plus" size="12" /> {{ t('volumes.addOpt') }}
+              </button>
+            </div>
           </div>
         </template>
-
-        <!-- 驱动选项(键值对) -->
-        <div>
-          <label class="label">{{ t('volumes.driverOpts') }}</label>
-          <div class="space-y-1.5">
-            <div v-for="(o, i) in form.opts" :key="i" class="flex gap-1.5">
-              <input v-model="o.key" class="input !w-1/2" :placeholder="t('volumes.optKey')" />
-              <input v-model="o.value" class="input !w-1/2" :placeholder="t('volumes.optValue')" />
-              <button type="button" class="btn btn-icon btn-sm text-danger" @click="form.opts.splice(i, 1)"><Icon name="x" size="12" /></button>
-            </div>
-            <button type="button" class="btn btn-ghost btn-xs" @click="form.opts.push({ key: '', value: '' })">
-              <Icon name="plus" size="12" /> {{ t('volumes.addOpt') }}
-            </button>
-          </div>
-        </div>
 
         <!-- 标签(键值对) -->
         <div>
@@ -143,7 +135,6 @@ import { toastErr, toastOk } from '../toast'
 
 const { t } = useI18n()
 const volumes = ref([])
-const drivers = ref(['local'])
 const createOpen = ref(false)
 const error = ref('')
 const confirm = useConfirm()
@@ -152,7 +143,6 @@ const form = reactive({
   name: '',
   type: 'local',
   nfs: { address: '', version: '4', mountpoint: '', options: 'rw' },
-  custom: { driver: 'local' },
   opts: [],
   labels: [],
 })
@@ -161,7 +151,6 @@ function openCreate() {
   form.name = ''
   form.type = 'local'
   form.nfs = { address: '', version: '4', mountpoint: '', options: 'rw' }
-  form.custom = { driver: 'local' }
   form.opts = []
   form.labels = []
   error.value = ''
@@ -182,7 +171,6 @@ function buildPayload() {
   if (form.type === 'nfs') {
     // NFS 卷 = local 驱动 + driver_opts(type=nfs, o=addr=..., device=:path)
     if (!form.nfs.address.trim() || !form.nfs.mountpoint.trim()) return null
-    payload.driver = 'local'
     const opts = []
     opts.push('addr=' + form.nfs.address.trim())
     if (form.nfs.options.trim()) opts.push(form.nfs.options.trim())
@@ -192,11 +180,7 @@ function buildPayload() {
       o: opts.join(','),
       device: ':' + form.nfs.mountpoint.trim(),
     }
-  } else if (form.type === 'custom') {
-    payload.driver = form.custom.driver || 'local'
-    payload.driver_opts = kvToObj(form.opts)
   } else {
-    payload.driver = 'local'
     payload.driver_opts = kvToObj(form.opts)
   }
   return payload
@@ -204,13 +188,6 @@ function buildPayload() {
 
 async function load() {
   volumes.value = await api('/volumes')
-}
-
-async function loadDrivers() {
-  try {
-    const r = await api('/volumes/drivers')
-    drivers.value = r.drivers || ['local']
-  } catch { /* 插件列表失败不阻塞 */ }
 }
 
 async function create() {
@@ -247,6 +224,5 @@ async function remove(v) {
 
 onMounted(() => {
   load()
-  loadDrivers()
 })
 </script>

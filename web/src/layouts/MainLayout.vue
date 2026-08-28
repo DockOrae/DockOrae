@@ -226,7 +226,7 @@ if (!user.username && usernameFromToken.value) {
 
 const navs = [
   { to: '/', labelKey: 'nav.systemStatus', icon: 'dashboard' },
-  { to: '/apps', labelKey: 'nav.appStore', icon: 'grid' },
+  { to: '/apps', labelKey: 'nav.appStore', icon: 'store' },
   { to: '/containers', labelKey: 'nav.containers', icon: 'container' },
   { to: '/images', labelKey: 'nav.images', icon: 'image' },
   { to: '/networks', labelKey: 'nav.networks', icon: 'network' },

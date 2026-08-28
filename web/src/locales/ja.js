@@ -11,6 +11,7 @@ export default {
     docs: 'ドキュメント',
   },
   common: {
+    rebuild: '再構築',
     ok: 'OK',
     cancel: 'キャンセル',
     save: '保存',
@@ -363,7 +364,6 @@ export default {
     type: 'タイプ',
     typeLocal: 'ローカル',
     typeNfs: 'NFS',
-    typeCustom: 'カスタム',
     nfsAddress: 'NFS サーバーアドレス',
     nfsAddressPh: '例: 192.168.1.10 または nfs.example.com',
     nfsVersion: 'NFS バージョン',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'マウントオプション',
     nfsOptionsPh: '例: rw,hard(デフォルト rw)',
     driverOpts: 'ドライバーオプション(任意)',
+
     optKey: 'キー',
+
     optValue: '値',
+
     addOpt: 'オプション追加',
+
     labels: 'ラベル(任意)',
     labelKey: 'キー',
     labelValue: '値',
     addLabel: 'ラベル追加',
     nfsRequired: 'NFS アドレスとマウントポイントは必須です',
+    localHint: '通常のローカルボリューム(Docker データディレクトリ /var/lib/docker/volumes/ に保存)',
     count: 'ボリュームは {count} 個',
     newVolume: '新しいボリューム',
     thName: '名前',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: '削除しました',
   },
   containerDetail: {
+    title: 'コンテナ詳細',
     tabOverview: '概要',
     tabLogs: 'ログ',
     tabStats: '統計',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'アプリを検索...',
+    sync: 'アプリストアを同期',
+
+    syncDone: '同期完了',
+
     all: 'すべて',
     installed: 'インストール済み',
     count: '{count} 個のアプリ',
+
+
+
     empty: '該当するアプリがありません',
-    cat_database: 'データベース',
-    cat_service: 'サービス',
-    cat_tools: 'コンテナツール',
     installedTag: 'インストール済み',
+    updatable: '更新可能',
+
+    updateAvailableMsg: '新しいバージョンがあります',
+
     ports: 'ポート',
     install: 'インストール',
     installing: 'インストール中...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'アプリが見つかりません',
     toastInstalled: '「{name}」をインストールしました',
     toastUpgraded: 'アップグレード完了',
+    editCompose: 'compose ファイルを編集',
+    composePreview: 'compose ファイルプレビュー',
+    refreshPreview: '現在のパラメータで再生成',
+    composeWarn: 'compose ファイルの編集はインストール失敗の原因になる可能性があります',
+    togglePwd: 'パスワード表示/非表示',
+    hint_containerName: '空欄で自動生成',
+    hint_cpuLimit: '0 で制限なし',
+    hint_memLimit: '0 で制限なし',
+    autoGenerate: '空欄で自動生成',
+    generate: '生成',
+    enable: '有効',
+    hint_sqlite: '組み込み SQLite を使用する場合、データベースパスワードは不要です',
+    param_required: '必須項目は空にできません',
+    param_port: 'ポートは 1-65535 の数値である必要があります',
+    param_common: '英数字、アンダースコア、ハイフンのみ使用できます',
   },
 }

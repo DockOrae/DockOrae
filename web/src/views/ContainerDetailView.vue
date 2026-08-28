@@ -13,6 +13,7 @@
         </div>
         <div class="ml-auto flex items-center gap-1.5 flex-wrap">
           <button v-if="status !== 'running'" class="btn btn-ok btn-sm" @click="act('start')"><Icon name="play" size="13" /> {{ t('common.start') }}</button>
+          <button class="btn btn-ghost btn-sm" @click="rebuild"><Icon name="refresh" size="13" /> {{ t('common.rebuild') }}</button>
           <button class="btn btn-ghost btn-sm" @click="act('restart')"><Icon name="restart" size="13" /> {{ t('common.restart') }}</button>
           <button v-if="status === 'running'" class="btn btn-ghost btn-sm" @click="act('pause')"><Icon name="pause" size="13" /> {{ t('common.pause') }}</button>
           <button v-if="status === 'paused'" class="btn btn-ok btn-sm" @click="act('unpause')"><Icon name="play" size="13" /> {{ t('common.unpause') }}</button>
@@ -94,6 +95,17 @@ async function act(action) {
   try {
     await api(`/containers/${id.value}/${action}`, { method: 'POST' })
     toastOk({ start: t('containerDetail.toastStarted'), stop: t('containerDetail.toastStopped'), restart: t('containerDetail.toastRestarted'), pause: t('containerDetail.toastPaused'), unpause: t('containerDetail.toastResumed') }[action])
+    load()
+  } catch (e) {
+    toastErr(e.message)
+  }
+}
+
+// 重建容器(保留原配置,先建新再删旧)
+async function rebuild() {
+  try {
+    await api(`/containers/${id.value}/recreate`, { method: 'POST' })
+    toastOk(t('common.done'))
     load()
   } catch (e) {
     toastErr(e.message)

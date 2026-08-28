@@ -11,6 +11,7 @@ export default {
     docs: 'مستندات',
   },
   common: {
+    rebuild: 'بازسازی',
     ok: 'تأیید',
     cancel: 'انصراف',
     save: 'ذخیره',
@@ -363,7 +364,6 @@ export default {
     type: 'نوع',
     typeLocal: 'محلی',
     typeNfs: 'NFS',
-    typeCustom: 'سفارشی',
     nfsAddress: 'آدرس سرور NFS',
     nfsAddressPh: 'مثلاً 192.168.1.10 یا nfs.example.com',
     nfsVersion: 'نسخه NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'گزینه‌های اتصال',
     nfsOptionsPh: 'مثلاً rw,hard(پیش‌فرض rw)',
     driverOpts: 'گزینه‌های درایور(اختیاری)',
+
     optKey: 'کلید',
+
     optValue: 'مقدار',
+
     addOpt: 'افزودن گزینه',
+
     labels: 'برچسب‌ها(اختیاری)',
     labelKey: 'کلید',
     labelValue: 'مقدار',
     addLabel: 'افزودن برچسب',
     nfsRequired: 'آدرس NFS و نقطه اتصال الزامی است',
+    localHint: 'حجم محلی استاندارد (در دایرکتوری داده Docker /var/lib/docker/volumes/ ذخیره می‌شود)',
     count: '{count} ولوم',
     newVolume: 'ولوم جدید',
     thName: 'نام',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'حذف شد',
   },
   containerDetail: {
+    title: 'جزئیات کانتینر',
     tabOverview: 'نمای کلی',
     tabLogs: 'لاگ‌ها',
     tabStats: 'آمار',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'جستجوی برنامه...',
+    sync: 'همگامسازی فروشگاه برنامه',
+
+    syncDone: 'همگامسازی شد',
+
     all: 'همه',
     installed: 'نصب‌شده',
     count: '{count} برنامه',
+
+
+
     empty: 'برنامه‌ای یافت نشد',
-    cat_database: 'پایگاه داده',
-    cat_service: 'سرویس‌ها',
-    cat_tools: 'ابزارهای کانتینر',
     installedTag: 'نصب‌شده',
+    updatable: 'قابل بهروزرسانی',
+
+    updateAvailableMsg: 'نسخه جدید موجود است',
+
     ports: 'پورت‌ها',
     install: 'نصب',
     installing: 'در حال نصب...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'برنامه یافت نشد',
     toastInstalled: '«{name}» نصب شد',
     toastUpgraded: 'ارتقا کامل شد',
+    editCompose: 'ویرایش فایل compose',
+    composePreview: 'پیش‌نمایش فایل compose',
+    refreshPreview: 'بازتولید با پارامترهای فعلی',
+    composeWarn: 'ویرایش فایل compose ممکن است باعث شکست نصب شود',
+    togglePwd: 'نمایش/پنهان‌کردن رمز عبور',
+    hint_containerName: 'در صورت خالی بودن خودکار تولید می‌شود',
+    hint_cpuLimit: '0 یعنی بدون محدودیت',
+    hint_memLimit: '0 یعنی بدون محدودیت',
+    autoGenerate: 'برای تولید خودکار خالی بگذارید',
+    generate: 'تولید',
+    enable: 'فعال',
+    hint_sqlite: 'هنگام استفاده از SQLite داخلی رمز پایگاه داده لازم نیست',
+    param_required: 'فیلد اجباری نمی‌تواند خالی باشد',
+    param_port: 'پورت باید عددی بین 1 تا 65535 باشد',
+    param_common: 'فقط حروف، اعداد، زیرخط و خط تیره مجاز است',
   },
 }

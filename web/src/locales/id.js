@@ -11,6 +11,7 @@ export default {
     docs: 'Dokumentasi',
   },
   common: {
+    rebuild: 'Bangun ulang',
     ok: 'OK',
     cancel: 'Batal',
     save: 'Simpan',
@@ -363,7 +364,6 @@ export default {
     type: 'Tipe',
     typeLocal: 'Lokal',
     typeNfs: 'NFS',
-    typeCustom: 'Kustom',
     nfsAddress: 'Alamat server NFS',
     nfsAddressPh: 'mis. 192.168.1.10 atau nfs.example.com',
     nfsVersion: 'Versi NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Opsi mount',
     nfsOptionsPh: 'mis. rw,hard(default rw)',
     driverOpts: 'Opsi driver(opsional)',
+
     optKey: 'Kunci',
+
     optValue: 'Nilai',
+
     addOpt: 'Tambah opsi',
+
     labels: 'Label(opsional)',
     labelKey: 'Kunci',
     labelValue: 'Nilai',
     addLabel: 'Tambah label',
     nfsRequired: 'Alamat NFS dan titik mount wajib diisi',
+    localHint: 'Volume lokal standar (disimpan di /var/lib/docker/volumes/)',
     count: 'Total {count} volume',
     newVolume: 'Volume baru',
     thName: 'Nama',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Dihapus',
   },
   containerDetail: {
+    title: 'Detail Kontainer',
     tabOverview: 'Ringkasan',
     tabLogs: 'Log',
     tabStats: 'Statistik',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'Cari aplikasi...',
+    sync: 'Sinkronkan toko aplikasi',
+
+    syncDone: 'Tersinkron',
+
     all: 'Semua',
     installed: 'Terpasang',
     count: '{count} aplikasi',
+
+
+
     empty: 'Tidak ada aplikasi yang cocok',
-    cat_database: 'Basis data',
-    cat_service: 'Layanan',
-    cat_tools: 'Alat Kontainer',
     installedTag: 'Terpasang',
+    updatable: 'Dapat diperbarui',
+
+    updateAvailableMsg: 'Versi baru tersedia',
+
     ports: 'Port',
     install: 'Pasang',
     installing: 'Memasang...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'Aplikasi tidak ditemukan',
     toastInstalled: '"{name}" terpasang',
     toastUpgraded: 'Peningkatan selesai',
+    editCompose: 'Edit file compose',
+    composePreview: 'Pratinjau file compose',
+    refreshPreview: 'Buat ulang dengan parameter saat ini',
+    composeWarn: 'Mengedit file compose dapat menyebabkan instalasi gagal',
+    togglePwd: 'Tampilkan/Sembunyikan kata sandi',
+    hint_containerName: 'Otomatis dibuat jika kosong',
+    hint_cpuLimit: '0 menonaktifkan batas',
+    hint_memLimit: '0 menonaktifkan batas',
+    autoGenerate: 'Biarkan kosong untuk otomatis',
+    generate: 'Buat',
+    enable: 'Aktifkan',
+    hint_sqlite: 'Tidak perlu kata sandi DB saat menggunakan SQLite bawaan',
+    param_required: 'Kolom wajib tidak boleh kosong',
+    param_port: 'Port harus angka antara 1-65535',
+    param_common: 'Hanya huruf, angka, garis bawah dan tanda hubung yang diizinkan',
   },
 }

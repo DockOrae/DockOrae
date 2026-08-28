@@ -11,6 +11,7 @@ export default {
     docs: 'Documentación',
   },
   common: {
+    rebuild: 'Reconstruir',
     ok: 'Aceptar',
     cancel: 'Cancelar',
     save: 'Guardar',
@@ -363,7 +364,6 @@ export default {
     type: 'Tipo',
     typeLocal: 'Local',
     typeNfs: 'NFS',
-    typeCustom: 'Personalizado',
     nfsAddress: 'Dirección del servidor NFS',
     nfsAddressPh: 'ej. 192.168.1.10 o nfs.example.com',
     nfsVersion: 'Versión de NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Opciones de montaje',
     nfsOptionsPh: 'ej. rw,hard(por defecto rw)',
     driverOpts: 'Opciones del controlador(opcional)',
+
     optKey: 'Clave',
+
     optValue: 'Valor',
+
     addOpt: 'Añadir opción',
+
     labels: 'Etiquetas(opcional)',
     labelKey: 'Clave',
     labelValue: 'Valor',
     addLabel: 'Añadir etiqueta',
     nfsRequired: 'La dirección NFS y el punto de montaje son obligatorios',
+    localHint: 'Volumen local estándar (almacenado en /var/lib/docker/volumes/)',
     count: '{count} volúmenes',
     newVolume: 'Nuevo volumen',
     thName: 'Nombre',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Eliminado',
   },
   containerDetail: {
+    title: 'Detalles del contenedor',
     tabOverview: 'Resumen',
     tabLogs: 'Registros',
     tabStats: 'Estadísticas',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'Buscar aplicaciones...',
+    sync: 'Sincronizar tienda de apps',
+
+    syncDone: 'Sincronizado',
+
     all: 'Todas',
     installed: 'Instaladas',
     count: '{count} aplicaciones',
+
+
+
     empty: 'No hay aplicaciones que coincidan',
-    cat_database: 'Base de datos',
-    cat_service: 'Servicios',
-    cat_tools: 'Herramientas de contenedores',
     installedTag: 'Instalada',
+    updatable: 'Actualizable',
+
+    updateAvailableMsg: 'Hay una nueva versión disponible',
+
     ports: 'Puertos',
     install: 'Instalar',
     installing: 'Instalando...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'Aplicación no encontrada',
     toastInstalled: '"{name}" instalada',
     toastUpgraded: 'Actualización completada',
+    editCompose: 'Editar archivo compose',
+    composePreview: 'Vista previa del archivo compose',
+    refreshPreview: 'Regenerar con los parámetros actuales',
+    composeWarn: 'Editar el archivo compose puede causar que la instalación falle',
+    togglePwd: 'Mostrar/Ocultar contraseña',
+    hint_containerName: 'Se genera automáticamente si está vacío',
+    hint_cpuLimit: '0 desactiva el límite',
+    hint_memLimit: '0 desactiva el límite',
+    autoGenerate: 'Déjalo vacío para autogenerar',
+    generate: 'Generar',
+    enable: 'Habilitar',
+    hint_sqlite: 'No se necesita contraseña de BD al usar SQLite integrado',
+    param_required: 'El campo obligatorio no puede estar vacío',
+    param_port: 'El puerto debe ser un número entre 1-65535',
+    param_common: 'Solo se permiten letras, números, guion bajo y guion',
   },
 }

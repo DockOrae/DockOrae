@@ -11,7 +11,7 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         @click.self="emit('close')"
       >
-        <div class="card w-full max-w-lg max-h-[85vh] flex flex-col fade-up shadow-2xl shadow-black/40">
+        <div class="card w-full max-h-[85vh] flex flex-col fade-up shadow-2xl shadow-black/40" :class="sizeClass">
           <div class="flex items-center justify-between px-5 py-4 border-b border-line">
             <h3 class="text-sm font-semibold">{{ title }}</h3>
             <button class="btn btn-icon btn-sm" @click="emit('close')">
@@ -31,11 +31,15 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import Icon from './Icon.vue'
 
-defineProps({
+const props = defineProps({
   modelValue: Boolean,
   title: { type: String, default: '' },
+  size: { type: String, default: 'lg' }, // lg | xl | 2xl
 })
 const emit = defineEmits(['close', 'update:modelValue'])
+
+const sizeClass = computed(() => ({ lg: 'max-w-lg', xl: 'max-w-xl', '2xl': 'max-w-2xl' }[props.size] || 'max-w-lg'))
 </script>

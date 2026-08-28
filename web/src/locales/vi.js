@@ -11,6 +11,7 @@ export default {
     docs: 'Tài liệu',
   },
   common: {
+    rebuild: 'Dựng lại',
     ok: 'OK',
     cancel: 'Hủy',
     save: 'Lưu',
@@ -363,7 +364,6 @@ export default {
     type: 'Loại',
     typeLocal: 'Cục bộ',
     typeNfs: 'NFS',
-    typeCustom: 'Tùy chỉnh',
     nfsAddress: 'Địa chỉ máy chủ NFS',
     nfsAddressPh: 'vd. 192.168.1.10 hoặc nfs.example.com',
     nfsVersion: 'Phiên bản NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Tùy chọn gắn kết',
     nfsOptionsPh: 'vd. rw,hard(mặc định rw)',
     driverOpts: 'Tùy chọn driver(tùy chọn)',
+
     optKey: 'Khóa',
+
     optValue: 'Giá trị',
+
     addOpt: 'Thêm tùy chọn',
+
     labels: 'Nhãn(tùy chọn)',
     labelKey: 'Khóa',
     labelValue: 'Giá trị',
     addLabel: 'Thêm nhãn',
     nfsRequired: 'Địa chỉ NFS và điểm gắn kết là bắt buộc',
+    localHint: 'Volume cục bộ tiêu chuẩn (lưu trong /var/lib/docker/volumes/)',
     count: 'Tổng cộng {count} volume',
     newVolume: 'Tạo volume mới',
     thName: 'Tên',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Đã xóa',
   },
   containerDetail: {
+    title: 'Chi tiết container',
     tabOverview: 'Tổng quan',
     tabLogs: 'Nhật ký',
     tabStats: 'Thống kê',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'Tìm ứng dụng...',
+    sync: 'Đồng bộ kho ứng dụng',
+
+    syncDone: 'Đã đồng bộ',
+
     all: 'Tất cả',
     installed: 'Đã cài đặt',
     count: '{count} ứng dụng',
+
+
+
     empty: 'Không có ứng dụng phù hợp',
-    cat_database: 'Cơ sở dữ liệu',
-    cat_service: 'Dịch vụ',
-    cat_tools: 'Công cụ Container',
     installedTag: 'Đã cài đặt',
+    updatable: 'Có thể cập nhật',
+
+    updateAvailableMsg: 'Có phiên bản mới',
+
     ports: 'Cổng',
     install: 'Cài đặt',
     installing: 'Đang cài đặt...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'Không tìm thấy ứng dụng',
     toastInstalled: 'Đã cài đặt "{name}"',
     toastUpgraded: 'Nâng cấp hoàn tất',
+    editCompose: 'Chỉnh sửa tệp compose',
+    composePreview: 'Xem trước tệp compose',
+    refreshPreview: 'Tạo lại với tham số hiện tại',
+    composeWarn: 'Chỉnh sửa tệp compose có thể khiến cài đặt thất bại',
+    togglePwd: 'Hiện/Ẩn mật khẩu',
+    hint_containerName: 'Tự tạo khi để trống',
+    hint_cpuLimit: '0 tắt giới hạn',
+    hint_memLimit: '0 tắt giới hạn',
+    autoGenerate: 'Để trống để tự tạo',
+    generate: 'Tạo',
+    enable: 'Bật',
+    hint_sqlite: 'Không cần mật khẩu DB khi dùng SQLite tích hợp',
+    param_required: 'Trường bắt buộc không được để trống',
+    param_port: 'Cổng phải là số từ 1-65535',
+    param_common: 'Chỉ cho phép chữ cái, số, gạch dưới và gạch ngang',
   },
 }

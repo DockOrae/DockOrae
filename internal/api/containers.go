@@ -72,6 +72,15 @@ func containersRemove(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
+// containersRecreate 重建容器(保留原配置)
+func containersRecreate(c *gin.Context, st *state.AppState) error {
+	if err := service.ContainerRecreate(st, c.Request.Context(), c.Param("id")); err != nil {
+		return err
+	}
+	c.JSON(200, gin.H{"ok": true})
+	return nil
+}
+
 func containersStart(c *gin.Context, st *state.AppState) error {
 	if err := service.ContainerStart(st, c.Request.Context(), c.Param("id")); err != nil {
 		return err

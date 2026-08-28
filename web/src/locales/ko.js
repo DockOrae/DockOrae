@@ -11,6 +11,7 @@ export default {
     docs: '문서',
   },
   common: {
+    rebuild: '재구축',
     ok: '확인',
     cancel: '취소',
     save: '저장',
@@ -363,7 +364,6 @@ export default {
     type: '유형',
     typeLocal: '로컬',
     typeNfs: 'NFS',
-    typeCustom: '사용자 정의',
     nfsAddress: 'NFS 서버 주소',
     nfsAddressPh: '예: 192.168.1.10 또는 nfs.example.com',
     nfsVersion: 'NFS 버전',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: '마운트 옵션',
     nfsOptionsPh: '예: rw,hard(기본 rw)',
     driverOpts: '드라이버 옵션(선택)',
+
     optKey: '키',
+
     optValue: '값',
+
     addOpt: '옵션 추가',
+
     labels: '라벨(선택)',
     labelKey: '키',
     labelValue: '값',
     addLabel: '라벨 추가',
     nfsRequired: 'NFS 주소와 마운트 지점은 필수입니다',
+    localHint: '일반 로컬 볼륨(Docker 데이터 디렉터리 /var/lib/docker/volumes/에 저장)',
     count: '총 {count}개의 볼륨',
     newVolume: '새 볼륨',
     thName: '이름',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: '삭제됨',
   },
   containerDetail: {
+    title: '컨테이너 상세',
     tabOverview: '개요',
     tabLogs: '로그',
     tabStats: '통계',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: '앱 검색...',
+    sync: '앱 스토어 동기화',
+
+    syncDone: '동기화 완료',
+
     all: '전체',
     installed: '설치됨',
     count: '앱 {count}개',
+
+
+
     empty: '조건에 맞는 앱이 없습니다',
-    cat_database: '데이터베이스',
-    cat_service: '서비스',
-    cat_tools: '컨테이너 도구',
     installedTag: '설치됨',
+    updatable: '업데이트 가능',
+
+    updateAvailableMsg: '새 버전이 있습니다',
+
     ports: '포트',
     install: '설치',
     installing: '설치 중...',
@@ -907,5 +921,20 @@ export default {
     notFound: '앱을 찾을 수 없습니다',
     toastInstalled: '「{name}」 설치 완료',
     toastUpgraded: '업그레이드 완료',
+    editCompose: 'compose 파일 편집',
+    composePreview: 'compose 파일 미리보기',
+    refreshPreview: '현재 매개변수로 재생성',
+    composeWarn: 'compose 파일 편집으로 설치가 실패할 수 있습니다',
+    togglePwd: '비밀번호 표시/숨기기',
+    hint_containerName: '비우면 자동 생성',
+    hint_cpuLimit: '0이면 제한 없음',
+    hint_memLimit: '0이면 제한 없음',
+    autoGenerate: '비우면 자동 생성',
+    generate: '생성',
+    enable: '사용',
+    hint_sqlite: '내장 SQLite 사용 시 데이터베이스 비밀번호가 필요 없습니다',
+    param_required: '필수 항목은 비울 수 없습니다',
+    param_port: '포트는 1-65535 사이 숫자여야 합니다',
+    param_common: '영문/숫자/밑줄/하이픈만 사용 가능합니다',
   },
 }

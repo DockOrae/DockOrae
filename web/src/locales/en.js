@@ -11,6 +11,7 @@ export default {
     docs: 'Docs',
   },
   common: {
+    rebuild: 'Rebuild',
     copy: 'Copy',
     copied: 'Copied',
     ok: 'OK',
@@ -363,7 +364,6 @@ export default {
     type: 'Type',
     typeLocal: 'Local',
     typeNfs: 'NFS',
-    typeCustom: 'Custom',
     nfsAddress: 'NFS server address',
     nfsAddressPh: 'e.g. 192.168.1.10 or nfs.example.com',
     nfsVersion: 'NFS version',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Mount options',
     nfsOptionsPh: 'e.g. rw,hard (default rw)',
     driverOpts: 'Driver options (optional)',
+
     optKey: 'Key',
+
     optValue: 'Value',
+
     addOpt: 'Add option',
+
     labels: 'Labels (optional)',
     labelKey: 'Key',
     labelValue: 'Value',
     addLabel: 'Add label',
     nfsRequired: 'NFS address and mount point are required',
+    localHint: 'Standard local volume stored under Docker data dir (/var/lib/docker/volumes/)',
     count: '{count} volumes',
     newVolume: 'New volume',
     thName: 'Name',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Deleted',
   },
   containerDetail: {
+    title: 'Container Details',
     tabOverview: 'Overview',
     tabLogs: 'Logs',
     tabStats: 'Stats',
@@ -886,14 +892,22 @@ export default {
 
   appStore: {
     searchPh: 'Search apps...',
+    sync: 'Sync App Store',
+
+    syncDone: 'Synced',
+
     all: 'All',
     installed: 'Installed',
     count: '{count} apps',
+
+
+
     empty: 'No matching apps',
-    cat_database: 'Database',
-    cat_service: 'Services',
-    cat_tools: 'Container Tools',
     installedTag: 'Installed',
+    updatable: 'Updatable',
+
+    updateAvailableMsg: 'A new version is available',
+
     ports: 'Ports',
     install: 'Install',
     installing: 'Installing...',
@@ -905,5 +919,20 @@ export default {
     notFound: 'App not found',
     toastInstalled: '"{name}" installed',
     toastUpgraded: 'Upgrade complete',
+    editCompose: 'Edit compose file',
+    composePreview: 'Compose file preview',
+    refreshPreview: 'Regenerate with current parameters',
+    composeWarn: 'Editing the compose file may cause installation to fail',
+    togglePwd: 'Show/Hide password',
+    hint_containerName: 'Auto-generated when empty',
+    hint_cpuLimit: '0 disables the limit',
+    hint_memLimit: '0 disables the limit',
+    autoGenerate: 'Leave empty to auto-generate',
+    generate: 'Generate',
+    enable: 'Enable',
+    hint_sqlite: 'No database password needed when using built-in SQLite',
+    param_required: 'Required field cannot be empty',
+    param_port: 'Port must be a number between 1-65535',
+    param_common: 'Only letters, numbers, underscore and hyphen allowed',
   },
 }

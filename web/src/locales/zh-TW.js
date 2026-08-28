@@ -11,6 +11,7 @@ export default {
     docs: '文件',
   },
   common: {
+    rebuild: '重建',
     ok: '確定',
     cancel: '取消',
     save: '儲存',
@@ -363,7 +364,6 @@ export default {
     type: '類型',
     typeLocal: '本機',
     typeNfs: 'NFS',
-    typeCustom: '自訂',
     nfsAddress: 'NFS 伺服器位址',
     nfsAddressPh: '如 192.168.1.10 或 nfs.example.com',
     nfsVersion: 'NFS 版本',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: '掛載選項',
     nfsOptionsPh: '如 rw,hard(預設 rw)',
     driverOpts: '驅動選項(可選)',
+
     optKey: '選項名稱',
+
     optValue: '選項值',
+
     addOpt: '新增選項',
+
     labels: '標籤(可選)',
     labelKey: '標籤名稱',
     labelValue: '標籤值',
     addLabel: '新增標籤',
     nfsRequired: 'NFS 位址和掛載點不能為空',
+    localHint: '一般本機卷,資料存放於 Docker 資料目錄(/var/lib/docker/volumes/)',
     count: '共 {count} 個磁碟區',
     newVolume: '新增磁碟區',
     thName: '名稱',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: '已刪除',
   },
   containerDetail: {
+    title: '容器詳情',
     tabOverview: '總覽',
     tabLogs: '日誌',
     tabStats: '統計',
@@ -889,14 +895,22 @@ export default {
 
   appStore: {
     searchPh: '搜尋應用...',
+    sync: '同步應用商店',
+
+    syncDone: '同步完成',
+
     all: '全部',
     installed: '已安裝',
     count: '共 {count} 個應用',
+
+
+
     empty: '沒有符合條件的應用',
-    cat_database: '資料庫',
-    cat_service: '應用服務',
-    cat_tools: '容器工具',
     installedTag: '已安裝',
+    updatable: '可升級',
+
+    updateAvailableMsg: '發現新版本,可升級',
+
     ports: '連接埠',
     install: '安裝',
     installing: '安裝中...',
@@ -908,5 +922,20 @@ export default {
     notFound: '應用不存在',
     toastInstalled: '「{name}」安裝成功',
     toastUpgraded: '升級完成',
+    editCompose: '編輯 compose 檔案',
+    composePreview: 'compose 檔案預覽',
+    refreshPreview: '依目前參數重新產生',
+    composeWarn: '編輯 compose 檔案可能導致軟體安裝失敗',
+    togglePwd: '顯示/隱藏密碼',
+    hint_containerName: '為空時自動產生',
+    hint_cpuLimit: '限制為 0 則關閉限制',
+    hint_memLimit: '限制為 0 則關閉限制',
+    autoGenerate: '留空自動產生',
+    generate: '產生',
+    enable: '啟用',
+    hint_sqlite: '使用內建 SQLite 時無需填寫資料庫密碼',
+    param_required: '必填項不能為空',
+    param_port: '連接埠需為 1-65535 的數字',
+    param_common: '僅支援字母/數字/底線/連字號',
   },
 }

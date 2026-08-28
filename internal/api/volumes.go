@@ -17,16 +17,6 @@ func volumesList(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-// volumesDrivers 可用卷驱动列表(local + 已启用插件)
-func volumesDrivers(c *gin.Context, st *state.AppState) error {
-	drivers, err := service.VolumeDrivers(st, c.Request.Context())
-	if err != nil {
-		return err
-	}
-	c.JSON(200, gin.H{"drivers": drivers})
-	return nil
-}
-
 func volumesInspect(c *gin.Context, st *state.AppState) error {
 	raw, err := service.VolumeRaw(st, c.Request.Context(), c.Param("name"))
 	if err != nil {

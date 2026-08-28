@@ -11,6 +11,7 @@ export default {
     docs: 'Документация',
   },
   common: {
+    rebuild: 'Пересоздать',
     ok: 'OK',
     cancel: 'Отмена',
     save: 'Сохранить',
@@ -363,7 +364,6 @@ export default {
     type: 'Тип',
     typeLocal: 'Локальный',
     typeNfs: 'NFS',
-    typeCustom: 'Свой',
     nfsAddress: 'Адрес NFS-сервера',
     nfsAddressPh: 'напр. 192.168.1.10 или nfs.example.com',
     nfsVersion: 'Версия NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Опции монтирования',
     nfsOptionsPh: 'напр. rw,hard(по умолч. rw)',
     driverOpts: 'Опции драйвера(необяз.)',
+
     optKey: 'Ключ',
+
     optValue: 'Значение',
+
     addOpt: 'Добавить опцию',
+
     labels: 'Метки(необяз.)',
     labelKey: 'Ключ',
     labelValue: 'Значение',
     addLabel: 'Добавить метку',
     nfsRequired: 'Адрес NFS и точка монтирования обязательны',
+    localHint: 'Обычный локальный том (хранится в /var/lib/docker/volumes/)',
     count: 'Всего томов: {count}',
     newVolume: 'Новый том',
     thName: 'Имя',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Удалён',
   },
   containerDetail: {
+    title: 'Сведения о контейнере',
     tabOverview: 'Обзор',
     tabLogs: 'Логи',
     tabStats: 'Статистика',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'Поиск приложений...',
+    sync: 'Синхронизировать магазин приложений',
+
+    syncDone: 'Синхронизировано',
+
     all: 'Все',
     installed: 'Установленные',
     count: 'Приложений: {count}',
+
+
+
     empty: 'Нет подходящих приложений',
-    cat_database: 'Базы данных',
-    cat_service: 'Сервисы',
-    cat_tools: 'Контейнерные инструменты',
     installedTag: 'Установлено',
+    updatable: 'Доступно обновление',
+
+    updateAvailableMsg: 'Доступна новая версия',
+
     ports: 'Порты',
     install: 'Установить',
     installing: 'Установка...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'Приложение не найдено',
     toastInstalled: '«{name}» установлено',
     toastUpgraded: 'Обновление завершено',
+    editCompose: 'Редактировать compose-файл',
+    composePreview: 'Предпросмотр compose-файла',
+    refreshPreview: 'Перегенерировать с текущими параметрами',
+    composeWarn: 'Редактирование compose-файла может привести к сбою установки',
+    togglePwd: 'Показать/скрыть пароль',
+    hint_containerName: 'Автогенерация при пустом значении',
+    hint_cpuLimit: '0 — без ограничений',
+    hint_memLimit: '0 — без ограничений',
+    autoGenerate: 'Оставьте пустым для автогенерации',
+    generate: 'Сгенерировать',
+    enable: 'Включить',
+    hint_sqlite: 'Пароль БД не нужен при использовании встроенного SQLite',
+    param_required: 'Обязательное поле не может быть пустым',
+    param_port: 'Порт должен быть числом от 1 до 65535',
+    param_common: 'Допустимы только буквы, цифры, подчёркивание и дефис',
   },
 }

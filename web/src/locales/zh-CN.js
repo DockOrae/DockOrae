@@ -11,6 +11,7 @@ export default {
     docs: '文档',
   },
   common: {
+    rebuild: '重建',
     copy: '复制',
     copied: '已复制',
     ok: '确定',
@@ -364,7 +365,6 @@ export default {
     type: '类型',
     typeLocal: '本地',
     typeNfs: 'NFS',
-    typeCustom: '自定义',
     nfsAddress: 'NFS 服务器地址',
     nfsAddressPh: '如 192.168.1.10 或 nfs.example.com',
     nfsVersion: 'NFS 版本',
@@ -372,14 +372,19 @@ export default {
     nfsOptions: '挂载选项',
     nfsOptionsPh: '如 rw,hard(默认 rw)',
     driverOpts: '驱动选项(可选)',
+
     optKey: '选项名',
+
     optValue: '选项值',
+
     addOpt: '添加选项',
+
     labels: '标签(可选)',
     labelKey: '标签名',
     labelValue: '标签值',
     addLabel: '添加标签',
     nfsRequired: 'NFS 地址和挂载点不能为空',
+    localHint: '普通本地卷,数据存于 Docker 数据目录(/var/lib/docker/volumes/)',
     count: '共 {count} 个卷',
     newVolume: '新建卷',
     thName: '名称',
@@ -447,6 +452,7 @@ export default {
     toastRemoved: '已删除',
   },
   containerDetail: {
+    title: '容器详情',
     tabOverview: '概览',
     tabLogs: '日志',
     tabStats: '统计',
@@ -887,14 +893,22 @@ export default {
 
   appStore: {
     searchPh: '搜索应用...',
+    sync: '同步应用商店',
+
+    syncDone: '同步完成',
+
     all: '全部',
     installed: '已安装',
     count: '共 {count} 个应用',
+
+
+
     empty: '没有符合条件的应用',
-    cat_database: '数据库',
-    cat_service: '应用服务',
-    cat_tools: '容器工具',
     installedTag: '已安装',
+    updatable: '可升级',
+
+    updateAvailableMsg: '发现新版本,可升级',
+
     ports: '端口',
     install: '安装',
     installing: '安装中...',
@@ -906,5 +920,20 @@ export default {
     notFound: '应用不存在',
     toastInstalled: '「{name}」安装成功',
     toastUpgraded: '升级完成',
+    editCompose: '编辑 compose 文件',
+    composePreview: 'compose 文件预览',
+    refreshPreview: '按当前参数重新生成',
+    composeWarn: '编辑 compose 文件可能导致软件安装失败',
+    togglePwd: '显示/隐藏密码',
+    hint_containerName: '为空时自动生成',
+    hint_cpuLimit: '限制为 0 则关闭限制',
+    hint_memLimit: '限制为 0 则关闭限制',
+    autoGenerate: '留空自动生成',
+    generate: '生成',
+    enable: '启用',
+    hint_sqlite: '使用内置 SQLite 时无需填写数据库密码',
+    param_required: '必填项不能为空',
+    param_port: '端口需为 1-65535 的数字',
+    param_common: '仅支持字母/数字/下划线/连字符',
   },
 }

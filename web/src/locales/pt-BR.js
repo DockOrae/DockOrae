@@ -11,6 +11,7 @@ export default {
     docs: 'Documentação',
   },
   common: {
+    rebuild: 'Reconstruir',
     ok: 'OK',
     cancel: 'Cancelar',
     save: 'Salvar',
@@ -363,7 +364,6 @@ export default {
     type: 'Tipo',
     typeLocal: 'Local',
     typeNfs: 'NFS',
-    typeCustom: 'Personalizado',
     nfsAddress: 'Endereço do servidor NFS',
     nfsAddressPh: 'ex. 192.168.1.10 ou nfs.example.com',
     nfsVersion: 'Versão do NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Opções de montagem',
     nfsOptionsPh: 'ex. rw,hard(padrão rw)',
     driverOpts: 'Opções do driver(opcional)',
+
     optKey: 'Chave',
+
     optValue: 'Valor',
+
     addOpt: 'Adicionar opção',
+
     labels: 'Rótulos(opcional)',
     labelKey: 'Chave',
     labelValue: 'Valor',
     addLabel: 'Adicionar rótulo',
     nfsRequired: 'Endereço NFS e ponto de montagem são obrigatórios',
+    localHint: 'Volume local padrão (armazenado em /var/lib/docker/volumes/)',
     count: '{count} volumes no total',
     newVolume: 'Novo volume',
     thName: 'Nome',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Excluído',
   },
   containerDetail: {
+    title: 'Detalhes do contêiner',
     tabOverview: 'Visão geral',
     tabLogs: 'Logs',
     tabStats: 'Estatísticas',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'Buscar aplicativos...',
+    sync: 'Sincronizar loja de apps',
+
+    syncDone: 'Sincronizado',
+
     all: 'Todos',
     installed: 'Instalados',
     count: '{count} aplicativos',
+
+
+
     empty: 'Nenhum aplicativo correspondente',
-    cat_database: 'Banco de dados',
-    cat_service: 'Serviços',
-    cat_tools: 'Ferramentas de contêiner',
     installedTag: 'Instalado',
+    updatable: 'Atualizável',
+
+    updateAvailableMsg: 'Nova versão disponível',
+
     ports: 'Portas',
     install: 'Instalar',
     installing: 'Instalando...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'Aplicativo não encontrado',
     toastInstalled: '"{name}" instalado',
     toastUpgraded: 'Atualização concluída',
+    editCompose: 'Editar arquivo compose',
+    composePreview: 'Prévia do arquivo compose',
+    refreshPreview: 'Regenerar com os parâmetros atuais',
+    composeWarn: 'Editar o arquivo compose pode fazer a instalação falhar',
+    togglePwd: 'Mostrar/Ocultar senha',
+    hint_containerName: 'Gerado automaticamente quando vazio',
+    hint_cpuLimit: '0 desativa o limite',
+    hint_memLimit: '0 desativa o limite',
+    autoGenerate: 'Deixe vazio para gerar automaticamente',
+    generate: 'Gerar',
+    enable: 'Habilitar',
+    hint_sqlite: 'Senha do banco não é necessária ao usar SQLite integrado',
+    param_required: 'O campo obrigatório não pode estar vazio',
+    param_port: 'A porta deve ser um número entre 1-65535',
+    param_common: 'Apenas letras, números, sublinhado e hífen são permitidos',
   },
 }

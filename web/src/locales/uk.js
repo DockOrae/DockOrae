@@ -11,6 +11,7 @@ export default {
     docs: 'Документація',
   },
   common: {
+    rebuild: 'Перестворити',
     ok: 'ОК',
     cancel: 'Скасувати',
     save: 'Зберегти',
@@ -363,7 +364,6 @@ export default {
     type: 'Тип',
     typeLocal: 'Локальний',
     typeNfs: 'NFS',
-    typeCustom: 'Свій',
     nfsAddress: 'Адреса NFS-сервера',
     nfsAddressPh: 'напр. 192.168.1.10 або nfs.example.com',
     nfsVersion: 'Версія NFS',
@@ -371,14 +371,19 @@ export default {
     nfsOptions: 'Опції монтування',
     nfsOptionsPh: 'напр. rw,hard(за замовч. rw)',
     driverOpts: 'Опції драйвера(необов\u2019яз.)',
+
     optKey: 'Ключ',
+
     optValue: 'Значення',
+
     addOpt: 'Додати опцію',
+
     labels: 'Мітки(необов\u2019яз.)',
     labelKey: 'Ключ',
     labelValue: 'Значення',
     addLabel: 'Додати мітку',
     nfsRequired: 'Адреса NFS і точка монтування обов\u2019язкові',
+    localHint: 'Звичайний локальний том (зберігається в /var/lib/docker/volumes/)',
     count: 'Усього томів: {count}',
     newVolume: 'Новий том',
     thName: 'Назва',
@@ -446,6 +451,7 @@ export default {
     toastRemoved: 'Видалено',
   },
   containerDetail: {
+    title: 'Відомості про контейнер',
     tabOverview: 'Огляд',
     tabLogs: 'Журнали',
     tabStats: 'Статистика',
@@ -888,14 +894,22 @@ export default {
 
   appStore: {
     searchPh: 'Пошук застосунків...',
+    sync: 'Синхронізувати магазин застосунків',
+
+    syncDone: 'Синхронізовано',
+
     all: 'Усі',
     installed: 'Встановлені',
     count: 'Застосунків: {count}',
+
+
+
     empty: 'Немає відповідних застосунків',
-    cat_database: 'Бази даних',
-    cat_service: 'Сервіси',
-    cat_tools: 'Контейнерні інструменти',
     installedTag: 'Встановлено',
+    updatable: 'Доступне оновлення',
+
+    updateAvailableMsg: 'Доступна нова версія',
+
     ports: 'Порти',
     install: 'Встановити',
     installing: 'Встановлення...',
@@ -907,5 +921,20 @@ export default {
     notFound: 'Застосунок не знайдено',
     toastInstalled: '«{name}» встановлено',
     toastUpgraded: 'Оновлення завершено',
+    editCompose: 'Редагувати compose-файл',
+    composePreview: 'Перегляд compose-файлу',
+    refreshPreview: 'Перегенерувати з поточними параметрами',
+    composeWarn: 'Редагування compose-файлу може призвести до збою встановлення',
+    togglePwd: 'Показати/приховати пароль',
+    hint_containerName: 'Автогенерація при порожньому значенні',
+    hint_cpuLimit: '0 — без обмежень',
+    hint_memLimit: '0 — без обмежень',
+    autoGenerate: 'Залиште порожнім для автогенерації',
+    generate: 'Згенерувати',
+    enable: 'Увімкнути',
+    hint_sqlite: 'Пароль БД не потрібен при використанні вбудованого SQLite',
+    param_required: "Обов'язкове поле не може бути порожнім",
+    param_port: 'Порт має бути числом від 1 до 65535',
+    param_common: 'Допустимі лише літери, цифри, підкреслення та дефіс',
   },
 }
