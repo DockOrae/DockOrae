@@ -3,11 +3,12 @@ name: Docker Hub Publish
 on:
   push:
     branches: [master]
-    # 仅源码/前端/Dockerfile 改动触发构建;工作流/README 等文档改动不触发
+    # 仅源码/前端/Dockerfile/描述文件改动触发;README 等工作流无关改动不触发
     paths:
       - '**.go'
       - 'web/**'
       - 'Dockerfile'
+      - 'dockerhub-description.md'
   workflow_dispatch:
 
 env:
@@ -56,3 +57,34 @@ jobs:
             ${{ steps.ver.outputs.version && format('{0}:{1}', env.IMAGE, steps.ver.outputs.version) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-description:
+    # 更新 Docker Hub 仓库说明(overview);描述文件改动时与镜像构建并行,源码改动时幂等执行。
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Update Docker Hub overview (full_description)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          # Docker Hub API: PATCH /v2/repositories/{namespace}/{name}/ {full_description}
+          # 认证:先登录换 JWT(密码或 PAT 均可),再带 Authorization: JWT <token>
+          jq -n --rawfile d .github/release/dockerhub-description.md '{full_description: $d}' > /tmp/desc.json
+          jwt=$(curl -s -X POST https://hub.docker.com/v2/users/login/ \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"${DOCKERHUB_USERNAME}\",\"password\":\"${DOCKERHUB_TOKEN}\"}" | jq -r .token)
+          [ -z "$jwt" ] || [ "$jwt" = "null" ] && { echo "::error::Docker Hub 登录失败,请检查 DOCKERHUB_USERNAME/DOCKERHUB_TOKEN"; exit 1; }
+          code=$(curl -sS -X PATCH \
+            -H "Content-Type: application/json" \
+            -H "Authorization: JWT $jwt" \
+            --data-binary @/tmp/desc.json \
+            -o /tmp/resp.json \
+            -w "%{http_code}" \
+            "https://hub.docker.com/v2/repositories/${IMAGE}/")
+          echo "HTTP $code"
+          cat /tmp/resp.json
+          echo
+          test "$code" = "200" || { echo "::error::Docker Hub 说明更新失败(HTTP $code),请检查凭据权限"; exit 1; }
