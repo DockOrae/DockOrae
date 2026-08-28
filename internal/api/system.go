@@ -1,8 +1,6 @@
 package api
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
@@ -203,5 +201,3 @@ func systemInfo(c *gin.Context, st *state.AppState) error {
 	c.JSON(200, info)
 	return nil
 }
-
-var _ = http.StatusOK

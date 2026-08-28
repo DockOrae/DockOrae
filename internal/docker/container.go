@@ -105,3 +105,8 @@ func ExecAttach(cli *client.Client, ctx context.Context, execID string, opts cli
 	}
 	return &res, nil
 }
+
+func ExecResize(cli *client.Client, ctx context.Context, execID string, opts client.ExecResizeOptions) error {
+	_, err := cli.ExecResize(ctx, execID, opts)
+	return err
+}

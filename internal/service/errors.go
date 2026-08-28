@@ -25,23 +25,6 @@ func BadRequest(message string) *ApiError {
 	return NewApiError(400, message)
 }
 
-// DockerError 把 Docker SDK 错误映射为 HTTP 状态(等价旧版 bollard 映射)
-func DockerError(err error) *ApiError {
-	status := 502 // Bad Gateway
-	switch {
-	case cerrdefs.IsNotFound(err):
-		status = 404
-	case cerrdefs.IsConflict(err):
-		status = 409
-	case cerrdefs.IsPermissionDenied(err):
-		status = 403
-	case cerrdefs.IsInvalidArgument(err):
-		status = 400
-	}
-	log.Printf("docker api error: %v", err)
-	return NewApiError(status, err.Error())
-}
-
 // AsApiError 从 error 链中提取 ApiError;docker SDK 错误按 cerrdefs 映射;
 // 其余普通错误统一按 500 处理
 func AsApiError(err error) *ApiError {

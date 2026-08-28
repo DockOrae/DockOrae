@@ -277,6 +277,7 @@ func composeLogsWS(c *gin.Context, st *state.AppState) error {
 		return mt != websocket.CloseMessage
 	})
 	_ = cmd.Process.Kill()
+	_ = cmd.Wait() // 回收子进程,避免僵尸
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
 }

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -64,5 +63,3 @@ func licenseDemoKey(c *gin.Context, st *state.AppState) error {
 	c.JSON(200, gin.H{"key": service.DemoKey()})
 	return nil
 }
-
-var _ = os.Getenv
