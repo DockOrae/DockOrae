@@ -415,6 +415,8 @@ export default {
     deployFailed: 'Falha na implantação, verifique a saída acima',
   },
   composeDetail: {
+    managedBadge: 'Gerenciada pelo painel',
+    adoptWarn: 'Após adotar, não use o docker compose do host para esta pilha: os dois arquivos compose não estão sincronizados e se sobrescreverão. Faça backup/mova o arquivo original e gerencie apenas pelo painel.',
     adopt: 'Adotar esta pilha',
     adoptTitle: 'Adotar no painel',
     adoptDesc: 'Esta pilha foi criada fora do painel; o arquivo compose não está no diretório de dados do painel. Cole o conteúdo do docker-compose.yml para adotá-la; depois você pode editá-la e implantá-la pelo painel.',
@@ -720,6 +722,11 @@ export default {
     connecting: 'Conectando às estatísticas… (sem dados quando o contêiner não está em execução)',
   },
   terminal: {
+    copy: 'Copiar seleção',
+    paste: 'Colar',
+    fontDec: 'Diminuir fonte',
+    fontInc: 'Aumentar fonte',
+    theme: 'Alternar tema',
     title: 'Terminal',
     host: 'Host',
     hostDesc: 'Contêiner do painel',

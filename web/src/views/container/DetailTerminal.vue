@@ -15,6 +15,17 @@
       <button class="btn btn-ghost btn-sm" @click="clearScreen" :disabled="!term">
         <Icon name="x" size="13" /> {{ t('terminal.clear') }}
       </button>
+      <div class="flex items-center gap-1 rounded-md border border-line px-1 py-0.5">
+        <button class="btn btn-icon btn-xs" :disabled="!hasSelection" :title="t('terminal.copy')" @click="copySel"><Icon name="copy" size="12" /></button>
+        <button class="btn btn-icon btn-xs" :disabled="!connected" :title="t('terminal.paste')" @click="pasteText"><Icon name="clipboard" size="12" /></button>
+        <span class="w-px h-3 bg-line mx-0.5" />
+        <button class="btn btn-icon btn-xs" :title="t('terminal.fontDec')" @click="fontSize--"><Icon name="minus" size="12" /></button>
+        <span class="text-[11px] text-muted w-6 text-center">{{ fontSize }}</span>
+        <button class="btn btn-icon btn-xs" :title="t('terminal.fontInc')" @click="fontSize++"><Icon name="plus" size="12" /></button>
+      </div>
+      <button class="btn btn-ghost btn-sm" :title="t('terminal.theme')" @click="dark = !dark">
+        <Icon :name="dark ? 'sun' : 'moon'" size="13" />
+      </button>
       <span v-if="error" class="text-xs text-danger">{{ error }}</span>
     </div>
     <div ref="termEl" class="flex-1 bg-[#0a0d13] border border-line rounded-lg overflow-hidden p-2" />
@@ -25,7 +36,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -42,12 +53,31 @@ const shell = ref('/bin/sh')
 const customShell = ref('/bin/sh')
 const connected = ref(false)
 const error = ref('')
+const hasSelection = ref(false)
+const fontSize = ref(13)
+const dark = ref(true)
 let term = null
 let fit = null
 let ws = null
 
 function currentShell() {
   return shell.value === 'custom' ? customShell.value || '/bin/sh' : shell.value
+}
+
+// 复制终端选中内容
+function copySel() {
+  const sel = term?.getSelection()
+  if (!sel) return
+  navigator.clipboard?.writeText(sel).catch(() => {})
+}
+
+// 粘贴剪贴板文本到终端
+async function pasteText() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return
+  try {
+    const text = await navigator.clipboard.readText()
+    if (text) ws.send(text)
+  } catch { /* 剪贴板权限拒绝时静默 */ }
 }
 
 function connect() {
@@ -109,16 +139,34 @@ function clearScreen() {
 onMounted(() => {
   term = new Terminal({
     cursorBlink: true,
-    fontSize: 13,
+    fontSize: fontSize.value,
     fontFamily: 'Consolas, "Cascadia Code", monospace',
-    theme: { background: '#0a0d13' },
+    theme: { background: '#0a0d13', foreground: '#d4d4d4', cursor: '#ec4899' },
   })
   fit = new FitAddon()
   term.loadAddon(fit)
   term.open(termEl.value)
   fit.fit()
   term.onData((d) => ws?.send(d))
+  term.onSelectionChange(() => {
+    hasSelection.value = !!term?.getSelection()
+  })
   window.addEventListener('resize', onResize)
+})
+
+// 字号调节
+watch(fontSize, (n) => {
+  if (n < 9) fontSize.value = 9
+  if (n > 24) fontSize.value = 24
+  if (term) term.options.fontSize = fontSize.value
+})
+
+// 深浅主题切换
+watch(dark, (d) => {
+  if (!term) return
+  term.options.theme = d
+    ? { background: '#0a0d13', foreground: '#d4d4d4', cursor: '#ec4899' }
+    : { background: '#ffffff', foreground: '#1f2937', cursor: '#ec4899' }
 })
 
 function onResize() {

@@ -415,6 +415,8 @@ export default {
     deployFailed: '배포 실패, 위 출력을 확인하세요',
   },
   composeDetail: {
+    managedBadge: '패널 관리',
+    adoptWarn: '인수 후에는 호스트 docker compose로 이 스택을 조작하지 마세요: 두 구성 파일은 동기화되지 않아 서로 덮어씁니다. 원본 compose 파일을 백업/이동한 후 패널에서만 관리하세요.',
     adopt: '이 스택 인수',
     adoptTitle: '패널로 인수',
     adoptDesc: '이 스택은 패널 외부에서 생성되어 구성 파일이 패널 데이터 디렉터리에 없습니다. docker-compose.yml 내용을 붙여넣어 인수하면 패널에서 편집·배포할 수 있습니다.',
@@ -720,6 +722,11 @@ export default {
     connecting: '통계 연결 중…(컨테이너가 실행 중이 아니면 데이터가 생성되지 않습니다)',
   },
   terminal: {
+    copy: '선택 내용 복사',
+    paste: '붙여넣기',
+    fontDec: '글꼴 축소',
+    fontInc: '글꼴 확대',
+    theme: '다크/라이트 전환',
     title: '터미널',
     host: '호스트',
     hostDesc: '패널 컨테이너',

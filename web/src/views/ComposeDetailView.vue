@@ -6,7 +6,10 @@
         <button class="btn btn-ghost btn-sm" @click="$router.push('/compose')"><Icon name="x" size="13" /> {{ t('common.back') }}</button>
         <h2 class="text-base font-semibold font-mono">{{ project }}</h2>
         <StatusBadge :state="status" />
-        <span v-if="!data.yaml" class="badge" style="color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3)">
+        <span v-if="data.managed" class="badge" style="color:#22c55e;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3)">
+          {{ t('composeDetail.managedBadge') }}
+        </span>
+        <span v-else class="badge" style="color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3)">
           {{ t('composeDetail.notManagedBadge') }}
         </span>
         <div class="ml-auto flex items-center gap-1.5 flex-wrap">
@@ -100,6 +103,9 @@
     <Modal :model-value="adoptOpen" :title="t('composeDetail.adoptTitle')" @close="adoptOpen = false">
       <div class="space-y-3">
         <p class="text-xs text-muted">{{ t('composeDetail.adoptDesc') }}</p>
+        <div class="rounded-lg border border-warn/40 bg-warn/10 p-2.5 text-xs text-warn leading-relaxed">
+          ⚠️ {{ t('composeDetail.adoptWarn') }}
+        </div>
         <textarea v-model="adoptText" rows="14" class="input font-mono text-[12px]" spellcheck="false" :placeholder="t('composeDetail.adoptYamlPh')" />
         <p v-if="adoptErr" class="text-xs text-danger">{{ adoptErr }}</p>
       </div>

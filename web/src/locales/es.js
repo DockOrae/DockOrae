@@ -415,6 +415,8 @@ export default {
     deployFailed: 'Error al implementar, revise la salida de arriba',
   },
   composeDetail: {
+    managedBadge: 'Gestionada por el panel',
+    adoptWarn: 'Tras adoptarla, no use el docker compose del host para esta pila: los dos archivos compose no están sincronizados y se sobrescribirán. Haga una copia/mueva el archivo original y gestione solo desde el panel.',
     adopt: 'Adoptar esta pila',
     adoptTitle: 'Adoptar en el panel',
     adoptDesc: 'Esta pila fue creada fuera del panel; su archivo compose no está en el directorio de datos del panel. Pega el contenido de docker-compose.yml para adoptarla; luego podrás editarla y desplegarla desde el panel.',
@@ -720,6 +722,11 @@ export default {
     connecting: 'Conectando a las estadísticas… (no hay datos cuando el contenedor no está en ejecución)',
   },
   terminal: {
+    copy: 'Copiar selección',
+    paste: 'Pegar',
+    fontDec: 'Reducir fuente',
+    fontInc: 'Aumentar fuente',
+    theme: 'Cambiar tema',
     title: 'Terminal',
     host: 'Host',
     hostDesc: 'Contenedor del panel',

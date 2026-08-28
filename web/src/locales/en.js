@@ -415,6 +415,8 @@ export default {
     deployFailed: 'Deployment failed, see the output above',
   },
   composeDetail: {
+    managedBadge: 'Panel-managed',
+    adoptWarn: 'After adopting, do not operate this stack with the host docker compose anymore: the two compose files are not in sync and will overwrite each other. Back up / move away the original compose file and manage it from the panel only.',
     adopt: 'Adopt this stack',
     adoptTitle: 'Adopt into panel',
     adoptDesc: 'This stack was created outside the panel; its compose file is not in the panel data directory. Paste the docker-compose.yml content to adopt it, then it can be edited and deployed from the panel.',
@@ -721,6 +723,11 @@ export default {
     connecting: 'Connecting to stats…(no data when the container is not running)',
   },
   terminal: {
+    copy: 'Copy selection',
+    paste: 'Paste',
+    fontDec: 'Decrease font size',
+    fontInc: 'Increase font size',
+    theme: 'Toggle dark/light theme',
     title: 'Terminal',
     host: 'Host',
     hostDesc: 'Panel container',

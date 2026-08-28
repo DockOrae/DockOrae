@@ -415,6 +415,8 @@ export default {
     deployFailed: 'Dağıtım başarısız oldu, lütfen yukarıdaki çıktıyı kontrol edin',
   },
   composeDetail: {
+    managedBadge: 'Panel yönetiminde',
+    adoptWarn: 'Devraldıktan sonra bu yığını host docker compose ile kullanmayın: iki compose dosyası senkronize değildir ve birbirinin üzerine yazar. Orijinal compose dosyasını yedekleyin/taşıyın ve yalnızca panelden yönetin.',
     adopt: 'Bu yığını devral',
     adoptTitle: 'Panele devral',
     adoptDesc: 'Bu yığın panel dışında oluşturulmuş, compose dosyası panel veri dizininde değil. docker-compose.yml içeriğini yapıştırarak devralın, ardından panelden düzenleyip dağıtabilirsiniz.',
@@ -720,6 +722,11 @@ export default {
     connecting: 'İstatistik bağlantısı kuruluyor… (kapsayıcı çalışmıyorken veri üretilmez)',
   },
   terminal: {
+    copy: 'Seçimi kopyala',
+    paste: 'Yapıştır',
+    fontDec: 'Yazı tipini küçült',
+    fontInc: 'Yazı tipini büyüt',
+    theme: 'Tema değiştir',
     title: 'Terminal',
     host: 'Ana makine',
     hostDesc: 'Panel kapsayıcısı',

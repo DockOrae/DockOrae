@@ -416,6 +416,8 @@ export default {
     deployFailed: '部署失败,请查看上方输出',
   },
   composeDetail: {
+    managedBadge: '面板托管',
+    adoptWarn: '接管后请勿再使用宿主 docker compose 操作此栈:两个入口的编排文件不同步,会互相覆盖配置。建议将原 compose 文件备份/移走后,统一由面板管理。',
     adopt: '接管此栈',
     adoptTitle: '接管到面板',
     adoptDesc: '该栈由面板外部创建,编排文件不在面板数据目录中。粘贴 docker-compose.yml 内容即可接管,之后可在面板中编辑与部署。',
@@ -722,6 +724,11 @@ export default {
     connecting: '统计连接中…(容器未运行时不产生数据)',
   },
   terminal: {
+    copy: '复制选中内容',
+    paste: '粘贴',
+    fontDec: '减小字号',
+    fontInc: '增大字号',
+    theme: '深浅主题切换',
     title: '终端',
     host: '主机',
     hostDesc: '面板容器',

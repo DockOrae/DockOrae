@@ -415,6 +415,8 @@ export default {
     deployFailed: 'デプロイに失敗しました。上の出力を確認してください',
   },
   composeDetail: {
+    managedBadge: 'パネル管理',
+    adoptWarn: '引き継ぎ後はホストの docker compose でこのスタックを操作しないでください:両方の構成ファイルは同期されず、互いに上書きされます。元の compose ファイルはバックアップ/退避し、パネルから管理することを推奨します。',
     adopt: 'このスタックを引き継ぐ',
     adoptTitle: 'パネルに引き継ぐ',
     adoptDesc: 'このスタックはパネル外で作成されたため、構成ファイルはパネルのデータディレクトリにありません。docker-compose.yml の内容を貼り付けて引き継ぐと、パネルから編集・デプロイできます。',
@@ -720,6 +722,11 @@ export default {
     connecting: '統計に接続中…(コンテナが実行されていない場合はデータが生成されません)',
   },
   terminal: {
+    copy: '選択内容をコピー',
+    paste: '貼り付け',
+    fontDec: 'フォント縮小',
+    fontInc: 'フォント拡大',
+    theme: 'ダーク/ライト切替',
     title: 'ターミナル',
     host: 'ホスト',
     hostDesc: 'パネルコンテナ',

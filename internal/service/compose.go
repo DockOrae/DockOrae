@@ -135,12 +135,15 @@ func ComposeInspect(st *state.AppState, ctx context.Context, project string) (mo
 		return model.ComposeInspect{}, err
 	}
 	var yaml *string
+	managed := false
 	if raw, err := os.ReadFile(ComposeFile(st, project)); err == nil {
 		s := string(raw)
 		yaml = &s
+		managed = true
 	}
 	return model.ComposeInspect{
-		Project:    project,
+		Project: project,
+		Managed: managed,
 		Containers: model.ToContainerItems(items),
 		Yaml:       yaml,
 	}, nil

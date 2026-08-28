@@ -415,6 +415,8 @@ export default {
     deployFailed: 'Deploy gagal, lihat keluaran di atas',
   },
   composeDetail: {
+    managedBadge: 'Dikelola panel',
+    adoptWarn: 'Setelah diambil alih, jangan gunakan docker compose host untuk stack ini: dua file compose tidak sinkron dan akan saling menimpa. Backup/pindahkan file compose asli dan kelola hanya dari panel.',
     adopt: 'Ambil alih stack ini',
     adoptTitle: 'Ambil alih ke panel',
     adoptDesc: 'Stack ini dibuat di luar panel; file compose tidak ada di direktori data panel. Tempel konten docker-compose.yml untuk mengambil alih, lalu dapat diedit dan di-deploy dari panel.',
@@ -720,6 +722,11 @@ export default {
     connecting: 'Menghubungkan statistik…(tidak ada data saat container tidak berjalan)',
   },
   terminal: {
+    copy: 'Salin pilihan',
+    paste: 'Tempel',
+    fontDec: 'Perkecil font',
+    fontInc: 'Perbesar font',
+    theme: 'Ganti tema',
     title: 'Terminal',
     host: 'Host',
     hostDesc: 'Container panel',

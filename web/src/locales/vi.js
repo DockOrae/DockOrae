@@ -415,6 +415,8 @@ export default {
     deployFailed: 'Triển khai thất bại, xem đầu ra phía trên',
   },
   composeDetail: {
+    managedBadge: 'Bảng điều khiển quản lý',
+    adoptWarn: 'Sau khi tiếp quản, đừng dùng docker compose host cho stack này: hai tệp compose không đồng bộ và sẽ ghi đè lẫn nhau. Hãy sao lưu/di chuyển tệp compose gốc và chỉ quản lý từ bảng điều khiển.',
     adopt: 'Tiếp quản stack này',
     adoptTitle: 'Tiếp quản vào bảng điều khiển',
     adoptDesc: 'Stack này được tạo bên ngoài bảng điều khiển; tệp compose không nằm trong thư mục dữ liệu của bảng điều khiển. Dán nội dung docker-compose.yml để tiếp quản, sau đó có thể chỉnh sửa và triển khai từ bảng điều khiển.',
@@ -720,6 +722,11 @@ export default {
     connecting: 'Đang kết nối thống kê… (không có dữ liệu khi container không chạy)',
   },
   terminal: {
+    copy: 'Sao chép vùng chọn',
+    paste: 'Dán',
+    fontDec: 'Giảm cỡ chữ',
+    fontInc: 'Tăng cỡ chữ',
+    theme: 'Đổi chủ đề',
     title: 'Terminal',
     host: 'Máy chủ',
     hostDesc: 'Container bảng điều khiển',

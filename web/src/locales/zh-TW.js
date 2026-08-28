@@ -415,6 +415,8 @@ export default {
     deployFailed: '部署失敗，請查看上方輸出',
   },
   composeDetail: {
+    managedBadge: '面板託管',
+    adoptWarn: '接管後請勿再使用宿主 docker compose 操作此堆疊:兩個入口的編排檔不同步,會互相覆蓋設定。建議將原 compose 檔備份/移走後,統一由面板管理。',
     adopt: '接管此堆疊',
     adoptTitle: '接管到面板',
     adoptDesc: '此堆疊由面板外部建立,編排檔不在面板資料目錄中。貼上 docker-compose.yml 內容即可接管,之後可在面板中編輯與部署。',
@@ -721,6 +723,11 @@ export default {
     connecting: '統計連線中…（容器未執行時不會產生資料）',
   },
   terminal: {
+    copy: '複製選取內容',
+    paste: '貼上',
+    fontDec: '減小字型',
+    fontInc: '增大字型',
+    theme: '深淺主題切換',
     title: '終端機',
     host: '主機',
     hostDesc: '面板容器',

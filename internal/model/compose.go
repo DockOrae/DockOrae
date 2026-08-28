@@ -12,6 +12,7 @@ type ComposeProject struct {
 
 type ComposeInspect struct {
 	Project    string              `json:"project"`
+	Managed    bool                `json:"managed"`
 	Containers []ContainerListItem `json:"containers"`
 	Yaml       *string             `json:"yaml"`
 }
