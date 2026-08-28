@@ -164,7 +164,6 @@ export default {
     saved: '已保存',
     deleted: '已删除',
     empty: '暂无主机,点击"添加主机"开始',
-    emptySync: '应用商店正在同步,请稍候…',
     confirmDelete: '确定删除主机',
     addrRequired: '地址不能为空',
     portInvalid: '端口无效',
@@ -423,6 +422,7 @@ export default {
     deployFailed: '部署失败,请查看上方输出',
   },
   composeDetail: {
+    title: 'Compose 详情',
     managedBadge: '面板托管',
     adoptWarn: '接管后请勿再使用宿主 docker compose 操作此栈:两个入口的编排文件不同步,会互相覆盖配置。建议将原 compose 文件备份/移走后,统一由面板管理。',
     adopt: '接管此栈',
@@ -905,6 +905,7 @@ export default {
 
 
     empty: '没有符合条件的应用',
+    emptySync: '应用商店正在同步,请稍候…',
     installedTag: '已安装',
     updatable: '可升级',
 

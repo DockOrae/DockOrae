@@ -163,7 +163,6 @@ export default {
     saved: 'Đã lưu',
     deleted: 'Đã xóa',
     empty: 'Chưa có máy chủ nào, nhấp vào "Thêm máy chủ" để bắt đầu',
-    emptySync: 'Kho ứng dụng đang đồng bộ, vui lòng chờ…',
     confirmDelete: 'Xác nhận xóa máy chủ',
     addrRequired: 'Địa chỉ không được để trống',
     portInvalid: 'Cổng không hợp lệ',
@@ -422,6 +421,7 @@ export default {
     deployFailed: 'Triển khai thất bại, xem đầu ra phía trên',
   },
   composeDetail: {
+    title: 'Chi tiết Compose',
     managedBadge: 'Bảng điều khiển quản lý',
     adoptWarn: 'Sau khi tiếp quản, đừng dùng docker compose host cho stack này: hai tệp compose không đồng bộ và sẽ ghi đè lẫn nhau. Hãy sao lưu/di chuyển tệp compose gốc và chỉ quản lý từ bảng điều khiển.',
     adopt: 'Tiếp quản stack này',
@@ -906,6 +906,7 @@ export default {
 
 
     empty: 'Không có ứng dụng phù hợp',
+    emptySync: 'Kho ứng dụng đang đồng bộ, vui lòng chờ…',
     installedTag: 'Đã cài đặt',
     updatable: 'Có thể cập nhật',
 

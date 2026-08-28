@@ -163,7 +163,6 @@ export default {
     saved: 'تم الحفظ',
     deleted: 'تم الحذف',
     empty: 'لا توجد مضيفات بعد,انقر على «إضافة مضيف» للبدء',
-    emptySync: 'جارٍ مزامنة متجر التطبيقات، يرجى الانتظار…',
     confirmDelete: 'تأكيد حذف المضيف',
     addrRequired: 'لا يمكن أن يكون العنوان فارغًا',
     portInvalid: 'منفذ غير صالح',
@@ -422,6 +421,7 @@ export default {
     deployFailed: 'فشل النشر,يرجى مراجعة المخرجات أعلاه',
   },
   composeDetail: {
+    title: 'تفاصيل Compose',
     managedBadge: 'تدار اللوحة',
     adoptWarn: 'بعد التبني، لا تستخدم docker compose المضيف لهذه الحزمة: ملفا compose غير متزامنين وسيستبدل أحدهما الآخر. يُنصح بنسخ/نقل ملف compose الأصلي والإدارة من اللوحة فقط.',
     adopt: 'تبني هذه الحزمة',
@@ -906,6 +906,7 @@ export default {
 
 
     empty: 'لا توجد تطبيقات مطابقة',
+    emptySync: 'جارٍ مزامنة متجر التطبيقات، يرجى الانتظار…',
     installedTag: 'مثبت',
     updatable: 'قابل للتحديث',
 

@@ -163,7 +163,6 @@ export default {
     saved: 'Tersimpan',
     deleted: 'Dihapus',
     empty: 'Belum ada host, klik "Tambah host" untuk memulai',
-    emptySync: 'Toko aplikasi sedang disinkronkan, harap tunggu…',
     confirmDelete: 'Yakin menghapus host',
     addrRequired: 'Alamat tidak boleh kosong',
     portInvalid: 'Port tidak valid',
@@ -422,6 +421,7 @@ export default {
     deployFailed: 'Deploy gagal, lihat keluaran di atas',
   },
   composeDetail: {
+    title: 'Detail Compose',
     managedBadge: 'Dikelola panel',
     adoptWarn: 'Setelah diambil alih, jangan gunakan docker compose host untuk stack ini: dua file compose tidak sinkron dan akan saling menimpa. Backup/pindahkan file compose asli dan kelola hanya dari panel.',
     adopt: 'Ambil alih stack ini',
@@ -906,6 +906,7 @@ export default {
 
 
     empty: 'Tidak ada aplikasi yang cocok',
+    emptySync: 'Toko aplikasi sedang disinkronkan, harap tunggu…',
     installedTag: 'Terpasang',
     updatable: 'Dapat diperbarui',
 

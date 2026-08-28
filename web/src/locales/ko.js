@@ -163,7 +163,6 @@ export default {
     saved: '저장됨',
     deleted: '삭제됨',
     empty: '호스트가 없습니다. "호스트 추가"를 클릭하여 시작하세요',
-    emptySync: '앱 스토어를 동기화하는 중입니다. 잠시 기다려 주세요…',
     confirmDelete: '호스트를 삭제하시겠습니까',
     addrRequired: '주소는 비워둘 수 없습니다',
     portInvalid: '잘못된 포트입니다',
@@ -422,6 +421,7 @@ export default {
     deployFailed: '배포 실패, 위 출력을 확인하세요',
   },
   composeDetail: {
+    title: 'Compose 상세',
     managedBadge: '패널 관리',
     adoptWarn: '인수 후에는 호스트 docker compose로 이 스택을 조작하지 마세요: 두 구성 파일은 동기화되지 않아 서로 덮어씁니다. 원본 compose 파일을 백업/이동한 후 패널에서만 관리하세요.',
     adopt: '이 스택 인수',
@@ -906,6 +906,7 @@ export default {
 
 
     empty: '조건에 맞는 앱이 없습니다',
+    emptySync: '앱 스토어를 동기화하는 중입니다. 잠시 기다려 주세요…',
     installedTag: '설치됨',
     updatable: '업데이트 가능',
 

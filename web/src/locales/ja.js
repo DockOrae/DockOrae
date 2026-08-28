@@ -163,7 +163,6 @@ export default {
     saved: '保存しました',
     deleted: '削除しました',
     empty: 'ホストがありません。「ホストを追加」をクリックして開始してください',
-    emptySync: 'アプリストアを同期中です。しばらくお待ちください…',
     confirmDelete: 'ホストを削除しますか',
     addrRequired: 'アドレスは必須です',
     portInvalid: 'ポートが無効です',
@@ -422,6 +421,7 @@ export default {
     deployFailed: 'デプロイに失敗しました。上の出力を確認してください',
   },
   composeDetail: {
+    title: 'Compose 詳細',
     managedBadge: 'パネル管理',
     adoptWarn: '引き継ぎ後はホストの docker compose でこのスタックを操作しないでください:両方の構成ファイルは同期されず、互いに上書きされます。元の compose ファイルはバックアップ/退避し、パネルから管理することを推奨します。',
     adopt: 'このスタックを引き継ぐ',
@@ -906,6 +906,7 @@ export default {
 
 
     empty: '該当するアプリがありません',
+    emptySync: 'アプリストアを同期中です。しばらくお待ちください…',
     installedTag: 'インストール済み',
     updatable: '更新可能',
 

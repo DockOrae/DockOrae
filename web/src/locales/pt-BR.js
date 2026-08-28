@@ -163,7 +163,6 @@ export default {
     saved: 'Salvo',
     deleted: 'Excluído',
     empty: 'Nenhum host ainda. Clique em "Adicionar host" para começar.',
-    emptySync: 'A loja de aplicativos está sincronizando, aguarde…',
     confirmDelete: 'Confirmar exclusão do host',
     addrRequired: 'O endereço não pode estar vazio',
     portInvalid: 'Porta inválida',
@@ -422,6 +421,7 @@ export default {
     deployFailed: 'Falha na implantação, verifique a saída acima',
   },
   composeDetail: {
+    title: 'Detalhes do Compose',
     managedBadge: 'Gerenciada pelo painel',
     adoptWarn: 'Após adotar, não use o docker compose do host para esta pilha: os dois arquivos compose não estão sincronizados e se sobrescreverão. Faça backup/mova o arquivo original e gerencie apenas pelo painel.',
     adopt: 'Adotar esta pilha',
@@ -906,6 +906,7 @@ export default {
 
 
     empty: 'Nenhum aplicativo correspondente',
+    emptySync: 'A loja de aplicativos está sincronizando, aguarde…',
     installedTag: 'Instalado',
     updatable: 'Atualizável',
 

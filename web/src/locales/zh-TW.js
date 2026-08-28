@@ -163,7 +163,6 @@ export default {
     saved: '已儲存',
     deleted: '已刪除',
     empty: '尚無主機，點擊「新增主機」開始',
-    emptySync: '應用商店正在同步,請稍候…',
     confirmDelete: '確定刪除主機',
     addrRequired: '位址不能為空',
     portInvalid: '連接埠無效',
@@ -422,6 +421,7 @@ export default {
     deployFailed: '部署失敗，請查看上方輸出',
   },
   composeDetail: {
+    title: 'Compose 詳情',
     managedBadge: '面板託管',
     adoptWarn: '接管後請勿再使用宿主 docker compose 操作此堆疊:兩個入口的編排檔不同步,會互相覆蓋設定。建議將原 compose 檔備份/移走後,統一由面板管理。',
     adopt: '接管此堆疊',
@@ -907,6 +907,7 @@ export default {
 
 
     empty: '沒有符合條件的應用',
+    emptySync: '應用商店正在同步,請稍候…',
     installedTag: '已安裝',
     updatable: '可升級',
 

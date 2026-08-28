@@ -163,7 +163,6 @@ export default {
     saved: 'Saved',
     deleted: 'Deleted',
     empty: 'No hosts yet. Click "Add host" to start.',
-    emptySync: 'App Store is syncing, please wait…',
     confirmDelete: 'Delete host',
     addrRequired: 'Address is required',
     portInvalid: 'Invalid port',
@@ -422,6 +421,7 @@ export default {
     deployFailed: 'Deployment failed, see the output above',
   },
   composeDetail: {
+    title: 'Compose Details',
     managedBadge: 'Panel-managed',
     adoptWarn: 'After adopting, do not operate this stack with the host docker compose anymore: the two compose files are not in sync and will overwrite each other. Back up / move away the original compose file and manage it from the panel only.',
     adopt: 'Adopt this stack',
@@ -904,6 +904,7 @@ export default {
 
 
     empty: 'No matching apps',
+    emptySync: 'App Store is syncing, please wait…',
     installedTag: 'Installed',
     updatable: 'Updatable',
 

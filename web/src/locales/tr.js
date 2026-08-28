@@ -163,7 +163,6 @@ export default {
     saved: 'Kaydedildi',
     deleted: 'Silindi',
     empty: 'Henüz ana makine yok. Başlamak için "Ana makine ekle"ye tıklayın.',
-    emptySync: 'Uygulama mağazası senkronize ediliyor, lütfen bekleyin…',
     confirmDelete: 'Ana makine silinsin mi',
     addrRequired: 'Adres boş olamaz',
     portInvalid: 'Geçersiz port',
@@ -422,6 +421,7 @@ export default {
     deployFailed: 'Dağıtım başarısız oldu, lütfen yukarıdaki çıktıyı kontrol edin',
   },
   composeDetail: {
+    title: 'Compose Detayları',
     managedBadge: 'Panel yönetiminde',
     adoptWarn: 'Devraldıktan sonra bu yığını host docker compose ile kullanmayın: iki compose dosyası senkronize değildir ve birbirinin üzerine yazar. Orijinal compose dosyasını yedekleyin/taşıyın ve yalnızca panelden yönetin.',
     adopt: 'Bu yığını devral',
@@ -906,6 +906,7 @@ export default {
 
 
     empty: 'Eşleşen uygulama yok',
+    emptySync: 'Uygulama mağazası senkronize ediliyor, lütfen bekleyin…',
     installedTag: 'Kurulu',
     updatable: 'Güncellenebilir',
 
