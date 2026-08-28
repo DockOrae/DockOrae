@@ -69,11 +69,14 @@ cross: web
 	    goarch=$$arch; goarm=; suffix=$$arch; \
 	    echo "==> 交叉编译 linux/$$goarch"; \
 	  fi; \
+	  rm -rf $(DIST_DIR)/docker-manager-go; \
+	  mkdir -p $(DIST_DIR)/docker-manager-go; \
 	  CGO_ENABLED=0 GOOS=linux GOARCH=$$goarch GOARM=$$goarm \
 	    $(GO) build -trimpath -ldflags="-s -w" \
-	    -o $(DIST_DIR)/docker-manager-go-linux-$$suffix/$(BIN) ./cmd/docker-manager || exit 1; \
-	  tar -czf $(DIST_DIR)/docker-manager-go-linux-$$suffix.tar.gz -C $(DIST_DIR) docker-manager-go-linux-$$suffix || exit 1; \
-	  rm -rf $(DIST_DIR)/docker-manager-go-linux-$$suffix; \
+	    -o $(DIST_DIR)/docker-manager-go/$(BIN) ./cmd/docker-manager || exit 1; \
+	  cp README.md $(DIST_DIR)/docker-manager-go/ 2>/dev/null || true; \
+	  tar -czf $(DIST_DIR)/docker-manager-go-linux-$$suffix.tar.gz -C $(DIST_DIR) docker-manager-go || exit 1; \
+	  rm -rf $(DIST_DIR)/docker-manager-go; \
 	done
 	@echo "✅ 交叉编译完成,产物:"
 	@ls -lh $(DIST_DIR)/*.tar.gz

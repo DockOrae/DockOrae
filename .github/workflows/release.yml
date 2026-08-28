@@ -60,17 +60,6 @@ jobs:
     needs: check
     # 手动强制构建,或自动检测到代码版本与已发布版本不同(该 tag 不存在)才构建
     if: ${{ github.event.inputs.force == 'true' || (github.event.inputs.force != 'true' && needs.check.outputs.tag != needs.check.outputs.ver) }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - amd64
-          - arm64
-          - armv7
-          - armv6
-          - 386
-          - armv5
-          - s390x
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
@@ -94,7 +83,8 @@ jobs:
           check-latest: true
 
       # 前端 dist 必须在 go build 之前构建 —— web/embed.go 的 //go:embed all:dist
-      # 编译期要求 web/dist/ 存在;dist 已 gitignore,CI 全新检出时为空
+      # 编译期要求 web/dist/ 存在;dist 已 gitignore,CI 全新检出时为空。
+      # make cross 内部会 npm install + vite build + 7 架构交叉编译 + tar 打包。
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -102,40 +92,8 @@ jobs:
           cache: "npm"
           cache-dependency-path: web/package-lock.json
 
-      - name: 前端构建
-        working-directory: web
-        run: |
-          npm ci --no-audit --no-fund
-          npm run build
-
-      # 纯 Go 项目(modernc sqlite 无 cgo),CGO_ENABLED=0 原生交叉编译,
-      # 不需要交叉工具链;armv5/6/7 通过 GOARM 区分
-      - name: 编译
-        run: |
-          export CGO_ENABLED=0
-          export GOOS=linux
-          export GOARCH=${{ matrix.platform }}
-          case "${{ matrix.platform }}" in
-            armv7) export GOARCH=arm GOARM=7 ;;
-            armv6) export GOARCH=arm GOARM=6 ;;
-            armv5) export GOARCH=arm GOARM=5 ;;
-          esac
-          go build -trimpath -ldflags="-s -w" -o docker-manager-go-bin ./cmd/docker-manager
-          file docker-manager-go-bin
-
-      - name: 打包
-        run: |
-          mkdir docker-manager-go
-          cp docker-manager-go-bin docker-manager-go/
-          mv docker-manager-go/docker-manager-go-bin docker-manager-go/docker-manager-go
-          cp README.md docker-manager-go/ 2>/dev/null || true
-          tar -zcvf docker-manager-go-linux-${{ matrix.platform }}.tar.gz docker-manager-go
-
-      - name: 上传 artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: docker-manager-go-linux-${{ matrix.platform }}
-          path: ./docker-manager-go-linux-${{ matrix.platform }}.tar.gz
+      - name: 构建全部架构 (make cross)
+        run: make cross
 
       - name: 发布 Release
         uses: softprops/action-gh-release@v3.0.2
@@ -143,8 +101,8 @@ jobs:
           token: ${{ github.token }}
           tag_name: ${{ env.TAG }}
           name: ${{ env.TAG }}
+          files: dist/*.tar.gz
           body: |
             > ### ![](https://img.shields.io/badge/编译时间-${{ env.build_time }}-8267?logo=github&labelColor=需)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.TAG }}/total?label=下载次数&logo=github)
 
             ${{ github.event.inputs.info }}
-          files: docker-manager-go-linux-*.tar.gz
