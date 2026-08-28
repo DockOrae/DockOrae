@@ -1,6 +1,6 @@
 ---
 name: docker-manager-user-guide
-description: 'Docker Manager Go 用户功能指南。用于回答用户关于 Docker Manager 面板如何配置/使用/排障的问题，包括：安装部署、域名 HTTPS、面板设置各 tab 配置项（安全入口/未认证设置/面板监听域名/强制 HTTPS/工具箱/密码策略/TG/邮件通知）、容器与镜像管理、终端、Fail2ban 登录防护等。每个配置项均标注了对应的 Settings JSON 字段、生效条件（是否需重启面板）。Use when user asks how to configure, use, or troubleshoot any Docker Manager Go panel feature.'
+description: 'Docker Manager Go 用户功能指南。用于回答用户关于 Docker Manager 面板如何配置/使用/排障的问题，包括：安装部署、域名 HTTPS、面板设置各 tab 配置项（安全入口/未认证设置/面板监听域名/强制 HTTPS/密码策略/TG/邮件通知）、容器与镜像管理、在线更新、Compose 栈、许可证等。每个配置项均标注了对应的 Settings JSON 字段、生效条件（是否需重启面板）。Use when user asks how to configure, use, or troubleshoot any Docker Manager Go panel feature.'
 instructions: |
   You are a Docker Manager Go expert assistant. Docker Manager Go is a Docker management panel written in Go (gin + official Moby Docker SDK) with a Vue 3 frontend, developed by MinimaxFlora (github.com/MinimaxFlora/Docker_Manager_Go). UI is inspired by 1Panel interaction design and 3x-ui status page, with dark/light themes and a pink (#ec4899) brand color.
 
@@ -9,7 +9,7 @@ instructions: |
   2. Give precise CLI commands for the VPS (systemctl/docker compose/curl) and ask the user to paste back the output. For panel API checks use curl http://<ip>:8080/api/health and /api/system/public-config.
   3. Once the root cause is identified, provide web UI navigation paths (e.g. 面板设置 → 常规 → 安全入口) to fix the configuration. Remember: webPort, webBasePath (安全入口), webListen changes require a panel RESTART to take effect (Router is built at startup); webDomain, noAuthSetting, sessionMaxAge take effect immediately.
   4. For feature configuration questions (how to enable/disable/set options), provide UI paths directly — no debug needed.
-  5. Explain underlying principles (Host-header validation for webDomain, gin Router built at startup so basePath needs restart, noAuthSetting response codes, Fail2ban in-memory bans) — not just steps.
+  5. Explain underlying principles (Host-header validation for webDomain, gin Router built at startup so basePath needs restart, noAuthSetting response codes) — not just steps.
   6. Never guess — if information is not covered in this document, consult the source code (https://github.com/MinimaxFlora/Docker_Manager_Go) — internal/settings/settings.go for all Settings fields, internal/api/ for handlers, install.sh for the installer, web/src/views/SettingsView.vue for the settings UI. For Docker-specific questions refer to Docker/Moby SDK docs.
   7. Cite sources when information comes from external queries.
 
@@ -20,7 +20,7 @@ instructions: |
   - 面板监听域名 (webDomain) acts as a Host whitelist: when set, the panel is only reachable via that domain (other Hosts get 404); localhost/127.0.0.1/::1 are always allowed for local ops.
   - 安全入口 (webBasePath, e.g. /dm123): when set, the panel is only reachable via /dm123/... — other paths 302 to the entrance; requires panel restart; static /assets and /logo.svg are always served.
   - 未认证设置 (noAuthSetting): response code when accessing API without login — 200 help page / 400 / 401 / 403 / 404 / 408 / 416 / 444 (connection closed) / 500, default 401.
-  - Fail2ban (工具箱 → Fail2ban): login-failure ban with in-memory state (lost on restart); authenticated admin requests bypass the ban so the admin can always unban.
+  - Login failure events show up in 面板设置 → 日志; 401 响应携带登录失败提示。
 
 type: knowledge-base
 tags: [docker, docker-manager, panel, go, gin, vue, container, devops]
@@ -38,7 +38,7 @@ disable-model-invocation: false
 > **排查优先级(从快到慢,逐层递进)**:
 > ① **先查网络可达性** — 用户报告"访问不了":先确认 DNS A 记录是否指向 VPS 公网 IP(曾有 28.0.1.x 保留段事故,域名解析到错误 IP 导致永远打不开)、VPS 防火墙端口(80/443/8080)是否放行;
 > ② **再查容器状态** — `docker compose ps`(compose 安装)或 `systemctl status docker-manager`(二进制安装),容器反复重启看日志 `docker compose logs --tail 50`;
-> ③ **最后查配置** — 证书路径是否真实存在于容器内、webBasePath/安全入口是否设置后未重启、webDomain 域名白名单是否把当前访问方式挡了、Fail2ban 是否把自己 IP 封了(重启面板即清空)。
+> ③ **最后查配置** — 证书路径是否真实存在于容器内、webBasePath/安全入口是否设置后未重启、webDomain 域名白名单是否把当前访问方式挡了(可先用 localhost 回环验证是否被白名单拦截)。
 
 ---
 
@@ -76,16 +76,8 @@ disable-model-invocation: false
 ### Compose 栈(Compose)
 - 项目列表、YAML 编辑器、一键部署(流式输出)、启动/停止/删除、查看详情。
 
-### 终端(终端)
-- 宿主机终端(chroot /host,容器内直接操作宿主机需挂载)、容器终端、SSH 主机管理(分组/连接/密码与密钥认证)、快捷命令、终端外观设置。
-
 ### 面板设置(面板设置)
-- 子菜单:**常规 / 工具箱 / 安全 / Telegram / 邮件 / 许可证 / 关于**;常规页内横向 tab:**常规 / 证书 / 日期和时间**。
-
-### 工具箱(面板设置 → 工具箱,仿 1Panel toolbox)
-- **设备信息**:主机名/OS/内核/架构/CPU/内存/磁盘/Docker 版本(`/api/toolbox/device`)。
-- **磁盘清理**:分析并清理 Docker 占用(已停止容器/未使用镜像/未使用卷/构建缓存,等效 `docker system prune`;`/api/toolbox/clean/analysis` + `/api/toolbox/clean`)。
-- **Fail2ban 登录防护**:失败阈值/封禁时长/封禁列表/解封/清空(内存态,重启清零;已登录管理员不受封禁影响)。
+- 子菜单:**常规 / 安全 / Telegram / 邮件 / 许可证 / 关于**;常规页内横向 tab:**常规 / 证书 / 日期和时间**;安全页内横向 tab:**管理员凭证 / 双因素验证**。
 
 ### 在线更新(页脚版本图标)
 - 面板启动后每 10 分钟静默检查 GitHub Releases(`api.github.com/repos/MinimaxFlora/Docker_Manager_Go/releases/latest`,结果缓存 10 分钟,**失败不缓存**;`DM_UPDATE_API` 环境变量可覆盖检测接口,测试用)。
@@ -153,7 +145,7 @@ disable-model-invocation: false
 1. **webDomain Host 白名单**(Router 最外层中间件):设置后仅绑定域名可访问,其他 Host 404。用于"设置域名访问就关闭 IP 访问"。localhost/127.0.0.1/::1 永远放行(本地运维与 install.sh API 调用)。
 2. **安全入口 webBasePath**:非入口路径 302 → 入口路径(保留路径,API/页面均带前缀可达);/assets、/logo.svg、/favicon.ico 直接服务。前端 router base 由 `GET /api/system/public-config` 动态获取(`main.js` 异步挂载),api.js 统一 `entrancePath()` 加前缀。
 3. **未认证设置 noAuthSetting**:AuthMiddleware 401 时按配置返回指定状态码;444 额外加 `Connection: close`;200 返回帮助页 HTML(伪装正常服务)。
-4. **Fail2ban 登录防护**:登录接口按 IP 计数,超阈值封禁 `fail2banBanDuration` 分钟;内存态重启清零;带有效 JWT 的请求绕过封禁检查(管理员可进面板解封)。字段:`fail2banEnable/fail2banMaxRetry/fail2banBanDuration`。
+4. **登录失败事件**:登录失败写入事件记录(面板设置 → 日志)并触发 TG/邮件通知(`EvLoginFail`),用于排查暴力破解;无封禁机制。
 5. **密码策略**:`expirationDays` 过期强制改密;`complexityVerification` 复杂度校验(错误 key:`user.pwdComplexity`)。
 6. **JWT 认证**:Authorization: Bearer 头或 `?token=` query(WebSocket 用);401 自动跳登录页。
 
@@ -212,7 +204,7 @@ docker exec <容器名> ls -la /data/cert/
 | 改了端口/安全入口不生效 | webPort/webBasePath 需重启面板 | 面板设置 → 保存 → 重启面板;或 `docker compose restart` |
 | 设置了 webDomain 后 IP 访问 404 | Host 白名单生效(设计如此) | 用绑定域名访问;本机 localhost 不受限 |
 | 设置了安全入口后旧链接打不开 | 302 到新入口,正常 | 用 /<入口>/ 访问;忘入口则重启并从 / 访问会 302 |
-| 全部请求 403 {"error":"banned"} | Fail2ban 封禁(内存态) | 等解封/重启面板清零;带 token 的管理员请求不受限 |
+| 登录接口返回 401 | 用户名/密码错误(事件记录 login_fail) | 核对账号密码;登录失败会触发 TG/邮件通知 |
 | 登录提示密码过期 | expirationDays 到期 | 设置 → 安全 → 修改密码 |
 | 面板反复重启(restart loop) | webForceSSL=true 且证书无效 → 拒绝启动 | 修复证书路径或改回 false(证书 tab) |
 | 镜像加速不生效 | daemon.json 写入后 Docker 重启失败 | 保存时提示;手动 `systemctl restart docker`(宿主机) |
@@ -239,9 +231,9 @@ docker exec <容器名> ls -la /data/cert/
 | GET/POST | /api/networks... | 网络 |
 | GET/POST | /api/volumes... | 卷 |
 | GET/POST | /api/compose... | Compose 栈 |
-| GET | /api/toolbox/device | 设备信息 |
-| GET/POST | /api/toolbox/clean[/analysis] | 磁盘清理 |
-| GET/POST | /api/toolbox/fail2ban[...] | Fail2ban 状态/解封/清空 |
+| GET | /api/system/host | 宿主机信息 |
+| GET | /api/system/registry-mirrors | 镜像加速配置 |
+| PUT | /api/system/registry-mirrors | 保存镜像加速 |
 | GET | /api/license/status | 许可证状态 |
 
 > WebSocket(容器日志/终端/事件流):`ws(s)://<host>/api/<path>?token=<JWT>`;设置了安全入口时路径需带入口前缀(前端 api.js `entrancePath()` 自动处理)。

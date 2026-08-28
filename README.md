@@ -23,13 +23,12 @@
 
 ## Features
 
-- **Container management** — create / start / stop / restart / pause / delete / inspect / attach, with a built-in **Web terminal**.
+- **Container management** — create / start / stop / restart / pause / delete / inspect / attach, with a built-in **container terminal** (WebSocket).
 - **Image management** — pull with real-time progress, delete, and prune unused images.
 - **Network management** — create / delete / inspect (subnet & gateway configuration).
 - **Volume management** — create / delete / inspect.
 - **Compose stack management** — YAML editor, one-click deploy (streaming output), start/stop, and teardown.
 - **Real-time monitoring** — 3x-ui style status page: CPU / memory / swap / storage cards with sparklines, network throughput & disk I/O curves, container/image/volume counts, panel process stats, and public IP with visibility toggle.
-- **Terminal** — host terminal (chroot `/host`), container terminal, and **SSH host management** (groups / connect / password & key auth), quick commands, terminal appearance settings.
 - **License** — offline Pro license (file upload activation / device binding / unbind); free tier limits container creation and Compose deployment.
 - **Registry mirror** — configure `daemon.json` registry-mirrors right from the panel.
 - **Multi-language** — 14 UI languages with dark and light themes.
