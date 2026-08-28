@@ -210,16 +210,8 @@
             </div>
           </div>
 
-          <!-- 账号凭证 -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="label">{{ t('settings.oldUsername') }}</label>
-              <input v-model="cred.oldUsername" class="input" autocomplete="username" />
-            </div>
-            <div>
-              <label class="label">{{ t('settings.oldPassword') }}</label>
-              <input v-model="cred.oldPassword" type="password" class="input" autocomplete="current-password" />
-            </div>
+          <!-- 账号凭证(仿 3x-ui:新用户名/新密码/当前密码验证,无原用户名字段) -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label class="label">{{ t('settings.newUsername') }}</label>
               <input v-model="cred.newUsername" class="input" :placeholder="t('settings.newUsernamePh')" autocomplete="username" />
@@ -227,6 +219,10 @@
             <div>
               <label class="label">{{ t('settings.newPassword') }}</label>
               <input v-model="cred.newPassword" type="password" class="input" :placeholder="t('settings.newPasswordPh')" autocomplete="new-password" />
+            </div>
+            <div>
+              <label class="label">{{ t('settings.oldPassword') }}</label>
+              <input v-model="cred.oldPassword" type="password" class="input" autocomplete="current-password" />
             </div>
           </div>
 
@@ -1009,22 +1005,22 @@ async function emailTest() {
   }
 }
 
-// ---------- 账号凭证(原用户名/原密码/新用户名/新密码,仿 3x-ui admin) ----------
-const cred = reactive({ oldUsername: '', oldPassword: '', newUsername: '', newPassword: '' })
+// ---------- 账号凭证(仿 3x-ui:新用户名/新密码 + 当前密码验证) ----------
+const cred = reactive({ oldPassword: '', newUsername: '', newPassword: '' })
 const credErr = ref('')
 const accountLoading = ref(false)
 
 async function saveAccount() {
   credErr.value = ''
-  const u = cred.oldUsername.trim()
   const nu = cred.newUsername.trim()
   const np = cred.newPassword
-  if (u && u !== user.username) {
-    credErr.value = t('settings.errOldUsername')
+  const op = cred.oldPassword
+  if (!nu && !np) {
+    credErr.value = t('settings.credNothingToChange')
     return
   }
-  if (np && !cred.oldPassword) {
-    credErr.value = t('settings.pwdFillAll')
+  if (!op) {
+    credErr.value = t('settings.currentPwdRequired')
     return
   }
   if (np && np.length < 6) {
@@ -1034,14 +1030,14 @@ async function saveAccount() {
   accountLoading.value = true
   try {
     if (np) {
-      await api('/password', { method: 'POST', json: { old_password: cred.oldPassword, new_password: np } })
+      await api('/password', { method: 'POST', json: { old_password: op, new_password: np } })
       user.mustChangePassword = false
     }
     if (nu && nu !== user.username) {
       const r = await api('/profile', { method: 'POST', json: { username: nu, nickname: null } })
       if (r.token) setToken(r.token)
       applyUser(r)
-      cred.oldUsername = nu
+      cred.newUsername = ''
     }
     if (wallpaperPending.value) {
       await saveWallpaper()
@@ -1101,7 +1097,7 @@ async function saveWallpaper() {
 const securityDirty = ref(false)
 let credBase = ''
 function credSnapshot() {
-  return JSON.stringify({ u: cred.oldUsername, p: cred.oldPassword, nu: cred.newUsername, np: cred.newPassword })
+  return JSON.stringify({ p: cred.oldPassword, nu: cred.newUsername, np: cred.newPassword })
 }
 watch([cred, wallpaperPending], () => {
   securityDirty.value = credSnapshot() !== credBase || !!wallpaperPending.value

@@ -81,15 +81,20 @@ func licensePath(st *state.AppState) string {
 }
 
 // licenseDeviceID 本机设备标识(绑定用)
-func licenseDeviceID() string {
+// Linux 裸机用 hostname;Docker 容器里 hostname 每次重建都会变(随机容器 ID),
+// 会导致重建后误报"已绑定到其他设备" —— 改用数据目录的 (dev, inode):
+// 挂载卷(如 /data)在宿主机上稳定,容器重建不受影响。
+func licenseDeviceID(dataDir string) string {
 	if runtime.GOOS == "windows" {
 		if c := os.Getenv("COMPUTERNAME"); c != "" {
 			return c
 		}
 		return "localhost"
 	}
+	if id, ok := dataDirDevID(dataDir); ok {
+		return id + "@docker-manager"
+	}
 	host, _ := os.Hostname()
-	// hostname + data dir 特征,避免纯 hostname 碰撞
 	return host + "@docker-manager"
 }
 
@@ -112,7 +117,7 @@ func licenseActive(st *state.AppState) bool {
 
 // licenseGet 查询授权状态
 func licenseGet(c *gin.Context, st *state.AppState) error {
-	deviceID := licenseDeviceID()
+	deviceID := licenseDeviceID(st.Cfg.DataDir)
 	raw, err := os.ReadFile(licensePath(st))
 	if err != nil {
 		c.JSON(200, gin.H{"active": false, "key": "", "info": nil, "device_id": deviceID, "bound": false})
@@ -155,7 +160,7 @@ func licenseDoActivate(st *state.AppState, key string) (map[string]any, *ApiErro
 		return nil, BadRequest("license.expiredKey")
 	}
 	// 已绑定到其他设备则拒绝(1Panel 的节点绑定语义)
-	deviceID := licenseDeviceID()
+	deviceID := licenseDeviceID(st.Cfg.DataDir)
 	path := licensePath(st)
 	if raw, err := os.ReadFile(path); err == nil {
 		var existing map[string]any
