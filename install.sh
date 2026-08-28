@@ -601,7 +601,18 @@ ssl_domain() {
       sed -i "s|${DM_PORT}:8080|443:8080|" "$COMPOSE_FILE"
       log_info "compose 端口已改为 443:8080,访问地址: https://${domain}/"
     fi
-    ( cd "$DM_INSTALL_DIR" && docker compose up -d --force-recreate ) >/dev/null 2>&1
+    log_step "重建容器使 HTTPS 配置生效..."
+    ( cd "$DM_INSTALL_DIR" && docker compose up -d --force-recreate ) || {
+      log_error "容器重建失败,请检查: cd $DM_INSTALL_DIR && docker compose up -d --force-recreate"
+      return 1
+    }
+    # TLS 自检:等待面板以 TLS 模式启动
+    sleep 3
+    if docker logs "$CONTAINER_NAME" --tail 20 2>/dev/null | grep -q "TLS enabled"; then
+      log_info "面板 HTTPS 启动成功 ✓"
+    else
+      log_warn "未检测到 TLS enabled 日志,请检查: docker logs ${CONTAINER_NAME}"
+    fi
   else
     set_panel_https "$domain" "$cert_dir/fullchain.cer" "$cert_dir/$domain.key"
     systemctl restart docker-manager >/dev/null 2>&1
