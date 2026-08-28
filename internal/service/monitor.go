@@ -344,16 +344,16 @@ func HostInfo(st *state.AppState) map[string]any {
 	}
 
 	return map[string]any{
-		"hostname":    hostnameOrUnknown(),
-		"os":          osName,
-		"kernel":      kernel,
-		"arch":        arch,
-		"cpu_model":   cpuModel,
-		"cpu_cores":   cores,
-		"mem_total":   totalMem * 1024,
-		"uptime":      uptime,
-		"docker":      dockerVer,
-		"server_time": time.Now().Unix(),
+		"hostname":       hostnameOrUnknown(),
+		"os":             osName,
+		"kernel":         kernel,
+		"arch":           arch,
+		"cpu_model":      cpuModel,
+		"cpu_cores":      cores,
+		"mem_total":      totalMem * 1024,
+		"uptime":         uptime,
+		"docker_version": dockerVer,
+		"server_time":    time.Now().Unix(),
 	}
 }
 
