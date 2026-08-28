@@ -1,0 +1,39 @@
+name: Docker Hub Description
+
+# 更新 Docker Hub 仓库说明(overview):改 dockerhub-description.md 自动更新,也可手动触发。
+# 独立于构建 workflow:说明文件改动不触发镜像构建(符合"仅源码改动触发构建"约定)。
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "dockerhub-description.md"
+
+env:
+  IMAGE: zhaoweiwen123/docker-manager-go
+
+jobs:
+  update-description:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Update Docker Hub overview (full_description)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          # Docker Hub API: PATCH /v2/repositories/{namespace}/{name}/ {full_description}
+          jq -n --rawfile d dockerhub-description.md '{full_description: $d}' > /tmp/desc.json
+          code=$(curl -sS -X PATCH \
+            -H "Content-Type: application/json" \
+            -u "${DOCKERHUB_USERNAME}:${DOCKERHUB_TOKEN}" \
+            --data-binary @/tmp/desc.json \
+            -o /tmp/resp.json \
+            -w "%{http_code}" \
+            "https://hub.docker.com/v2/repositories/${IMAGE}/")
+          echo "HTTP $code"
+          cat /tmp/resp.json
+          echo
+          test "$code" = "200" || { echo "::error::Docker Hub 说明更新失败(HTTP $code)。请确认 DOCKERHUB_TOKEN 是 Docker Hub PAT 且具有 Read & Write 权限(仅 Read 或密码会 401/403)"; exit 1; }
