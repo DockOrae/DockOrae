@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/netip"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -337,15 +339,19 @@ func (s *TerminalSession) Close() {
 	s.close()
 }
 
-// Recreate 重建容器(1Panel 同款):用原配置创建新容器 → 停删旧容器 → 启动新容器
+// Recreate 重建容器:用原配置以临时名创建新容器 → 停删旧容器 → 临时名改回原名 → 启动。
+// 修复:旧容器占用原名时同名创建必然 409;现用 <name>-recreate-<n> 临时名创建,
+// 任一步失败回滚删除临时容器,旧容器不受影响(先建后删,数据卷安全)。
 func (s *ContainerService) Recreate(ctx context.Context, id string) error {
 	insp, err := docker.InspectContainer(s.docker, ctx, id)
 	if err != nil {
 		return err
 	}
-	name := strings.TrimPrefix(insp.Name, "/")
+	oldName := strings.TrimPrefix(insp.Name, "/")
+	tmpName := fmt.Sprintf("%s-recreate-%d", oldName, time.Now().UnixNano()%100000)
+
 	newID, err := docker.CreateContainer(s.docker, ctx, client.ContainerCreateOptions{
-		Name:             name,
+		Name:             tmpName,
 		Config:           insp.Config,
 		HostConfig:       insp.HostConfig,
 		NetworkingConfig: &network.NetworkingConfig{EndpointsConfig: insp.NetworkSettings.Networks},
@@ -353,8 +359,20 @@ func (s *ContainerService) Recreate(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	rollback := func() {
+		_ = docker.RemoveContainer(s.docker, ctx, newID, client.ContainerRemoveOptions{Force: true})
+	}
+
+	// 停旧容器:失败不中止(后续 Force 删除兜底,保持原语义)
 	_ = docker.StopContainer(s.docker, ctx, id, client.ContainerStopOptions{})
 	if err := docker.RemoveContainer(s.docker, ctx, id, client.ContainerRemoveOptions{Force: true}); err != nil {
+		rollback()
+		return err
+	}
+	// 临时名改回原名(原名已释放)
+	if err := docker.RenameContainer(s.docker, ctx, newID, oldName); err != nil {
+		// 改名失败(如原名被外部占用):旧容器已删,先启动临时名容器保证可用
+		_ = docker.StartContainer(s.docker, ctx, newID)
 		return err
 	}
 	return docker.StartContainer(s.docker, ctx, newID)
