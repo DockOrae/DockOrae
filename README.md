@@ -3,7 +3,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./media/docker-manager-dark.svg">
-    <img alt="Docker Manager Go" src="./media/docker-manager-light.svg" width="480">
+    <img alt="Docker Manager Go" src="./media/docker-manager-light.svg" width="600">
   </picture>
 </p>
 
