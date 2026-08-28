@@ -26,7 +26,8 @@
 - **Konteyner yönetimi** — oluşturma / başlatma / durdurma / yeniden başlatma / duraklatma / silme / inceleme / bağlanma, yerleşik **konteyner terminali** (WebSocket) ile.
 - **İmaj yönetimi** — gerçek zamanlı ilerlemeyle çekme (pull), silme ve kullanılmayan imajları temizleme.
 - **Ağ yönetimi** — oluşturma / silme / inceleme (alt ağ ve ağ geçidi yapılandırması).
-- **Birim (volume) yönetimi** — oluşturma / silme / inceleme.
+- **Birim (volume) yönetimi** — oluşturma (yerel / NFS) / silme / inceleme.
+- **Uygulama Mağazası** — 260+ tek tıkla uygulama (1Panel uyumlu depo: simgeler / parametre formları / çoklu sürüm); GitHub'dan senkronizasyon, tek tıkla kurulum / yükseltme ve güncelleme rozeti.
 - **Compose yığın yönetimi** — YAML düzenleyici, tek tıkla dağıtım (akış çıktısı), başlatma/durdurma ve kaldırma.
 - **Gerçek zamanlı izleme** — 3x-ui tarzı durum sayfası: mini grafikli CPU / bellek / takas / depolama kartları, ağ bant genişliği ve disk G/Ç eğrileri, konteyner/imaj/birim sayıları, panel süreç istatistikleri ve görünürlük açma/kapama özellikli genel IP.
 - **Lisans** — çevrimdışı Pro lisansı (dosya yükleme ile etkinleştirme / cihaz bağlama / bağlama kaldırma); ücretsiz sürüm konteyner oluşturmayı ve Compose dağıtımını sınırlar.

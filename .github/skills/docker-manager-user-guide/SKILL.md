@@ -1,6 +1,6 @@
 ---
 name: docker-manager-user-guide
-description: 'Docker Manager Go 用户功能指南。用于回答用户关于 Docker Manager 面板如何配置/使用/排障的问题，包括：安装部署、域名 HTTPS、面板设置各 tab 配置项（安全入口/未认证设置/面板监听域名/强制 HTTPS/密码策略/TG/邮件通知）、容器与镜像管理、在线更新、Compose 栈、许可证等。每个配置项均标注了对应的 Settings JSON 字段、生效条件（是否需重启面板）。Use when user asks how to configure, use, or troubleshoot any Docker Manager Go panel feature.'
+description: 'Docker Manager Go 用户功能指南。用于回答用户关于 Docker Manager 面板如何配置/使用/排障的问题，包括：安装部署、域名 HTTPS、面板设置各 tab 配置项（安全入口/未认证设置/面板监听域名/强制 HTTPS/密码策略/TG/邮件通知）、容器与镜像管理、应用商店（一键安装/同步/可升级）、在线更新、Compose 栈、许可证等。每个配置项均标注了对应的 Settings JSON 字段、生效条件（是否需重启面板）。Use when user asks how to configure, use, or troubleshoot any Docker Manager Go panel feature.'
 instructions: |
   You are a Docker Manager Go expert assistant. Docker Manager Go is a Docker management panel written in Go (gin + official Moby Docker SDK) with a Vue 3 frontend, developed by MinimaxFlora (github.com/MinimaxFlora/Docker_Manager_Go). UI is inspired by 1Panel interaction design and 3x-ui status page, with dark/light themes and a pink (#ec4899) brand color.
 
@@ -21,6 +21,7 @@ instructions: |
   - 安全入口 (webBasePath, e.g. /dm123): when set, the panel is only reachable via /dm123/... — other paths 302 to the entrance; requires panel restart; static /assets and /logo.svg are always served.
   - 未认证设置 (noAuthSetting): response code when accessing API without login — 200 help page / 400 / 401 / 403 / 404 / 408 / 416 / 444 (connection closed) / 500, default 401.
   - Login failure events show up in 面板设置 → 日志; 401 响应携带登录失败提示。
+  - 应用商店 (App Store): 数据源为 MinimaxFlora/docker-manager-apps 仓库(264 个应用,1Panel 同款结构 data.yml + docker-compose.yml + formFields 参数 + logo.png)。首次使用需在应用商店页点「同步应用商店」下载数据(~240MB,存 DATA_DIR/appstore);同步可用环境变量 DM_APPSTORE_REPO/DM_APPSTORE_URL 覆盖仓库/下载地址。安装流程:选版本 → 填参数表单(1Panel formFields)→ 自动创建 1panel-network 外部网络 → compose up。已安装且版本非最新时卡片显示「可升级」黄色徽标,一键升级会重渲染最新版 compose。
 
 type: knowledge-base
 tags: [docker, docker-manager, panel, go, gin, vue, container, devops]
@@ -235,6 +236,14 @@ docker exec <容器名> ls -la /data/cert/
 | GET | /api/system/registry-mirrors | 镜像加速配置 |
 | PUT | /api/system/registry-mirrors | 保存镜像加速 |
 | GET | /api/license/status | 许可证状态 |
+| GET | /api/apps | 应用商店列表 + 分类(1Panel tags) |
+| POST | /api/apps/sync | 同步应用商店数据(从 GitHub 仓库,~240MB) |
+| GET | /api/apps/:key | 应用详情(版本列表 + 参数表单) |
+| POST | /api/apps/:key/preview | 渲染 compose 预览 |
+| POST | /api/apps/:key/install | 安装(参数 + 可选 yaml 覆盖) |
+| POST | /api/apps/:key/upgrade | 升级(重渲染最新版本 + 重建) |
+| POST | /api/apps/:key/uninstall | 卸载 |
+| GET | /api/apps/icon/:key | 应用图标(公开接口,<img> 直接引用) |
 
 > WebSocket(容器日志/终端/事件流):`ws(s)://<host>/api/<path>?token=<JWT>`;设置了安全入口时路径需带入口前缀(前端 api.js `entrancePath()` 自动处理)。
 
