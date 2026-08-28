@@ -93,7 +93,7 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
-      # 前端 dist 必须在 go build 之前构建 —— web.go 的 //go:embed all:dist
+      # 前端 dist 必须在 go build 之前构建 —— web/embed.go 的 //go:embed all:dist
       # 编译期要求 web/dist/ 存在;dist 已 gitignore,CI 全新检出时为空
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -120,7 +120,7 @@ jobs:
             armv6) export GOARCH=arm GOARM=6 ;;
             armv5) export GOARCH=arm GOARM=5 ;;
           esac
-          go build -trimpath -ldflags="-s -w" -o docker-manager-go-bin .
+          go build -trimpath -ldflags="-s -w" -o docker-manager-go-bin ./cmd/docker-manager
           file docker-manager-go-bin
 
       - name: 打包
