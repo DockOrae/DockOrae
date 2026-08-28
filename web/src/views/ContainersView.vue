@@ -49,14 +49,11 @@
                   <button v-if="c.State !== 'running'" class="btn btn-icon btn-sm" :title="t('common.start')" @click="act(c, 'start')">
                     <Icon name="play" size="13" class="text-ok" />
                   </button>
-                  <button v-if="c.State === 'running'" class="btn btn-icon btn-sm" :title="t('common.stop')" @click="act(c, 'stop')">
-                    <Icon name="stop" size="13" class="text-warn" />
+                  <button v-if="c.State === 'running' && !c.State.includes('paused')" class="btn btn-icon btn-sm" :title="t('common.pause')" @click="act(c, 'pause')">
+                    <Icon name="pause" size="13" />
                   </button>
                   <button v-if="c.State === 'running'" class="btn btn-icon btn-sm" :title="t('common.restart')" @click="act(c, 'restart')">
                     <Icon name="restart" size="13" />
-                  </button>
-                  <button v-if="c.State === 'running' && !c.State.includes('paused')" class="btn btn-icon btn-sm" :title="t('common.pause')" @click="act(c, 'pause')">
-                    <Icon name="pause" size="13" />
                   </button>
                   <button v-if="c.State === 'paused'" class="btn btn-icon btn-sm" :title="t('common.unpause')" @click="act(c, 'unpause')">
                     <Icon name="play" size="13" class="text-ok" />

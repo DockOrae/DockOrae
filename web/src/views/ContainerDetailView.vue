@@ -13,7 +13,6 @@
         </div>
         <div class="ml-auto flex items-center gap-1.5 flex-wrap">
           <button v-if="status !== 'running'" class="btn btn-ok btn-sm" @click="act('start')"><Icon name="play" size="13" /> {{ t('common.start') }}</button>
-          <button v-if="status === 'running'" class="btn btn-ghost btn-sm" @click="act('stop')"><Icon name="stop" size="13" /> {{ t('common.stop') }}</button>
           <button class="btn btn-ghost btn-sm" @click="act('restart')"><Icon name="restart" size="13" /> {{ t('common.restart') }}</button>
           <button v-if="status === 'running'" class="btn btn-ghost btn-sm" @click="act('pause')"><Icon name="pause" size="13" /> {{ t('common.pause') }}</button>
           <button v-if="status === 'paused'" class="btn btn-ok btn-sm" @click="act('unpause')"><Icon name="play" size="13" /> {{ t('common.unpause') }}</button>
