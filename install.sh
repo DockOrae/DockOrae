@@ -94,6 +94,46 @@ is_domain() {
   [[ "$1" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$ ]]
 }
 
+# ---------- 域名解析校验(仿 3x-ui ssl_cert_issue:申请证书前必须先确认 A 记录指向本机) ----------
+# 获取本机公网 IP(多源回退;拿不到时返回非 0)
+get_public_ip() {
+  local ip=""
+  for src in "https://api.ipify.org" "https://ifconfig.me/ip" "https://ip.sb" "https://ipinfo.io/ip"; do
+    ip=$(timeout 5 curl -s4 --connect-timeout 4 "$src" 2>/dev/null | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+    [ -n "$ip" ] && { echo "$ip"; return 0; }
+  done
+  return 1
+}
+
+# 解析域名 A 记录(多源:getent → nslookup → dig)
+resolve_domain_ip() {
+  local domain="$1" ip=""
+  ip=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+  [ -z "$ip" ] && ip=$(timeout 5 nslookup -type=A "$domain" 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | grep -vE '^(0|127|255)\.' | head -1)
+  [ -z "$ip" ] && ip=$(timeout 5 dig +short "$domain" A 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+  echo "$ip"
+}
+
+# 校验域名 A 记录 == 本机公网 IP,不一致直接终止(3x-ui check_domain 同款逻辑)
+check_domain_dns() {
+  local domain="$1"
+  log_step "校验域名解析(仿 3x-ui:必须指向本机公网 IP)..."
+  local pub_ip dns_ip
+  pub_ip=$(get_public_ip) || { log_warn "无法获取本机公网 IP,跳过解析校验(acme.sh 申请时会再次验证)"; return 0; }
+  dns_ip=$(resolve_domain_ip "$domain")
+  if [ -z "$dns_ip" ]; then
+    log_error "无法解析域名 $domain 的 A 记录"
+    log_error "请到 DNS 服务商(如 Cloudflare)添加 A 记录: $domain → $pub_ip"
+    return 1
+  fi
+  if [ "$dns_ip" != "$pub_ip" ]; then
+    log_error "域名 ${domain} 当前解析到 ${dns_ip},而本机公网 IP 是 ${pub_ip}!"
+    log_error "请到 DNS 服务商把 A 记录改为 ${pub_ip},等解析全球生效(dnschecker.org 可确认)后重新执行本命令"
+    return 1
+  fi
+  log_info "域名解析校验通过: ${domain} → ${dns_ip} ✓"
+}
+
 # ---------- 系统检测 ----------
 check_env() {
   [ "$(uname -s)" != "Linux" ] && die "此脚本仅支持 Linux 系统"
@@ -562,7 +602,11 @@ ssl_domain() {
     fi
     break
   done
-  log_step "域名: $domain,开始申请证书(请确保域名 A 记录指向本机,且 80 端口未被占用)..."
+  log_step "域名: $domain"
+  # 仿 3x-ui:先校验 A 记录指向本机,解析不对直接终止,绝不带病申请
+  check_domain_dns "$domain" || return 1
+  log_step "开始申请证书(acme.sh standalone 模式,需 80 端口空闲)..."
+  log_info "若申请失败,常见原因: 80 端口被占用 / 防火墙未放行 80 / DNS 解析未生效"
 
   local cert_dir="$DM_CERT_DIR/$domain"
   mkdir -p "$cert_dir"
