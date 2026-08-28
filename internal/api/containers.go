@@ -28,8 +28,45 @@ func mimeByExt(name string) string {
 
 // ---------------- 列表 / 详情 ----------------
 
-type containersListQuery struct {
-	All *bool `form:"all"`
+// ---- 精简列表结构 ----
+// moby 全量 Summary 携带 NetworkSettings/Mounts 等大字段,直传跨洋响应可达数百 KB;
+// 列表接口只返回前端实际使用的字段,响应体积缩小 5~10 倍。
+
+type containerMountItem struct {
+	Type string `json:"Type"`
+	Name string `json:"Name"`
+}
+
+type containerListItem struct {
+	ID      string                  `json:"Id"`
+	Names   []string                `json:"Names"`
+	Image   string                  `json:"Image"`
+	State   string                  `json:"State"`
+	Ports   []container.PortSummary `json:"Ports"`
+	Created int64                   `json:"Created"`
+	Mounts  []containerMountItem    `json:"Mounts"`
+	Labels  map[string]string       `json:"Labels,omitempty"`
+}
+
+func toContainerItems(items []container.Summary) []containerListItem {
+	out := make([]containerListItem, 0, len(items))
+	for _, it := range items {
+		mounts := make([]containerMountItem, 0, len(it.Mounts))
+		for _, m := range it.Mounts {
+			mounts = append(mounts, containerMountItem{Type: string(m.Type), Name: m.Name})
+		}
+		out = append(out, containerListItem{
+			ID:      it.ID,
+			Names:   it.Names,
+			Image:   it.Image,
+			State:   string(it.State),
+			Ports:   it.Ports,
+			Created: it.Created,
+			Mounts:  mounts,
+			Labels:  it.Labels,
+		})
+	}
+	return out
 }
 
 func containersList(c *gin.Context, st *state.AppState) error {
@@ -41,7 +78,7 @@ func containersList(c *gin.Context, st *state.AppState) error {
 	if err != nil {
 		return dockerError(err)
 	}
-	c.JSON(200, res.Items)
+	c.JSON(200, toContainerItems(res.Items))
 	return nil
 }
 

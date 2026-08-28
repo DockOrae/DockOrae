@@ -26,7 +26,7 @@ func systemHealth(c *gin.Context, st *state.AppState) error {
 	c.JSON(200, gin.H{
 		"ok":      true,
 		"name":    "docker-manager-go",
-		"version": "1.0.0",
+		"version": AppVersion,
 	})
 	return nil
 }

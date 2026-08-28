@@ -147,28 +147,50 @@
             <span :class="licenseActive ? 'text-brand font-semibold' : ''">
               {{ licenseActive ? t('license.pro') : t('license.community') }}
             </span>
-            <span class="px-1.5 py-0.5 rounded-md bg-surface2 border border-line">{{ t('app.version') }}</span>
+            <button
+              type="button"
+              class="relative px-2 py-1 rounded-md bg-surface2 border border-line text-muted hover:text-brand transition-colors"
+              :title="updateInfo?.has_update ? t('update.available') : t('update.title')"
+              @click="updateOpen = true"
+            >
+              <Icon name="download" size="16" />
+              <span v-if="updateInfo?.has_update" class="update-dot" />
+            </button>
           </span>
         </div>
       </footer>
     </div>
+
+    <UpdateModal :open="updateOpen" @close="updateOpen = false" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
 import ToggleLocale from '../components/ToggleLocale.vue'
 import SwitchAppearance from '../components/SwitchAppearance.vue'
-import { getToken, setToken } from '../api'
+import UpdateModal from '../components/UpdateModal.vue'
+import { getToken, setToken, api } from '../api'
 import { licenseActive, resetUser, user } from '../store'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const PINNED_KEY = 'dm_sidebar_pinned'
+
+// 在线更新:进入面板检查一次,之后每 10 分钟静默刷新(后端有 10 分钟缓存,不会打爆 GitHub API)
+const updateOpen = ref(false)
+const updateInfo = ref(null)
+async function loadUpdate() {
+  try {
+    updateInfo.value = await api('/update/check')
+  } catch { /* 网络/API 故障静默,不影响面板使用 */ }
+}
+onMounted(loadUpdate)
+setInterval(loadUpdate, 10 * 60 * 1000)
 
 // 3x-ui 交互:默认折叠,悬停展开;图钉固定后保持展开
 const hovered = ref(false)
@@ -447,6 +469,7 @@ function logout() {
 .logout-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   width: 100%;
   height: 40px;
@@ -459,7 +482,7 @@ function logout() {
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   white-space: nowrap;
   transition: background 0.15s;
 }
@@ -472,6 +495,18 @@ function logout() {
 }
 .logout-item.is-collapsed .nav-label {
   display: none;
+}
+
+/* 页脚更新按钮红点(有更新时亮起) */
+.update-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ec4899;
+  border: 1.5px solid var(--dm-bg, #0f172a);
 }
 
 /* ---------- 主区域 ---------- */

@@ -15,8 +15,23 @@ func networksList(c *gin.Context, st *state.AppState) error {
 	if err != nil {
 		return dockerError(err)
 	}
-	c.JSON(200, res.Items)
+	// 精简:仅返回列表展示字段;新版 moby /networks 不返回容器端点信息(与旧行为一致)
+	items := make([]networkListItem, 0, len(res.Items))
+	for _, it := range res.Items {
+		items = append(items, networkListItem{
+			ID: it.ID, Name: it.Name, Driver: it.Driver, Scope: it.Scope, IPAM: it.IPAM,
+		})
+	}
+	c.JSON(200, items)
 	return nil
+}
+
+type networkListItem struct {
+	ID     string       `json:"Id"`
+	Name   string       `json:"Name"`
+	Driver string       `json:"Driver"`
+	Scope  string       `json:"Scope"`
+	IPAM   network.IPAM `json:"IPAM"`
 }
 
 func networksInspect(c *gin.Context, st *state.AppState) error {

@@ -146,7 +146,7 @@ func composeInspect(c *gin.Context, st *state.AppState) error {
 		s := string(raw)
 		yaml = &s
 	}
-	c.JSON(200, gin.H{"project": project, "containers": res.Items, "yaml": yaml})
+	c.JSON(200, gin.H{"project": project, "containers": toContainerItems(res.Items), "yaml": yaml})
 	return nil
 }
 

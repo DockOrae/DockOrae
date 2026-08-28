@@ -87,6 +87,10 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/license/deactivate", H(licenseDeactivate).Handler(st))
 	p.GET("/license/demo", H(licenseDemoKey).Handler(st))
 
+	// ---------- 在线更新 ----------
+	p.GET("/update/check", H(updateCheck).Handler(st))
+	p.POST("/update/apply", H(updateApply).Handler(st))
+
 	p.GET("/ws/events", H(systemEventsWS).Handler(st))
 
 	p.GET("/containers", H(containersList).Handler(st))

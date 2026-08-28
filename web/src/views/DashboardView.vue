@@ -380,9 +380,6 @@ const ioHistory = ref({ read: [], write: [] }) // 速率序列(B/s)
 const hist = ref({ cpu: [], mem: [], swap: [], disk: [], containerCount: [], imageCount: [], volumeCount: [] })
 const labels = ref([]) // 3s 采样时间标签(吞吐/IO)
 const dockerLabels = ref([]) // 15s 采样时间标签(容器/镜像/卷)
-const prevNet = ref(null)
-const prevIo = ref(null)
-const prevTs = ref(null)
 const netRate = ref({ rx: '0 B/s', tx: '0 B/s' })
 const ioRate = ref({ read: '0 B/s', write: '0 B/s' })
 let monTimer = null
@@ -438,8 +435,8 @@ const imageSizeText = computed(() => fmtBytes(imagesSize.value))
 const imageAvgText = computed(() => (images.value ? fmtBytes(imagesSize.value / images.value) : '-'))
 const panelMem = computed(() => (mon.value.panel ? fmtBytes(mon.value.panel.mem) : '-'))
 const panelThreads = computed(() => (mon.value.panel ? String(mon.value.panel.threads) : '-'))
-const sentTotal = computed(() => fmtBytes(mon.value.net?.tx ?? 0))
-const recvTotal = computed(() => fmtBytes(mon.value.net?.rx ?? 0))
+const sentTotal = computed(() => fmtBytes(mon.value.net?.tx_total ?? 0))
+const recvTotal = computed(() => fmtBytes(mon.value.net?.rx_total ?? 0))
 const avgTx = computed(() => fmtRate(avg(netHistory.value.tx)))
 const avgRx = computed(() => fmtRate(avg(netHistory.value.rx)))
 const netPeakText = computed(() => fmtRate(peak(netHistory.value.tx) > peak(netHistory.value.rx) ? peak(netHistory.value.tx) : peak(netHistory.value.rx)))
@@ -550,32 +547,19 @@ async function loadBase() {
 async function loadMonitor() {
   try {
     const m = await api('/system/monitor')
-    const now = Date.now()
-    if (prevTs.value && prevNet.value) {
-      const dt = (now - prevTs.value) / 1000
-      if (dt > 0) {
-        const rx = Math.max(0, (m.net.rx - prevNet.value.rx) / dt)
-        const tx = Math.max(0, (m.net.tx - prevNet.value.tx) / dt)
-        netRate.value.rx = fmtRate(rx)
-        netRate.value.tx = fmtRate(tx)
-        pushHistory(netHistory.value.rx, rx)
-        pushHistory(netHistory.value.tx, tx)
-      }
-    }
-    if (prevTs.value && prevIo.value) {
-      const dt = (now - prevTs.value) / 1000
-      if (dt > 0) {
-        const rd = Math.max(0, (m.io.read - prevIo.value.read) / dt)
-        const wr = Math.max(0, (m.io.write - prevIo.value.write) / dt)
-        ioRate.value.read = fmtRate(rd)
-        ioRate.value.write = fmtRate(wr)
-        pushHistory(ioHistory.value.read, rd)
-        pushHistory(ioHistory.value.write, wr)
-      }
-    }
-    prevNet.value = { rx: m.net.rx, tx: m.net.tx }
-    prevIo.value = { read: m.io.read, write: m.io.write }
-    prevTs.value = now
+    // 速率由后端 8 秒采样差分直接给出(B/s),前端不再做累计值差分(避免缓存导致的 0 锯齿)
+    const rx = m.net?.rx_rate ?? 0
+    const tx = m.net?.tx_rate ?? 0
+    const rd = m.io?.read_rate ?? 0
+    const wr = m.io?.write_rate ?? 0
+    netRate.value.rx = fmtRate(rx)
+    netRate.value.tx = fmtRate(tx)
+    pushHistory(netHistory.value.rx, rx)
+    pushHistory(netHistory.value.tx, tx)
+    ioRate.value.read = fmtRate(rd)
+    ioRate.value.write = fmtRate(wr)
+    pushHistory(ioHistory.value.read, rd)
+    pushHistory(ioHistory.value.write, wr)
 
     mon.value = m
     pushHistory(hist.value.cpu, m.cpu_pct)

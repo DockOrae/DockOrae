@@ -16,8 +16,20 @@ func imagesList(c *gin.Context, st *state.AppState) error {
 	if err != nil {
 		return dockerError(err)
 	}
-	c.JSON(200, res.Items)
+	// 精简:列表只返回前端用到的字段(Id/RepoTags/Size/Created),全量含 Labels/RepoDigests 等大字段
+	items := make([]imageListItem, 0, len(res.Items))
+	for _, it := range res.Items {
+		items = append(items, imageListItem{ID: it.ID, RepoTags: it.RepoTags, Size: it.Size, Created: it.Created})
+	}
+	c.JSON(200, items)
 	return nil
+}
+
+type imageListItem struct {
+	ID       string   `json:"Id"`
+	RepoTags []string `json:"RepoTags"`
+	Size     int64    `json:"Size"`
+	Created  int64    `json:"Created"`
 }
 
 func imagesInspect(c *gin.Context, st *state.AppState) error {

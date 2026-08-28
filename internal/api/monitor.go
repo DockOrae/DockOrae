@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -153,15 +154,73 @@ func readCpuStat() (uint64, uint64, bool) {
 	return idle, total, true
 }
 
-// ---------------- 容器流量 / 磁盘 IO 汇总 ----------------
+// ---------------- 容器流量 / 磁盘 IO 速率 ----------------
 
-// containerNetIO 汇总所有运行中容器的网络收发与磁盘读写累计值 -> (rx, tx, read, write)
-func containerNetIO(st *state.AppState) (rx, tx, rd, wr uint64) {
+// 前端每 3 秒轮询 /system/monitor,若每轮都对全部运行中容器打 stats,Docker daemon 会被持续压榨
+// 并拖慢列表接口。因此 8 秒采样一次累计值,内部差分后直接返回"每秒速率(B/s)":
+// 缓存命中返回相同速率(平滑),不会产生 0 值锯齿或虚假尖峰。
+var (
+	netIOCacheMu   sync.Mutex
+	netIOCacheAt   time.Time // 最近一次采样时间
+	netIOCachePrev time.Time // 差分基准时间
+	netIOCacheRx   uint64    // 最近一次采样累计值
+	netIOCacheTx   uint64
+	netIOCacheRd   uint64
+	netIOCacheWr   uint64
+	netRateRx      float64 // 每秒速率(B/s)
+	netRateTx      float64
+	netRateRd      float64
+	netRateWr      float64
+)
+
+const netIOCacheTTL = 8 * time.Second
+
+// containerNetIO 返回所有运行中容器的网络收发/磁盘读写速率(B/s)与最近一次采样累计值,
+// 内部 8 秒采样差分;累计值供前端"总流量"卡片展示
+func containerNetIO(st *state.AppState) (rxRate, txRate, rdRate, wrRate float64, curRx, curTx, curRd, curWr uint64) {
+	netIOCacheMu.Lock()
+	defer netIOCacheMu.Unlock()
+	if !netIOCacheAt.IsZero() && time.Since(netIOCacheAt) < netIOCacheTTL {
+		return netRateRx, netRateTx, netRateRd, netRateWr, netIOCacheRx, netIOCacheTx, netIOCacheRd, netIOCacheWr
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	curRx, curTx, curRd, curWr, ok := sampleContainerIO(st, ctx)
+	now := time.Now()
+	if ok && !netIOCachePrev.IsZero() {
+		if dt := now.Sub(netIOCachePrev).Seconds(); dt > 0 {
+			// 计数器下降(容器重启/移除)时不差分,速率置 0,避免 uint64 回绕产生虚假尖峰
+			netRateRx = rateDelta(curRx, netIOCacheRx, dt)
+			netRateTx = rateDelta(curTx, netIOCacheTx, dt)
+			netRateRd = rateDelta(curRd, netIOCacheRd, dt)
+			netRateWr = rateDelta(curWr, netIOCacheWr, dt)
+		}
+	}
+	// 采样成功才更新差分基准;失败保留旧基准并返回缓存累计值(避免前端总流量卡片闪 0)
+	if ok {
+		netIOCacheRx, netIOCacheTx, netIOCacheRd, netIOCacheWr = curRx, curTx, curRd, curWr
+		netIOCachePrev = now
+	} else {
+		curRx, curTx, curRd, curWr = netIOCacheRx, netIOCacheTx, netIOCacheRd, netIOCacheWr
+	}
+	netIOCacheAt = now
+	return netRateRx, netRateTx, netRateRd, netRateWr, curRx, curTx, curRd, curWr
+}
+
+// rateDelta 累计值差速:cur < prev(计数器重置/回绕)时返回 0
+func rateDelta(cur, prev uint64, dt float64) float64 {
+	if cur < prev || dt <= 0 {
+		return 0
+	}
+	return float64(cur-prev) / dt
+}
+
+// sampleContainerIO 采样所有运行中容器的网络收发与磁盘读写累计值;
+// ok=false 表示采样失败(调用方保留旧差分基准)
+func sampleContainerIO(st *state.AppState, ctx context.Context) (rx, tx, rd, wr uint64, ok bool) {
 	res, err := st.Docker.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
-		return 0, 0, 0, 0
+		return 0, 0, 0, 0, false
 	}
 	for _, c := range res.Items {
 		if string(c.State) != "running" {
@@ -190,7 +249,7 @@ func containerNetIO(st *state.AppState) (rx, tx, rd, wr uint64) {
 			}
 		}
 	}
-	return rx, tx, rd, wr
+	return rx, tx, rd, wr, true
 }
 
 // ---------------- 镜像加速 (daemon.json registry-mirrors) ----------------
@@ -361,8 +420,8 @@ func monitorMonitor(c *gin.Context, st *state.AppState) error {
 	// 公网 IP(仿 3x-ui status.publicIP:缓存,随轮询携带)
 	pub4, pub6 := publicIPs()
 
-	// 容器网络 / IO 累计值(前端做差值算速率)
-	rx, tx, rd, wr := containerNetIO(st)
+	// 容器网络 / IO 速率(B/s,后端 8 秒采样差分)+ 累计值(总流量卡片)
+	rxRate, txRate, rdRate, wrRate, rxTotal, txTotal, rdTotal, wrTotal := containerNetIO(st)
 
 	c.JSON(200, gin.H{
 		"cpu_pct":  cpuPct,
@@ -372,8 +431,8 @@ func monitorMonitor(c *gin.Context, st *state.AppState) error {
 		"disk":     disk,
 		"panel":    panel,
 		"publicIP": gin.H{"ipv4": pub4, "ipv6": pub6},
-		"net":      gin.H{"rx": rx, "tx": tx},
-		"io":       gin.H{"read": rd, "write": wr},
+		"net":      gin.H{"rx_rate": rxRate, "tx_rate": txRate, "rx_total": rxTotal, "tx_total": txTotal},
+		"io":       gin.H{"read_rate": rdRate, "write_rate": wrRate, "read_total": rdTotal, "write_total": wrTotal},
 	})
 	return nil
 }
