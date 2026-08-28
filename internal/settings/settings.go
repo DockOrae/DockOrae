@@ -14,12 +14,12 @@ import (
 // Settings 面板设置(存 data_dir/settings.json,仿 3x-ui webSetting)
 type Settings struct {
 	// 常规
-	WebListen       string   `json:"webListen"`       // 面板监听 IP,空 = 监听所有
-	WebDomain       string   `json:"webDomain"`       // 面板监听域名(白名单):设置后仅该域名可访问
-	WebPort         uint16   `json:"webPort"`         // 面板监听端口(重启面板生效)
-	WebBasePath     string   `json:"webBasePath"`     // 安全入口:URI 路径,必须以 / 开头结尾;设置后仅可通过该路径访问面板
-	NoAuthSetting   string   `json:"noAuthSetting"`   // 未认证设置:未登录访问 API 返回的状态码(200/400/401/403/404/408/416/444/500),默认 401
-	SessionMaxAge   int      `json:"sessionMaxAge"`   // 会话时长(分钟)
+	WebListen        string   `json:"webListen"`        // 面板监听 IP,空 = 监听所有
+	WebDomain        string   `json:"webDomain"`        // 面板监听域名(白名单):设置后仅该域名可访问
+	WebPort          uint16   `json:"webPort"`          // 面板监听端口(重启面板生效)
+	WebBasePath      string   `json:"webBasePath"`      // 安全入口:URI 路径,必须以 / 开头结尾;设置后仅可通过该路径访问面板
+	NoAuthSetting    string   `json:"noAuthSetting"`    // 未认证设置:未登录访问 API 返回的状态码(200/400/401/403/404/408/416/444/500),默认 401
+	SessionMaxAge    int      `json:"sessionMaxAge"`    // 会话时长(分钟)
 	IPLimitAllowlist []string `json:"ipLimitAllowlist"` // IP 白名单(CIDR 逗号分隔)
 	// 证书
 	WebCertFile string `json:"webCertFile"` // 面板证书公钥文件路径
@@ -34,8 +34,8 @@ type Settings struct {
 	TgBotToken     string   `json:"tgBotToken"`
 	TgAdminChatId  string   `json:"tgAdminChatId"`
 	TgNotifyEvents []string `json:"tgNotifyEvents"`
-	TgRunTime      string   `json:"tgRunTime"`   // 周期报告频率(@every 1h / @daily / crontab 表达式;空 = 不启用)
-	TgBotBackup    bool     `json:"tgBotBackup"` // 周期报告附带数据库备份文件
+	TgRunTime      string   `json:"tgRunTime"`      // 周期报告频率(@every 1h / @daily / crontab 表达式;空 = 不启用)
+	TgBotBackup    bool     `json:"tgBotBackup"`    // 周期报告附带数据库备份文件
 	TgLang         string   `json:"tgLang"`         // Telegram 机器人语言(仿 3x-ui telegramBotLanguage,空=默认)
 	TgBotAPIServer string   `json:"tgBotAPIServer"` // 自定义 Telegram API 服务器(仿 3x-ui telegramAPIServer,空=官方)
 	// 邮件

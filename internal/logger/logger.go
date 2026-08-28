@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 )
+
 // Ring 内存环形日志缓冲(面板日志弹窗数据源)
 type Ring struct {
 	mu   sync.Mutex
@@ -65,4 +66,3 @@ func (m *MultiWriter) Write(p []byte) (int, error) {
 	_, _ = m.ring.Write(p)
 	return len(p), nil
 }
-

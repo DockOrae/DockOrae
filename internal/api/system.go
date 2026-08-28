@@ -4,10 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-func systemHealth(c *gin.Context, st *state.AppState) error {
+func systemHealth(c *gin.Context, d *Deps) error {
 	c.JSON(200, gin.H{
 		"ok":      true,
 		"name":    "docker-manager-go",
@@ -17,17 +16,17 @@ func systemHealth(c *gin.Context, st *state.AppState) error {
 }
 
 // systemDefaultAccount 登录页提示"默认账号"的条件
-func systemDefaultAccount(c *gin.Context, st *state.AppState) error {
-	c.JSON(200, gin.H{"show": service.DefaultAccountShow(st)})
+func systemDefaultAccount(c *gin.Context, d *Deps) error {
+	c.JSON(200, gin.H{"show": service.DefaultAccountShow(d.St)})
 	return nil
 }
 
-func systemPublicConfig(c *gin.Context, st *state.AppState) error {
-	c.JSON(200, service.PublicConfig(st))
+func systemPublicConfig(c *gin.Context, d *Deps) error {
+	c.JSON(200, service.PublicConfig(d.St))
 	return nil
 }
 
-func systemLogin(c *gin.Context, st *state.AppState) error {
+func systemLogin(c *gin.Context, d *Deps) error {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -35,7 +34,7 @@ func systemLogin(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("login.errPwd")
 	}
-	resp, err := service.Login(st, req.Username, req.Password, c.ClientIP())
+	resp, err := service.Login(d.St, req.Username, req.Password, c.ClientIP())
 	if err != nil {
 		return err
 	}
@@ -43,7 +42,7 @@ func systemLogin(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemLoginTotp(c *gin.Context, st *state.AppState) error {
+func systemLoginTotp(c *gin.Context, d *Deps) error {
 	var req struct {
 		Username string `json:"username"`
 		Code     string `json:"code"`
@@ -51,7 +50,7 @@ func systemLoginTotp(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("login.errTotpCode")
 	}
-	resp, err := service.LoginTotp(st, req.Username, req.Code, c.ClientIP())
+	resp, err := service.LoginTotp(d.St, req.Username, req.Code, c.ClientIP())
 	if err != nil {
 		return err
 	}
@@ -59,8 +58,8 @@ func systemLoginTotp(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemMe(c *gin.Context, st *state.AppState) error {
-	resp, err := service.Me(st, c.GetString("username"))
+func systemMe(c *gin.Context, d *Deps) error {
+	resp, err := service.Me(d.St, c.GetString("username"))
 	if err != nil {
 		return err
 	}
@@ -68,7 +67,7 @@ func systemMe(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemUpdateProfile(c *gin.Context, st *state.AppState) error {
+func systemUpdateProfile(c *gin.Context, d *Deps) error {
 	var req struct {
 		Nickname *string `json:"nickname"`
 		Username *string `json:"username"`
@@ -76,7 +75,7 @@ func systemUpdateProfile(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	resp, err := service.UpdateProfile(st, c.GetString("username"), req.Nickname, req.Username)
+	resp, err := service.UpdateProfile(d.St, c.GetString("username"), req.Nickname, req.Username)
 	if err != nil {
 		return err
 	}
@@ -84,14 +83,14 @@ func systemUpdateProfile(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemUploadAvatar(c *gin.Context, st *state.AppState) error {
+func systemUploadAvatar(c *gin.Context, d *Deps) error {
 	var req struct {
 		Data string `json:"data"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("user.avatarInvalid")
 	}
-	fileName, err := service.UploadAvatar(st, c.GetString("username"), req.Data)
+	fileName, err := service.UploadAvatar(d.St, c.GetString("username"), req.Data)
 	if err != nil {
 		return err
 	}
@@ -99,8 +98,8 @@ func systemUploadAvatar(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemServeAvatar(c *gin.Context, st *state.AppState) error {
-	data, err := service.AvatarData(st, c.Param("file"))
+func systemServeAvatar(c *gin.Context, d *Deps) error {
+	data, err := service.AvatarData(d.St, c.Param("file"))
 	if err != nil {
 		return err
 	}
@@ -111,22 +110,22 @@ func systemServeAvatar(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func wallpaperSave(c *gin.Context, st *state.AppState) error {
+func wallpaperSave(c *gin.Context, d *Deps) error {
 	var req struct {
 		Data string `json:"data"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("wallpaper.invalid")
 	}
-	if err := service.WallpaperSave(st, req.Data); err != nil {
+	if err := service.WallpaperSave(d.St, req.Data); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func wallpaperGet(c *gin.Context, st *state.AppState) error {
-	path, err := service.WallpaperPath(st)
+func wallpaperGet(c *gin.Context, d *Deps) error {
+	path, err := service.WallpaperPath(d.St)
 	if err != nil {
 		return err
 	}
@@ -134,7 +133,7 @@ func wallpaperGet(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemChangePassword(c *gin.Context, st *state.AppState) error {
+func systemChangePassword(c *gin.Context, d *Deps) error {
 	var req struct {
 		OldPassword string `json:"old_password"`
 		NewPassword string `json:"new_password"`
@@ -142,21 +141,21 @@ func systemChangePassword(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.ChangePassword(st, c.GetString("username"), req.OldPassword, req.NewPassword); err != nil {
+	if err := service.ChangePassword(d.St, c.GetString("username"), req.OldPassword, req.NewPassword); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func systemTotpSetup(c *gin.Context, st *state.AppState) error {
+func systemTotpSetup(c *gin.Context, d *Deps) error {
 	var req struct {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	secret, uri, err := service.TotpSetup(st, c.GetString("username"), req.Password)
+	secret, uri, err := service.TotpSetup(d.St, c.GetString("username"), req.Password)
 	if err != nil {
 		return err
 	}
@@ -164,21 +163,21 @@ func systemTotpSetup(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemTotpEnable(c *gin.Context, st *state.AppState) error {
+func systemTotpEnable(c *gin.Context, d *Deps) error {
 	var req struct {
 		Code string `json:"code"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("totp.getKeyFirst")
 	}
-	if err := service.TotpEnable(st, c.GetString("username"), req.Code); err != nil {
+	if err := service.TotpEnable(d.St, c.GetString("username"), req.Code); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func systemTotpDisable(c *gin.Context, st *state.AppState) error {
+func systemTotpDisable(c *gin.Context, d *Deps) error {
 	var req struct {
 		Password string `json:"password"`
 		Code     string `json:"code"`
@@ -186,15 +185,15 @@ func systemTotpDisable(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.TotpDisable(st, c.GetString("username"), req.Password, req.Code); err != nil {
+	if err := service.TotpDisable(d.St, c.GetString("username"), req.Password, req.Code); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func systemInfo(c *gin.Context, st *state.AppState) error {
-	info, err := service.DockerInfo(st, c.Request.Context())
+func systemInfo(c *gin.Context, d *Deps) error {
+	info, err := service.DockerInfo(d.St, c.Request.Context())
 	if err != nil {
 		return err
 	}

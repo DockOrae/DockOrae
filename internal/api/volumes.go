@@ -5,11 +5,10 @@ import (
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-func volumesList(c *gin.Context, st *state.AppState) error {
-	items, err := service.VolumesList(st, c.Request.Context())
+func volumesList(c *gin.Context, d *Deps) error {
+	items, err := d.Volumes.List(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -17,8 +16,8 @@ func volumesList(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func volumesInspect(c *gin.Context, st *state.AppState) error {
-	raw, err := service.VolumeRaw(st, c.Request.Context(), c.Param("name"))
+func volumesInspect(c *gin.Context, d *Deps) error {
+	raw, err := d.Volumes.Raw(c.Request.Context(), c.Param("name"))
 	if err != nil {
 		return err
 	}
@@ -26,12 +25,12 @@ func volumesInspect(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func volumesCreate(c *gin.Context, st *state.AppState) error {
+func volumesCreate(c *gin.Context, d *Deps) error {
 	var req model.CreateVolumeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	vol, err := service.VolumeCreate(st, c.Request.Context(), req)
+	vol, err := d.Volumes.Create(c.Request.Context(), req)
 	if err != nil {
 		return err
 	}
@@ -39,16 +38,16 @@ func volumesCreate(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func volumesRemove(c *gin.Context, st *state.AppState) error {
-	if err := service.VolumeRemove(st, c.Request.Context(), c.Param("name"), parseBool(c.Query("force"), false)); err != nil {
+func volumesRemove(c *gin.Context, d *Deps) error {
+	if err := d.Volumes.Remove(c.Request.Context(), c.Param("name"), parseBool(c.Query("force"), false)); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func volumesPrune(c *gin.Context, st *state.AppState) error {
-	report, err := service.VolumesPrune(st, c.Request.Context())
+func volumesPrune(c *gin.Context, d *Deps) error {
+	report, err := d.Volumes.Prune(c.Request.Context())
 	if err != nil {
 		return err
 	}

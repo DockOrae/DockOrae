@@ -72,29 +72,3 @@ func ImagePullRef(fromImage, tag string) string {
 	}
 	return ref
 }
-
-// ---------------- 兼容层:包级函数委托 ----------------
-
-func ImagesList(st *state.AppState, ctx context.Context) ([]model.ImageListItem, error) {
-	return NewImageService(st).List(ctx)
-}
-
-func ImageInspect(st *state.AppState, ctx context.Context, id string) (image.InspectResponse, error) {
-	return NewImageService(st).Inspect(ctx, id)
-}
-
-func ImagePull(st *state.AppState, ctx context.Context, ref string) (client.ImagePullResponse, error) {
-	return NewImageService(st).Pull(ctx, ref)
-}
-
-func ImageRemove(st *state.AppState, ctx context.Context, id string, force bool) error {
-	return NewImageService(st).Remove(ctx, id, force)
-}
-
-func ImagesPrune(st *state.AppState, ctx context.Context) (image.PruneReport, error) {
-	return NewImageService(st).Prune(ctx)
-}
-
-func ImageTag(st *state.AppState, ctx context.Context, id, repo, tag string) error {
-	return NewImageService(st).Tag(ctx, id, repo, tag)
-}

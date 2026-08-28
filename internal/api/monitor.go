@@ -10,29 +10,29 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-func monitorHost(c *gin.Context, st *state.AppState) error {
-	c.JSON(200, service.HostInfo(st))
+func monitorHost(c *gin.Context, d *Deps) error {
+	c.JSON(200, service.HostInfo(d.St))
 	return nil
 }
 
-func monitorMonitor(c *gin.Context, st *state.AppState) error {
-	c.JSON(200, service.MonitorSnapshot(st))
+func monitorMonitor(c *gin.Context, d *Deps) error {
+	c.JSON(200, service.MonitorSnapshot(d.St))
 	return nil
 }
 
-func systemPublicIP(c *gin.Context, st *state.AppState) error {
+func systemPublicIP(c *gin.Context, d *Deps) error {
 	v4, v6 := service.PublicIPs()
 	c.JSON(200, gin.H{"ipv4": v4, "ipv6": v6})
 	return nil
 }
 
-func monitorRegistryMirrors(c *gin.Context, st *state.AppState) error {
+func monitorRegistryMirrors(c *gin.Context, d *Deps) error {
 	mirrors, path, exists := service.RegistryMirrors()
 	c.JSON(200, gin.H{"mirrors": mirrors, "path": path, "exists": exists})
 	return nil
 }
 
-func monitorSaveRegistryMirrors(c *gin.Context, st *state.AppState) error {
+func monitorSaveRegistryMirrors(c *gin.Context, d *Deps) error {
 	var payload struct {
 		Mirrors []string `json:"mirrors"`
 	}
@@ -46,7 +46,7 @@ func monitorSaveRegistryMirrors(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func monitorRestartDocker(c *gin.Context, st *state.AppState) error {
+func monitorRestartDocker(c *gin.Context, d *Deps) error {
 	if err := service.RestartDocker(); err != nil {
 		return err
 	}
@@ -54,14 +54,14 @@ func monitorRestartDocker(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func systemEventsWS(c *gin.Context, st *state.AppState) error {
+func systemEventsWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-	ch := st.Events.Subscribe()
-	defer st.Events.Unsubscribe(ch)
+	ch := d.St.Events.Subscribe()
+	defer d.St.Events.Unsubscribe(ch)
 	_ = conn.WriteMessage(1, []byte(`{"type":"connected"}`))
 	for {
 		select {

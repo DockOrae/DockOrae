@@ -6,22 +6,21 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-func licenseGet(c *gin.Context, st *state.AppState) error {
-	c.JSON(200, service.LicenseInfo(st))
+func licenseGet(c *gin.Context, d *Deps) error {
+	c.JSON(200, service.LicenseInfo(d.St))
 	return nil
 }
 
-func licenseActivate(c *gin.Context, st *state.AppState) error {
+func licenseActivate(c *gin.Context, d *Deps) error {
 	var req struct {
 		Key string `json:"key"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	info, err := service.LicenseDoActivate(st, req.Key)
+	info, err := service.LicenseDoActivate(d.St, req.Key)
 	if err != nil {
 		return err
 	}
@@ -30,7 +29,7 @@ func licenseActivate(c *gin.Context, st *state.AppState) error {
 }
 
 // licenseActivateFile 上传许可文件激活
-func licenseActivateFile(c *gin.Context, st *state.AppState) error {
+func licenseActivateFile(c *gin.Context, d *Deps) error {
 	file, err := c.FormFile("file")
 	if err != nil {
 		return service.BadRequest("license.fileRequired")
@@ -43,7 +42,7 @@ func licenseActivateFile(c *gin.Context, st *state.AppState) error {
 	buf := make([]byte, 64*1024)
 	n, _ := f.Read(buf)
 	key := strings.TrimSpace(string(buf[:n]))
-	info, err := service.LicenseDoActivate(st, key)
+	info, err := service.LicenseDoActivate(d.St, key)
 	if err != nil {
 		return err
 	}
@@ -51,15 +50,15 @@ func licenseActivateFile(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func licenseDeactivate(c *gin.Context, st *state.AppState) error {
-	if err := service.LicenseDeactivate(st); err != nil {
+func licenseDeactivate(c *gin.Context, d *Deps) error {
+	if err := service.LicenseDeactivate(d.St); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func licenseDemoKey(c *gin.Context, st *state.AppState) error {
+func licenseDemoKey(c *gin.Context, d *Deps) error {
 	c.JSON(200, gin.H{"key": service.DemoKey()})
 	return nil
 }

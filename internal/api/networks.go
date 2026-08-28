@@ -5,11 +5,10 @@ import (
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-func networksList(c *gin.Context, st *state.AppState) error {
-	items, err := service.NetworksList(st, c.Request.Context())
+func networksList(c *gin.Context, d *Deps) error {
+	items, err := d.Networks.List(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -17,8 +16,8 @@ func networksList(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func networksInspect(c *gin.Context, st *state.AppState) error {
-	raw, err := service.NetworkRaw(st, c.Request.Context(), c.Param("id"))
+func networksInspect(c *gin.Context, d *Deps) error {
+	raw, err := d.Networks.Raw(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
@@ -26,12 +25,12 @@ func networksInspect(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func networksCreate(c *gin.Context, st *state.AppState) error {
+func networksCreate(c *gin.Context, d *Deps) error {
 	var req model.CreateNetworkReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	id, err := service.NetworkCreate(st, c.Request.Context(), req)
+	id, err := d.Networks.Create(c.Request.Context(), req)
 	if err != nil {
 		return err
 	}
@@ -39,16 +38,16 @@ func networksCreate(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func networksRemove(c *gin.Context, st *state.AppState) error {
-	if err := service.NetworkRemove(st, c.Request.Context(), c.Param("id")); err != nil {
+func networksRemove(c *gin.Context, d *Deps) error {
+	if err := d.Networks.Remove(c.Request.Context(), c.Param("id")); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func networksPrune(c *gin.Context, st *state.AppState) error {
-	report, err := service.NetworksPrune(st, c.Request.Context())
+func networksPrune(c *gin.Context, d *Deps) error {
+	report, err := d.Networks.Prune(c.Request.Context())
 	if err != nil {
 		return err
 	}

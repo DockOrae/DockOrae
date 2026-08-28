@@ -86,29 +86,3 @@ func (s *NetworkService) Prune(ctx context.Context) (network.PruneReport, error)
 
 // Ptr 泛型指针(等价旧 api 包 ptr)
 func Ptr[T any](v T) *T { return &v }
-
-// ---------------- 兼容层:包级函数委托 ----------------
-
-func NetworksList(st *state.AppState, ctx context.Context) ([]model.NetworkListItem, error) {
-	return NewNetworkService(st).List(ctx)
-}
-
-func NetworkInspect(st *state.AppState, ctx context.Context, id string) (network.Inspect, error) {
-	return NewNetworkService(st).Inspect(ctx, id)
-}
-
-func NetworkRaw(st *state.AppState, ctx context.Context, id string) ([]byte, error) {
-	return NewNetworkService(st).Raw(ctx, id)
-}
-
-func NetworkCreate(st *state.AppState, ctx context.Context, req model.CreateNetworkReq) (string, error) {
-	return NewNetworkService(st).Create(ctx, req)
-}
-
-func NetworkRemove(st *state.AppState, ctx context.Context, id string) error {
-	return NewNetworkService(st).Remove(ctx, id)
-}
-
-func NetworksPrune(st *state.AppState, ctx context.Context) (network.PruneReport, error) {
-	return NewNetworkService(st).Prune(ctx)
-}

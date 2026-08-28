@@ -90,6 +90,16 @@ func (s *ComposeService) Run(project string, args ...string) (map[string]any, er
 	return map[string]any{"ok": true, "output": output}, nil
 }
 
+// File 项目编排文件路径(供 api 层检查/读写)
+func (s *ComposeService) File(project string) string {
+	return composeFile(s.composeDir, project)
+}
+
+// Dir 项目目录
+func (s *ComposeService) Dir(project string) string {
+	return projectDir(s.composeDir, project)
+}
+
 // List 栈列表:按 compose label 统计容器,计算状态;外部 compose 不显示
 func (s *ComposeService) List(ctx context.Context) ([]model.ComposeProject, error) {
 	filters := make(client.Filters)
@@ -199,42 +209,4 @@ func (s *ComposeService) Adopt(project, yaml string) error {
 		return err
 	}
 	return os.WriteFile(composeFile(s.composeDir, project), []byte(yaml), 0o644)
-}
-
-// ---------------- 兼容层:包级函数委托(API 层暂保持 st 签名,行为不变) ----------------
-
-func ProjectDir(st *state.AppState, project string) string {
-	return projectDir(st.ComposeDir, project)
-}
-
-func ComposeFile(st *state.AppState, project string) string {
-	return composeFile(st.ComposeDir, project)
-}
-
-func ComposeCommand(st *state.AppState, project string, args ...string) *exec.Cmd {
-	return NewComposeService(st).Command(project, args...)
-}
-
-func RunCompose(st *state.AppState, project string, args ...string) (map[string]any, error) {
-	return NewComposeService(st).Run(project, args...)
-}
-
-func ComposeList(st *state.AppState, ctx context.Context) ([]model.ComposeProject, error) {
-	return NewComposeService(st).List(ctx)
-}
-
-func ComposeInspect(st *state.AppState, ctx context.Context, project string) (model.ComposeInspect, error) {
-	return NewComposeService(st).Inspect(ctx, project)
-}
-
-func ComposeSaveYaml(st *state.AppState, project, yaml string) error {
-	return NewComposeService(st).SaveYaml(project, yaml)
-}
-
-func ComposeRemove(st *state.AppState, project string) error {
-	return NewComposeService(st).Remove(project)
-}
-
-func ComposeAdopt(st *state.AppState, project, yaml string) error {
-	return NewComposeService(st).Adopt(project, yaml)
 }

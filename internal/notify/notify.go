@@ -18,15 +18,15 @@ import (
 
 // 通知事件类型(与前端选项一致)
 const (
-	EvLogin        = "login"        // 登录成功
-	EvLoginFail    = "login_fail"   // 登录失败
-	EvPassword     = "password"     // 修改密码
-	EvLicense      = "license"      // 许可证变更
-	EvContainer    = "container"    // 容器事件
-	EvImage        = "image"        // 镜像事件
-	EvNetwork      = "network"      // 网络事件
-	EvVolume       = "volume"       // 卷事件
-	EvSystem       = "system"       // 面板/系统事件
+	EvLogin     = "login"      // 登录成功
+	EvLoginFail = "login_fail" // 登录失败
+	EvPassword  = "password"   // 修改密码
+	EvLicense   = "license"    // 许可证变更
+	EvContainer = "container"  // 容器事件
+	EvImage     = "image"      // 镜像事件
+	EvNetwork   = "network"    // 网络事件
+	EvVolume    = "volume"     // 卷事件
+	EvSystem    = "system"     // 面板/系统事件
 )
 
 // EventActionToType Docker 事件 action → 通知类型(供事件流过滤)

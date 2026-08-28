@@ -8,27 +8,26 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-func panelSettings(c *gin.Context, st *state.AppState) error {
-	c.JSON(200, service.SettingsGet(st))
+func panelSettings(c *gin.Context, d *Deps) error {
+	c.JSON(200, service.SettingsGet(d.St))
 	return nil
 }
 
-func panelSettingsSave(c *gin.Context, st *state.AppState) error {
+func panelSettingsSave(c *gin.Context, d *Deps) error {
 	var patch map[string]any
 	if err := c.ShouldBindJSON(&patch); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.SettingsUpdate(st, patch); err != nil {
+	if err := service.SettingsUpdate(d.St, patch); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true, "needRestart": true})
 	return nil
 }
 
-func panelLogs(c *gin.Context, st *state.AppState) error {
+func panelLogs(c *gin.Context, d *Deps) error {
 	lines := 500
 	if v := c.Query("lines"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 5000 {
@@ -39,8 +38,8 @@ func panelLogs(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func panelEvents(c *gin.Context, st *state.AppState) error {
-	list, err := service.PanelEvents(st, 200)
+func panelEvents(c *gin.Context, d *Deps) error {
+	list, err := service.PanelEvents(d.St, 200)
 	if err != nil {
 		return err
 	}
@@ -48,23 +47,23 @@ func panelEvents(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func panelTestEmail(c *gin.Context, st *state.AppState) error {
-	if err := service.TestEmail(st); err != nil {
+func panelTestEmail(c *gin.Context, d *Deps) error {
+	if err := service.TestEmail(d.St); err != nil {
 		return service.BadRequest("邮件发送失败: " + err.Error())
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func panelConfig(c *gin.Context, st *state.AppState) error {
-	raw := service.ConfigRaw(st)
+func panelConfig(c *gin.Context, d *Deps) error {
+	raw := service.ConfigRaw(d.St)
 	c.Header("Content-Type", "application/json")
 	c.Data(200, "application/json", raw)
 	return nil
 }
 
-func panelBackup(c *gin.Context, st *state.AppState) error {
-	path, err := service.BackupToTemp(st)
+func panelBackup(c *gin.Context, d *Deps) error {
+	path, err := service.BackupToTemp(d.St)
 	if err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ func panelBackup(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func panelRestore(c *gin.Context, st *state.AppState) error {
+func panelRestore(c *gin.Context, d *Deps) error {
 	file, err := c.FormFile("file")
 	if err != nil {
 		return service.BadRequest("backup.fileRequired")
@@ -90,14 +89,14 @@ func panelRestore(c *gin.Context, st *state.AppState) error {
 		return service.BadRequest("backup.fileRequired")
 	}
 	defer f.Close()
-	if err := service.RestoreFromReader(st, f); err != nil {
+	if err := service.RestoreFromReader(d.St, f); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true, "needRestart": true})
 	return nil
 }
 
-func panelRestart(c *gin.Context, st *state.AppState) error {
+func panelRestart(c *gin.Context, d *Deps) error {
 	c.JSON(200, gin.H{"ok": true})
 	service.RestartPanel()
 	return nil

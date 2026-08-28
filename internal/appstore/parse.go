@@ -141,8 +141,8 @@ func LoadApp(dir, key string) (*App, error) {
 		}
 		vers = append(vers, v)
 		vd[v] = &versionData{
-			Tpl: string(tpl),
-			Dir: filepath.Join(appDir, v),
+			Tpl:    string(tpl),
+			Dir:    filepath.Join(appDir, v),
 			Params: parseFormFields(filepath.Join(appDir, v, "data.yml")),
 		}
 	}

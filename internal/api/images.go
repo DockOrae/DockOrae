@@ -8,11 +8,10 @@ import (
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-func imagesList(c *gin.Context, st *state.AppState) error {
-	items, err := service.ImagesList(st, c.Request.Context())
+func imagesList(c *gin.Context, d *Deps) error {
+	items, err := d.Images.List(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -20,8 +19,8 @@ func imagesList(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func imagesInspect(c *gin.Context, st *state.AppState) error {
-	insp, err := service.ImageInspect(st, c.Request.Context(), c.Param("id"))
+func imagesInspect(c *gin.Context, d *Deps) error {
+	insp, err := d.Images.Inspect(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
@@ -30,7 +29,7 @@ func imagesInspect(c *gin.Context, st *state.AppState) error {
 }
 
 // imagesPull 拉取镜像:响应为 application/x-ndjson 流(逐行进度 JSON)
-func imagesPull(c *gin.Context, st *state.AppState) error {
+func imagesPull(c *gin.Context, d *Deps) error {
 	var req model.PullImageReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
@@ -44,7 +43,7 @@ func imagesPull(c *gin.Context, st *state.AppState) error {
 	}
 	ref := service.ImagePullRef(req.FromImage, tag)
 
-	pullRes, err := service.ImagePull(st, c.Request.Context(), ref)
+	pullRes, err := d.Images.Pull(c.Request.Context(), ref)
 	if err != nil {
 		return err
 	}
@@ -74,16 +73,16 @@ func imagesPull(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func imagesRemove(c *gin.Context, st *state.AppState) error {
-	if err := service.ImageRemove(st, c.Request.Context(), c.Param("id"), parseBool(c.Query("force"), false)); err != nil {
+func imagesRemove(c *gin.Context, d *Deps) error {
+	if err := d.Images.Remove(c.Request.Context(), c.Param("id"), parseBool(c.Query("force"), false)); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func imagesPrune(c *gin.Context, st *state.AppState) error {
-	report, err := service.ImagesPrune(st, c.Request.Context())
+func imagesPrune(c *gin.Context, d *Deps) error {
+	report, err := d.Images.Prune(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -91,7 +90,7 @@ func imagesPrune(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func imagesTag(c *gin.Context, st *state.AppState) error {
+func imagesTag(c *gin.Context, d *Deps) error {
 	var req struct {
 		Repo string `json:"repo"`
 		Tag  string `json:"tag"`
@@ -99,7 +98,7 @@ func imagesTag(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.ImageTag(st, c.Request.Context(), c.Param("id"), req.Repo, req.Tag); err != nil {
+	if err := d.Images.Tag(c.Request.Context(), c.Param("id"), req.Repo, req.Tag); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})

@@ -325,37 +325,3 @@ func (s *AppStoreService) installedMap() map[string]bool {
 	}
 	return out
 }
-
-// ---------------- 兼容层:包级函数委托 ----------------
-
-func AppStoreDir(st *state.AppState) string {
-	return filepath.Join(st.Cfg.DataDir, "appstore")
-}
-
-func AppStoreSync(st *state.AppState) error {
-	return NewAppStoreService(st).Sync()
-}
-
-func AppStoreList(st *state.AppState) ([]map[string]any, []string, error) {
-	return NewAppStoreService(st).List()
-}
-
-func AppStoreDetail(st *state.AppState, key string) (map[string]any, error) {
-	return NewAppStoreService(st).Detail(key)
-}
-
-func AppStorePreview(st *state.AppState, key string, params map[string]string) (string, error) {
-	return NewAppStoreService(st).Preview(key, params)
-}
-
-func AppStoreInstall(st *state.AppState, ctx context.Context, key string, params map[string]string, yamlOverride string) error {
-	return NewAppStoreService(st).Install(ctx, key, params, yamlOverride)
-}
-
-func AppStoreUninstall(st *state.AppState, key string) error {
-	return NewAppStoreService(st).Uninstall(key)
-}
-
-func AppStoreUpgrade(st *state.AppState, ctx context.Context, key string) error {
-	return NewAppStoreService(st).Upgrade(ctx, key)
-}

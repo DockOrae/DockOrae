@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
 func ndjsonLine(line string) string {
@@ -23,13 +22,13 @@ func ndjsonLine(line string) string {
 
 // runComposeStream 以 NDJSON 流式执行 docker-compose 命令:每行输出一条
 // {"type":"line","data":...},结束时发送 {"type":"done","ok":bool,"error":?}
-func runComposeStream(c *gin.Context, st *state.AppState, project string, args ...string) error {
+func runComposeStream(c *gin.Context, d *Deps, project string, args ...string) error {
 	if _, err := exec.LookPath(service.ComposeBin()); err != nil {
 		_, _ = io.WriteString(c.Writer, `{"type":"done","ok":false,"error":"compose.binaryMissing"}`+"\n")
 		return nil
 	}
 
-	cmd := service.ComposeCommand(st, project, args...)
+	cmd := d.Compose.Command(project, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -96,8 +95,8 @@ func scanLines(r io.Reader, ch chan<- string) {
 	close(ch)
 }
 
-func composeList(c *gin.Context, st *state.AppState) error {
-	items, err := service.ComposeList(st, c.Request.Context())
+func composeList(c *gin.Context, d *Deps) error {
+	items, err := d.Compose.List(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -105,12 +104,12 @@ func composeList(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func composeInspect(c *gin.Context, st *state.AppState) error {
+func composeInspect(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
 	}
-	insp, err := service.ComposeInspect(st, c.Request.Context(), project)
+	insp, err := d.Compose.Inspect(c.Request.Context(), project)
 	if err != nil {
 		return err
 	}
@@ -118,7 +117,7 @@ func composeInspect(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func composeUp(c *gin.Context, st *state.AppState) error {
+func composeUp(c *gin.Context, d *Deps) error {
 	var req struct {
 		Project string `json:"project"`
 		Yaml    string `json:"yaml"`
@@ -130,18 +129,18 @@ func composeUp(c *gin.Context, st *state.AppState) error {
 	if err != nil {
 		return err
 	}
-	if err := service.ComposeSaveYaml(st, project, req.Yaml); err != nil {
+	if err := d.Compose.SaveYaml(project, req.Yaml); err != nil {
 		return err
 	}
-	return runComposeStream(c, st, project, "up", "-d", "--remove-orphans")
+	return runComposeStream(c, d, project, "up", "-d", "--remove-orphans")
 }
 
-func composeUpdate(c *gin.Context, st *state.AppState) error {
+func composeUpdate(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(service.ComposeFile(st, project)); err != nil {
+	if _, err := os.Stat(d.Compose.File(project)); err != nil {
 		return service.NewApiError(404, "compose.notManaged")
 	}
 	var req struct {
@@ -150,18 +149,18 @@ func composeUpdate(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.ComposeSaveYaml(st, project, req.Yaml); err != nil {
+	if err := d.Compose.SaveYaml(project, req.Yaml); err != nil {
 		return err
 	}
-	return runComposeStream(c, st, project, "up", "-d", "--remove-orphans")
+	return runComposeStream(c, d, project, "up", "-d", "--remove-orphans")
 }
 
-func composeStart(c *gin.Context, st *state.AppState) error {
+func composeStart(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
 	}
-	res, err := service.RunCompose(st, project, "start")
+	res, err := d.Compose.Run(project, "start")
 	if err != nil {
 		return err
 	}
@@ -169,12 +168,12 @@ func composeStart(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func composeStop(c *gin.Context, st *state.AppState) error {
+func composeStop(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
 	}
-	res, err := service.RunCompose(st, project, "stop")
+	res, err := d.Compose.Run(project, "stop")
 	if err != nil {
 		return err
 	}
@@ -182,12 +181,12 @@ func composeStop(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func composeRestart(c *gin.Context, st *state.AppState) error {
+func composeRestart(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
 	}
-	res, err := service.RunCompose(st, project, "restart")
+	res, err := d.Compose.Run(project, "restart")
 	if err != nil {
 		return err
 	}
@@ -195,7 +194,7 @@ func composeRestart(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func composeDown(c *gin.Context, st *state.AppState) error {
+func composeDown(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
@@ -204,7 +203,7 @@ func composeDown(c *gin.Context, st *state.AppState) error {
 	if parseBool(c.Query("volumes"), false) {
 		args = append(args, "-v")
 	}
-	res, err := service.RunCompose(st, project, args...)
+	res, err := d.Compose.Run(project, args...)
 	if err != nil {
 		return err
 	}
@@ -212,12 +211,12 @@ func composeDown(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func composeRemove(c *gin.Context, st *state.AppState) error {
+func composeRemove(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
 	}
-	if err := service.ComposeRemove(st, project); err != nil {
+	if err := d.Compose.Remove(project); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
@@ -225,7 +224,7 @@ func composeRemove(c *gin.Context, st *state.AppState) error {
 }
 
 // composeAdopt 接管外部创建的栈(保存 yaml 到面板目录 → 变为面板管理)
-func composeAdopt(c *gin.Context, st *state.AppState) error {
+func composeAdopt(c *gin.Context, d *Deps) error {
 	project, err := service.ValidateProject(c.Param("project"))
 	if err != nil {
 		return err
@@ -236,7 +235,7 @@ func composeAdopt(c *gin.Context, st *state.AppState) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.ComposeAdopt(st, project, req.Yaml); err != nil {
+	if err := d.Compose.Adopt(project, req.Yaml); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
@@ -244,7 +243,7 @@ func composeAdopt(c *gin.Context, st *state.AppState) error {
 }
 
 // composeLogsWS 日志流(WebSocket 实时)
-func composeLogsWS(c *gin.Context, st *state.AppState) error {
+func composeLogsWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
 		return err
@@ -256,7 +255,7 @@ func composeLogsWS(c *gin.Context, st *state.AppState) error {
 		_ = conn.WriteMessage(websocket.CloseMessage, nil)
 		return nil
 	}
-	if _, err := os.Stat(service.ComposeFile(st, project)); err != nil {
+	if _, err := os.Stat(d.Compose.File(project)); err != nil {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("compose.notManaged"))
 		_ = conn.WriteMessage(websocket.CloseMessage, nil)
 		return nil
@@ -267,7 +266,7 @@ func composeLogsWS(c *gin.Context, st *state.AppState) error {
 			tail = t
 		}
 	}
-	cmd := service.ComposeCommand(st, project, "logs", "-f", "--tail", tail)
+	cmd := d.Compose.Command(project, "logs", "-f", "--tail", tail)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err

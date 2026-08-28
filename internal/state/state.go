@@ -96,19 +96,19 @@ func (h *EventHub) Publish(m events.Message) {
 }
 
 type AppState struct {
-	Docker       *client.Client
-	Cfg          *config.Config
-	Settings     *settings.Store
-	DB           *db.DB // SQLite(users/settings/events)
-	UsersMu      sync.Mutex
-	Users        []StoredUser
-	Events       *EventHub
-	ComposeDir   string
-	AvatarDir    string
-	TotpMu       sync.Mutex
-	TotpPending  *TotpPending
-	Monitor      MonitorCache
-	done         chan struct{}
+	Docker      *client.Client
+	Cfg         *config.Config
+	Settings    *settings.Store
+	DB          *db.DB // SQLite(users/settings/events)
+	UsersMu     sync.Mutex
+	Users       []StoredUser
+	Events      *EventHub
+	ComposeDir  string
+	AvatarDir   string
+	TotpMu      sync.Mutex
+	TotpPending *TotpPending
+	Monitor     MonitorCache
+	done        chan struct{}
 }
 
 // New 创建 AppState:惰性连接(仅请求时真正访问 Docker),无 Docker 也能启动面板

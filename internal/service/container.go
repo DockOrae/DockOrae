@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
@@ -242,8 +244,13 @@ func (s *ContainerService) StatsPump(ctx context.Context, id string, emit func(p
 	dec := json.NewDecoder(stats.Body)
 	for {
 		var st container.StatsResponse
-		if dec.Decode(&st) != nil {
-			return nil
+		err := dec.Decode(&st)
+		if err != nil {
+			// io.EOF = 流正常结束;其余解码错误要上报(如 Docker 返回错误帧)
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
 		}
 		cpuTotal := st.CPUStats.CPUUsage.TotalUsage
 		sys := st.CPUStats.SystemUsage
@@ -298,6 +305,7 @@ type TerminalSession struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	close  func()
+	once   sync.Once
 }
 
 // CreateTerminal 创建 TTY exec 并 attach(返回会话,失败时资源已清理)
@@ -335,8 +343,11 @@ func (s *TerminalSession) Resize(w, h int) error {
 
 // Close 终止会话(取消 ctx + 关闭 hijacked 连接)
 func (s *TerminalSession) Close() {
-	s.cancel()
-	s.close()
+	// 幂等:WebSocket 断开 / 输出 goroutine 退出 / context 取消等多路径可能同时触发
+	s.once.Do(func() {
+		s.cancel()
+		s.close()
+	})
 }
 
 // Recreate 重建容器:用原配置以临时名创建新容器 → 停删旧容器 → 临时名改回原名 → 启动。
@@ -376,70 +387,4 @@ func (s *ContainerService) Recreate(ctx context.Context, id string) error {
 		return err
 	}
 	return docker.StartContainer(s.docker, ctx, newID)
-}
-
-// ---------------- 兼容层:包级函数委托(API 层暂保持 st 签名,行为不变) ----------------
-
-func ContainersList(st *state.AppState, ctx context.Context, all bool) ([]model.ContainerListItem, error) {
-	return NewContainerService(st).List(ctx, all)
-}
-
-func ContainerInspect(st *state.AppState, ctx context.Context, id string) (container.InspectResponse, error) {
-	return NewContainerService(st).Inspect(ctx, id)
-}
-
-func ContainerCreate(st *state.AppState, ctx context.Context, req model.CreateContainerReq) (string, error) {
-	return NewContainerService(st).Create(ctx, req)
-}
-
-func ContainerStart(st *state.AppState, ctx context.Context, id string) error {
-	return NewContainerService(st).Start(ctx, id)
-}
-
-func ContainerStop(st *state.AppState, ctx context.Context, id string, timeout *int) error {
-	return NewContainerService(st).Stop(ctx, id, timeout)
-}
-
-func ContainerRestart(st *state.AppState, ctx context.Context, id string, timeout *int) error {
-	return NewContainerService(st).Restart(ctx, id, timeout)
-}
-
-func ContainerKill(st *state.AppState, ctx context.Context, id string) error {
-	return NewContainerService(st).Kill(ctx, id)
-}
-
-func ContainerPause(st *state.AppState, ctx context.Context, id string) error {
-	return NewContainerService(st).Pause(ctx, id)
-}
-
-func ContainerUnpause(st *state.AppState, ctx context.Context, id string) error {
-	return NewContainerService(st).Unpause(ctx, id)
-}
-
-func ContainerRename(st *state.AppState, ctx context.Context, id, newName string) error {
-	return NewContainerService(st).Rename(ctx, id, newName)
-}
-
-func ContainerRemove(st *state.AppState, ctx context.Context, id string, force, removeVolumes bool) error {
-	return NewContainerService(st).Remove(ctx, id, force, removeVolumes)
-}
-
-func ContainersPrune(st *state.AppState, ctx context.Context) (container.PruneReport, error) {
-	return NewContainerService(st).Prune(ctx)
-}
-
-func ContainerLogsStream(st *state.AppState, ctx context.Context, id string, tail int64) (io.ReadCloser, error) {
-	return NewContainerService(st).LogsStream(ctx, id, tail)
-}
-
-func ContainerStatsPump(st *state.AppState, ctx context.Context, id string, emit func(payload map[string]any) bool) error {
-	return NewContainerService(st).StatsPump(ctx, id, emit)
-}
-
-func CreateTerminal(st *state.AppState, ctx context.Context, id, shell string) (*TerminalSession, error) {
-	return NewContainerService(st).CreateTerminal(ctx, id, shell)
-}
-
-func ContainerRecreate(st *state.AppState, ctx context.Context, id string) error {
-	return NewContainerService(st).Recreate(ctx, id)
 }

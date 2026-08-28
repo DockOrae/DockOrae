@@ -54,25 +54,3 @@ func (s *VolumeService) Remove(ctx context.Context, name string, force bool) err
 func (s *VolumeService) Prune(ctx context.Context) (volume.PruneReport, error) {
 	return docker.PruneVolumes(s.docker, ctx, client.VolumePruneOptions{})
 }
-
-// ---------------- 兼容层:包级函数委托 ----------------
-
-func VolumesList(st *state.AppState, ctx context.Context) ([]volume.Volume, error) {
-	return NewVolumeService(st).List(ctx)
-}
-
-func VolumeRaw(st *state.AppState, ctx context.Context, name string) ([]byte, error) {
-	return NewVolumeService(st).Raw(ctx, name)
-}
-
-func VolumeCreate(st *state.AppState, ctx context.Context, req model.CreateVolumeReq) (volume.Volume, error) {
-	return NewVolumeService(st).Create(ctx, req)
-}
-
-func VolumeRemove(st *state.AppState, ctx context.Context, name string, force bool) error {
-	return NewVolumeService(st).Remove(ctx, name, force)
-}
-
-func VolumesPrune(st *state.AppState, ctx context.Context) (volume.PruneReport, error) {
-	return NewVolumeService(st).Prune(ctx)
-}

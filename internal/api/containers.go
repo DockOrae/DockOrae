@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -12,17 +13,16 @@ import (
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
 // ---------------- 列表 / 详情 / 生命周期 ----------------
 
-func containersList(c *gin.Context, st *state.AppState) error {
+func containersList(c *gin.Context, d *Deps) error {
 	all := true
 	if c.Query("all") != "" {
 		all = parseBool(c.Query("all"), true)
 	}
-	items, err := service.ContainersList(st, c.Request.Context(), all)
+	items, err := d.Containers.List(c.Request.Context(), all)
 	if err != nil {
 		return err
 	}
@@ -30,8 +30,8 @@ func containersList(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func containersInspect(c *gin.Context, st *state.AppState) error {
-	insp, err := service.ContainerInspect(st, c.Request.Context(), c.Param("id"))
+func containersInspect(c *gin.Context, d *Deps) error {
+	insp, err := d.Containers.Inspect(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
@@ -40,12 +40,12 @@ func containersInspect(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func containersCreate(c *gin.Context, st *state.AppState) error {
+func containersCreate(c *gin.Context, d *Deps) error {
 	var req model.CreateContainerReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	id, err := service.ContainerCreate(st, c.Request.Context(), req)
+	id, err := d.Containers.Create(c.Request.Context(), req)
 	if err != nil {
 		return err
 	}
@@ -53,8 +53,8 @@ func containersCreate(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func containersPrune(c *gin.Context, st *state.AppState) error {
-	report, err := service.ContainersPrune(st, c.Request.Context())
+func containersPrune(c *gin.Context, d *Deps) error {
+	report, err := d.Containers.Prune(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -62,8 +62,8 @@ func containersPrune(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func containersRemove(c *gin.Context, st *state.AppState) error {
-	err := service.ContainerRemove(st, c.Request.Context(), c.Param("id"),
+func containersRemove(c *gin.Context, d *Deps) error {
+	err := d.Containers.Remove(c.Request.Context(), c.Param("id"),
 		parseBool(c.Query("force"), false), parseBool(c.Query("v"), false))
 	if err != nil {
 		return err
@@ -73,24 +73,24 @@ func containersRemove(c *gin.Context, st *state.AppState) error {
 }
 
 // containersRecreate 重建容器(保留原配置)
-func containersRecreate(c *gin.Context, st *state.AppState) error {
-	if err := service.ContainerRecreate(st, c.Request.Context(), c.Param("id")); err != nil {
+func containersRecreate(c *gin.Context, d *Deps) error {
+	if err := d.Containers.Recreate(c.Request.Context(), c.Param("id")); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func containersStart(c *gin.Context, st *state.AppState) error {
-	if err := service.ContainerStart(st, c.Request.Context(), c.Param("id")); err != nil {
+func containersStart(c *gin.Context, d *Deps) error {
+	if err := d.Containers.Start(c.Request.Context(), c.Param("id")); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func containersStop(c *gin.Context, st *state.AppState) error {
-	err := service.ContainerStop(st, c.Request.Context(), c.Param("id"), nil)
+func containersStop(c *gin.Context, d *Deps) error {
+	err := d.Containers.Stop(c.Request.Context(), c.Param("id"), nil)
 	if err != nil {
 		return err
 	}
@@ -98,8 +98,8 @@ func containersStop(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func containersRestart(c *gin.Context, st *state.AppState) error {
-	err := service.ContainerRestart(st, c.Request.Context(), c.Param("id"), nil)
+func containersRestart(c *gin.Context, d *Deps) error {
+	err := d.Containers.Restart(c.Request.Context(), c.Param("id"), nil)
 	if err != nil {
 		return err
 	}
@@ -107,38 +107,38 @@ func containersRestart(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
-func containersKill(c *gin.Context, st *state.AppState) error {
-	if err := service.ContainerKill(st, c.Request.Context(), c.Param("id")); err != nil {
+func containersKill(c *gin.Context, d *Deps) error {
+	if err := d.Containers.Kill(c.Request.Context(), c.Param("id")); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func containersPause(c *gin.Context, st *state.AppState) error {
-	if err := service.ContainerPause(st, c.Request.Context(), c.Param("id")); err != nil {
+func containersPause(c *gin.Context, d *Deps) error {
+	if err := d.Containers.Pause(c.Request.Context(), c.Param("id")); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func containersUnpause(c *gin.Context, st *state.AppState) error {
-	if err := service.ContainerUnpause(st, c.Request.Context(), c.Param("id")); err != nil {
+func containersUnpause(c *gin.Context, d *Deps) error {
+	if err := d.Containers.Unpause(c.Request.Context(), c.Param("id")); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-func containersRename(c *gin.Context, st *state.AppState) error {
+func containersRename(c *gin.Context, d *Deps) error {
 	var req struct {
 		Name string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.Name == "" {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.ContainerRename(st, c.Request.Context(), c.Param("id"), req.Name); err != nil {
+	if err := d.Containers.Rename(c.Request.Context(), c.Param("id"), req.Name); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
@@ -148,7 +148,7 @@ func containersRename(c *gin.Context, st *state.AppState) error {
 // ---------------- WebSocket:日志 / 统计 / 终端 ----------------
 // 只做:升级连接、解析 query 参数、调 service 业务、字节桥接;不直接接触 moby
 
-func containersLogsWS(c *gin.Context, st *state.AppState) error {
+func containersLogsWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
 		return err
@@ -163,7 +163,7 @@ func containersLogsWS(c *gin.Context, st *state.AppState) error {
 	}
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
-	logs, err := service.ContainerLogsStream(st, ctx, c.Param("id"), tail)
+	logs, err := d.Containers.LogsStream(ctx, c.Param("id"), tail)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,10 @@ func containersLogsWS(c *gin.Context, st *state.AppState) error {
 
 	// 后台把 stdout/stderr 解复用后逐条发文本消息
 	w := wsTextWriter{conn: conn}
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		_, _ = stdcopy.StdCopy(w, w, logs)
 		cancel()
 	}()
@@ -185,6 +188,7 @@ func containersLogsWS(c *gin.Context, st *state.AppState) error {
 		}
 		return true
 	})
+	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
 }
@@ -194,11 +198,13 @@ type wsTextWriter struct {
 }
 
 func (w wsTextWriter) Write(p []byte) (int, error) {
-	_ = w.conn.WriteMessage(websocket.TextMessage, p)
+	if err := w.conn.WriteMessage(websocket.TextMessage, p); err != nil {
+		return 0, err
+	}
 	return len(p), nil
 }
 
-func containersStatsWS(c *gin.Context, st *state.AppState) error {
+func containersStatsWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
 		return err
@@ -208,8 +214,11 @@ func containersStatsWS(c *gin.Context, st *state.AppState) error {
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
 	// 解码与字段计算在 service 层,回调仅负责发送
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		_ = service.ContainerStatsPump(st, ctx, c.Param("id"), func(payload map[string]any) bool {
+		defer wg.Done()
+		_ = d.Containers.StatsPump(ctx, c.Param("id"), func(payload map[string]any) bool {
 			raw, _ := json.Marshal(payload)
 			if conn.WriteMessage(websocket.TextMessage, raw) != nil {
 				cancel()
@@ -223,11 +232,12 @@ func containersStatsWS(c *gin.Context, st *state.AppState) error {
 	wsPump(ctx, conn, func(mt int, data []byte) bool {
 		return mt != websocket.CloseMessage
 	})
+	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
 }
 
-func containersTerminalWS(c *gin.Context, st *state.AppState) error {
+func containersTerminalWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
 		return err
@@ -240,7 +250,7 @@ func containersTerminalWS(c *gin.Context, st *state.AppState) error {
 	}
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
-	session, err := service.CreateTerminal(st, ctx, c.Param("id"), shell)
+	session, err := d.Containers.CreateTerminal(ctx, c.Param("id"), shell)
 	if err != nil {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("[exec failed: "+err.Error()+"]\r\n"))
 		return nil
@@ -248,7 +258,10 @@ func containersTerminalWS(c *gin.Context, st *state.AppState) error {
 	defer session.Close()
 
 	// exec 输出 → ws 二进制
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		buf := make([]byte, 4096)
 		for {
 			n, err := session.Reader.Read(buf)
@@ -293,6 +306,7 @@ func containersTerminalWS(c *gin.Context, st *state.AppState) error {
 		}
 		return true
 	})
+	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
 }

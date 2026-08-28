@@ -35,16 +35,16 @@ type Param struct {
 
 // App 应用定义
 type App struct {
-	Key         string   `json:"key"`
-	Name        string   `json:"name"`
-	Icon        string   `json:"icon"`
-	Category    string   `json:"category"`
-	Description string   `json:"description"`
-	Ports       []string `json:"ports"`
-	Versions    []string `json:"versions,omitempty"` // 可选版本列表(模板 image 用 {{.version}})
-	Params      []Param  `json:"params"`
-	dir         string                   // 应用数据目录
-	versions    map[string]*versionData  // 各版本数据(参数 + compose 模板)
+	Key         string                  `json:"key"`
+	Name        string                  `json:"name"`
+	Icon        string                  `json:"icon"`
+	Category    string                  `json:"category"`
+	Description string                  `json:"description"`
+	Ports       []string                `json:"ports"`
+	Versions    []string                `json:"versions,omitempty"` // 可选版本列表(模板 image 用 {{.version}})
+	Params      []Param                 `json:"params"`
+	dir         string                  // 应用数据目录
+	versions    map[string]*versionData // 各版本数据(参数 + compose 模板)
 }
 
 // ValidateParams 校验参数值:required/rule(paramPort/paramCommon)

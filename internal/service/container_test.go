@@ -188,6 +188,18 @@ func TestBuildContainerConfigFlags(t *testing.T) {
 	}
 }
 
+// TestBuildContainerConfigEmptyNetwork 未指定网络:NetworkMode 保持空(bridge 默认)
+func TestBuildContainerConfigEmptyNetwork(t *testing.T) {
+	req := model.CreateContainerReq{Image: "nginx"}
+	_, hc, err := buildContainerConfig(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(hc.NetworkMode) != "" {
+		t.Errorf("empty network should leave NetworkMode empty, got %q", hc.NetworkMode)
+	}
+}
+
 // ---- ContainerService.Create:业务规则(license / image 校验,无需真实 docker) ----
 
 // newTestContainerService 构造可测实例:license 可注入,docker 为 nil(校验路径不会触达)
