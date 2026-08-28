@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
@@ -51,8 +52,15 @@ func main() {
 		log.Printf("Default account: admin / 123456. Please change the password in Settings after first login.")
 		var serveErr error
 		if s.WebCertFile != "" && s.WebKeyFile != "" {
-			log.Printf("TLS enabled: %s / %s", s.WebCertFile, s.WebKeyFile)
-			serveErr = srv.ListenAndServeTLS(s.WebCertFile, s.WebKeyFile)
+			if _, err := tls.LoadX509KeyPair(s.WebCertFile, s.WebKeyFile); err != nil {
+				// 证书加载失败:降级 HTTP 监听而不是崩溃退出(否则容器 restart 循环,面板彻底失联)。
+				// 日志会明确提示,用户可进面板修正证书路径后重启生效。
+				log.Printf("TLS 证书加载失败,已降级为 HTTP 监听: %v", err)
+				serveErr = srv.ListenAndServe()
+			} else {
+				log.Printf("TLS enabled: %s / %s", s.WebCertFile, s.WebKeyFile)
+				serveErr = srv.ListenAndServeTLS(s.WebCertFile, s.WebKeyFile)
+			}
 		} else {
 			serveErr = srv.ListenAndServe()
 		}

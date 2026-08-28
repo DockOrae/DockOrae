@@ -293,6 +293,9 @@ set_panel_https() {
 }
 
 # compose 方式:docker exec 进容器,用 busybox wget 调本地面板 API
+# 注意:PUT /api/system/settings 是补丁合并语义(只更新传入字段),直接传三个字段即可。
+# 不要 GET→sed→PUT 全量:gin 返回紧凑 JSON(冒号后无空格),旧 sed 模式匹配不到会静默失败,
+# 导致证书路径永远写不进配置(面板一直 HTTP 模式,https 打不开)——本 bug 已修。
 set_panel_https_via_container() {
   local domain="$1" cert="$2" key="$3"
   docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" || return 1
@@ -301,26 +304,24 @@ set_panel_https_via_container() {
 base=http://localhost:8080
 token=\$(wget -qO- --post-data='{"username":"admin","password":"123456"}' --header='Content-Type: application/json' \$base/api/login 2>/dev/null | sed 's/.*"token":"\([^"]*\)".*/\1/')
 [ -z "\$token" ] && exit 1
-settings=\$(wget -qO- --header="Authorization: Bearer \$token" \$base/api/system/settings 2>/dev/null)
-settings=\$(echo "\$settings" | sed -E 's/"webDomain": [^,}]*/"webDomain": "$domain"/; s/"webCertFile": [^,}]*/"webCertFile": "$cert"/; s/"webKeyFile": [^,}]*/"webKeyFile": "$key"/')
-wget -qO- --method=PUT --post-data="\$settings" --header='Content-Type: application/json' --header="Authorization: Bearer \$token" \$base/api/system/settings >/dev/null 2>&1
-echo DONE
+payload='{"webDomain":"$domain","webCertFile":"$cert","webKeyFile":"$key"}'
+wget -qO- --method=PUT --post-data="\$payload" --header='Content-Type: application/json' --header="Authorization: Bearer \$token" \$base/api/system/settings 2>/dev/null
 EOF
 )
-  [[ "$ok" == *DONE* ]]
+  [[ "$ok" == *"needRestart"* ]]
 }
 
-# 二进制方式:宿主 curl 调面板 API
+# 二进制方式:宿主 curl 调面板 API(同样是补丁合并,直接 PUT 三个字段)
 set_panel_https_via_host() {
   local domain="$1" cert="$2" key="$3"
   local base="http://127.0.0.1:${DM_PORT}"
-  local token settings
+  local token resp
   token=$(curl -s -X POST "$base/api/login" -H 'Content-Type: application/json' -d '{"username":"admin","password":"123456"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
   [ -z "$token" ] && return 1
-  settings=$(curl -s -H "Authorization: Bearer $token" "$base/api/system/settings")
-  settings=$(echo "$settings" | sed -E "s/\"webDomain\": [^,}]*/\"webDomain\": \"$domain\"/; s/\"webCertFile\": [^,}]*/\"webCertFile\": \"$cert\"/; s/\"webKeyFile\": [^,}]*/\"webKeyFile\": \"$key\"/")
-  curl -s -X PUT -H 'Content-Type: application/json' -H "Authorization: Bearer $token" -d "$settings" "$base/api/system/settings" >/dev/null 2>&1 && echo DONE
-  return $?
+  resp=$(curl -s -X PUT -H 'Content-Type: application/json' -H "Authorization: Bearer $token" \
+    -d "{\"webDomain\":\"$domain\",\"webCertFile\":\"$cert\",\"webKeyFile\":\"$key\"}" \
+    "$base/api/system/settings")
+  [[ "$resp" == *"needRestart"* ]]
 }
 
 # ================= Docker Compose 安装 =================
