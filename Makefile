@@ -13,24 +13,10 @@
 #   make help       查看帮助
 # ============================================================
 
-# ---------- 平台检测(git-bash/MSYS 视为 Windows) ----------
-UNAME_S := $(shell uname -s)
-ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
-  OS := windows
-else ifeq ($(findstring MSYS,$(UNAME_S)),MSYS)
-  OS := windows
-else ifeq ($(UNAME_S),Darwin)
-  OS := darwin
-else
-  OS := linux
-endif
-
 # ---------- 变量 ----------
 GO        ?= go
 NPM       ?= npm
-BIN       := $(if $(filter windows,$(OS)),docker-manager.exe,docker-manager-go)
-# Linux 交叉编译产物不带 .exe 后缀(README 发布格式: docker-manager-go-linux-<arch>/docker-manager-go)
-LINUX_BIN := $(BIN:.exe=)
+BIN       := docker-manager-go
 WEB_DIR   := web
 DIST_DIR  := dist
 
@@ -57,7 +43,7 @@ web:
 .PHONY: backend
 backend:
 	@test -d $(WEB_DIR)/dist || { echo "❌ web/dist 不存在,请先执行 make web(前端未构建,go:embed 无法编译)"; exit 1; }
-	@echo "==> 编译后端 $(BIN) (v$(VERSION), $(OS)/$$(go env GOARCH))"
+	@echo "==> 编译后端 $(BIN) (v$(VERSION), linux/$$(go env GOARCH))"
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="-s -w" -o $(BIN) ./cmd/docker-manager
 
 # ---------- 运行 / 开发 ----------
@@ -85,7 +71,7 @@ cross: web
 	  fi; \
 	  CGO_ENABLED=0 GOOS=linux GOARCH=$$goarch GOARM=$$goarm \
 	    $(GO) build -trimpath -ldflags="-s -w" \
-	    -o $(DIST_DIR)/docker-manager-go-linux-$$suffix/$(LINUX_BIN) ./cmd/docker-manager || exit 1; \
+	    -o $(DIST_DIR)/docker-manager-go-linux-$$suffix/$(BIN) ./cmd/docker-manager || exit 1; \
 	  tar -czf $(DIST_DIR)/docker-manager-go-linux-$$suffix.tar.gz -C $(DIST_DIR) docker-manager-go-linux-$$suffix || exit 1; \
 	  rm -rf $(DIST_DIR)/docker-manager-go-linux-$$suffix; \
 	done
