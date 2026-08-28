@@ -163,6 +163,7 @@ export default {
     saved: '保存しました',
     deleted: '削除しました',
     empty: 'ホストがありません。「ホストを追加」をクリックして開始してください',
+    emptySync: 'アプリストアを同期中です。しばらくお待ちください…',
     confirmDelete: 'ホストを削除しますか',
     addrRequired: 'アドレスは必須です',
     portInvalid: 'ポートが無効です',

@@ -163,6 +163,7 @@ export default {
     saved: 'Kaydedildi',
     deleted: 'Silindi',
     empty: 'Henüz ana makine yok. Başlamak için "Ana makine ekle"ye tıklayın.',
+    emptySync: 'Uygulama mağazası senkronize ediliyor, lütfen bekleyin…',
     confirmDelete: 'Ana makine silinsin mi',
     addrRequired: 'Adres boş olamaz',
     portInvalid: 'Geçersiz port',

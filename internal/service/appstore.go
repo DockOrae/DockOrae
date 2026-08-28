@@ -50,10 +50,23 @@ func (s *AppStoreService) Sync() error {
 	return appstore.Sync(s.appstoreDir())
 }
 
+// EnsureSynced 确保应用商店数据存在:目录缺失时自动同步一次(幂等,已有数据跳过)。
+// 供启动时后台调用,保证全新部署的用户点开应用商店即有数据。
+func (s *AppStoreService) EnsureSynced() error {
+	if _, err := os.Stat(filepath.Join(s.appstoreDir(), "apps")); err == nil {
+		return nil // 已同步过
+	}
+	return s.Sync()
+}
+
 // List 应用列表(附安装状态)+ 分类
 func (s *AppStoreService) List() ([]map[string]any, []string, error) {
 	apps, cats, err := appstore.LoadApps(s.appstoreDir())
 	if err != nil {
+		// 尚未同步应用商店(全新部署):返回空列表而非 500,前端提示先同步
+		if os.IsNotExist(err) {
+			return []map[string]any{}, []string{}, nil
+		}
 		return nil, nil, err
 	}
 	installed := s.installedMap()

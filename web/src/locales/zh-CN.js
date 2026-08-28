@@ -164,6 +164,7 @@ export default {
     saved: '已保存',
     deleted: '已删除',
     empty: '暂无主机,点击"添加主机"开始',
+    emptySync: '应用商店正在同步,请稍候…',
     confirmDelete: '确定删除主机',
     addrRequired: '地址不能为空',
     portInvalid: '端口无效',

@@ -163,6 +163,7 @@ export default {
     saved: 'Salvo',
     deleted: 'Excluído',
     empty: 'Nenhum host ainda. Clique em "Adicionar host" para começar.',
+    emptySync: 'A loja de aplicativos está sincronizando, aguarde…',
     confirmDelete: 'Confirmar exclusão do host',
     addrRequired: 'O endereço não pode estar vazio',
     portInvalid: 'Porta inválida',

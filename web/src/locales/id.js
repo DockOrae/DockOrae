@@ -163,6 +163,7 @@ export default {
     saved: 'Tersimpan',
     deleted: 'Dihapus',
     empty: 'Belum ada host, klik "Tambah host" untuk memulai',
+    emptySync: 'Toko aplikasi sedang disinkronkan, harap tunggu…',
     confirmDelete: 'Yakin menghapus host',
     addrRequired: 'Alamat tidak boleh kosong',
     portInvalid: 'Port tidak valid',

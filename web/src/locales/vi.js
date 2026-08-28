@@ -163,6 +163,7 @@ export default {
     saved: 'Đã lưu',
     deleted: 'Đã xóa',
     empty: 'Chưa có máy chủ nào, nhấp vào "Thêm máy chủ" để bắt đầu',
+    emptySync: 'Kho ứng dụng đang đồng bộ, vui lòng chờ…',
     confirmDelete: 'Xác nhận xóa máy chủ',
     addrRequired: 'Địa chỉ không được để trống',
     portInvalid: 'Cổng không hợp lệ',

@@ -31,7 +31,7 @@
 
     <!-- 应用网格(4 列,滚动浏览全部) -->
     <div class="flex-1 flex flex-col min-h-0">
-        <div v-if="!filtered.length" class="panel p-10 text-center text-muted text-sm flex-1">{{ t('appStore.empty') }}</div>
+        <div v-if="!filtered.length" class="panel p-10 text-center text-muted text-sm flex-1">{{ apps.length === 0 ? t('appStore.emptySync') : t('appStore.empty') }}</div>
         <div v-else class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 flex-1 min-h-0 overflow-y-auto content-start items-start pb-2">
           <div v-for="a in filtered" :key="a.key" class="panel border border-line app-card" @click="openDetail(a)">
             <div class="app-image">
@@ -135,7 +135,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import Icon from '../components/Icon.vue'
@@ -160,6 +160,7 @@ const syncing = ref(false)
 const editCompose = ref(false)
 const composeText = ref('')
 const composeDirty = ref(false)
+let pollTimer = null
 const confirm = useConfirm()
 
 const filtered = computed(() => {
@@ -204,10 +205,24 @@ async function load() {
     const r = await api('/apps')
     apps.value = r.apps || []
     categories.value = r.categories || []
+    // 空列表(尚未同步完成)时自动轮询,数据出现后停止
+    if (apps.value.length === 0 && !pollTimer) {
+      pollTimer = setInterval(load, 5000)
+    } else if (apps.value.length > 0 && pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
   } catch (e) {
     toastErr(e.message)
   }
 }
+
+onBeforeUnmount(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+})
 
 async function syncApps() {
   syncing.value = true

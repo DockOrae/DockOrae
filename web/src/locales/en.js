@@ -163,6 +163,7 @@ export default {
     saved: 'Saved',
     deleted: 'Deleted',
     empty: 'No hosts yet. Click "Add host" to start.',
+    emptySync: 'App Store is syncing, please wait…',
     confirmDelete: 'Delete host',
     addrRequired: 'Address is required',
     portInvalid: 'Invalid port',

@@ -163,6 +163,7 @@ export default {
     saved: '已儲存',
     deleted: '已刪除',
     empty: '尚無主機，點擊「新增主機」開始',
+    emptySync: '應用商店正在同步,請稍候…',
     confirmDelete: '確定刪除主機',
     addrRequired: '位址不能為空',
     portInvalid: '連接埠無效',

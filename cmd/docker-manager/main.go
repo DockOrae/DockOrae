@@ -16,6 +16,7 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/logger"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
@@ -32,6 +33,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("init state: %v", err)
 	}
+	// 应用商店自动同步(后台异步):全新部署无数据时自动拉取一次,幂等
+	go func() {
+		if err := service.NewAppStoreService(st).EnsureSynced(); err != nil {
+			log.Printf("appstore auto-sync failed (可在面板手动同步): %v", err)
+		} else {
+			log.Printf("appstore auto-sync done")
+		}
+	}()
 
 	s := st.Settings.Get()
 	basePath := s.WebBasePath
