@@ -1,0 +1,120 @@
+[English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md) | [Türkçe](/README.tr_TR.md)
+
+<p align="center">
+  <img alt="Docker Manager Go" src="https://img.shields.io/badge/Docker%20Manager-Go-ec4899?logo=docker&logoColor=white&labelColor=0f172a">
+</p>
+
+<p align="center">
+  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/releases"><img src="https://img.shields.io/github/v/release/MinimaxFlora/Docker_Manager_Go" alt="Release"></a>
+  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/actions"><img src="https://img.shields.io/github/actions/workflow/status/MinimaxFlora/Docker_Manager_Go/release.yml.svg" alt="Build"></a>
+  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/MinimaxFlora/Docker_Manager_Go.svg" alt="Go Version"></a>
+  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/releases/latest"><img src="https://img.shields.io/github/downloads/MinimaxFlora/Docker_Manager_Go/total.svg" alt="Downloads"></a>
+  <a href="https://hub.docker.com/r/zhaoweiwen123/docker-manager-go"><img src="https://img.shields.io/docker/pulls/zhaoweiwen123/docker-manager-go.svg" alt="Docker Pulls"></a>
+  <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
+</p>
+
+**Docker Manager Go** 是一款使用 **Go** 语言编写的现代化、美观的 Docker 管理面板([gin](https://github.com/gin-gonic/gin) + 官方 [Moby Docker SDK](https://github.com/moby/moby)),前端采用 **Vue 3**。界面交互设计参考 1Panel,支持深色/浅色主题与粉色品牌色,系统状态页参照 3x-ui 设计。
+
+> [!IMPORTANT]
+> 本项目仅限个人使用。请勿将其用于非法用途,或在未经适当授权的情况下用于生产环境。
+
+## 功能特性
+
+- **容器管理** — 创建 / 启动 / 停止 / 重启 / 暂停 / 删除 / 检查 / 附加,内置 **Web 终端**。
+- **镜像管理** — 实时进度拉取、删除、清理未使用的镜像。
+- **网络管理** — 创建 / 删除 / 检查(子网与网关配置)。
+- **存储卷管理** — 创建 / 删除 / 检查。
+- **Compose 堆栈管理** — YAML 编辑器、一键部署(流式输出)、启动/停止与拆除。
+- **实时监控** — 3x-ui 风格状态页:CPU / 内存 / 交换分区 / 存储卡片(带迷你走势图)、网络吞吐与磁盘 I/O 曲线、容器/镜像/存储卷数量、面板进程统计,以及可切换可见性的公网 IP。
+- **终端** — 主机终端(chroot `/host`)、容器终端,以及 **SSH 主机管理**(分组 / 连接 / 密码与密钥认证)、快捷命令、终端外观设置。
+- **许可证** — 离线 Pro 许可证(文件上传激活 / 设备绑定 / 解绑);免费版限制容器创建与 Compose 部署。
+- **镜像加速** — 直接在面板中配置 `daemon.json` 镜像加速源。
+- **多语言** — 14 种界面语言,支持深色与浅色主题。
+- **安全** — TOTP 双因素认证、JWT 会话、头像上传。
+- **事件流** — 实时 Docker 事件推送至仪表盘。
+
+## 快速开始
+
+### 一键安装(推荐)
+
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/MinimaxFlora/Docker_Manager_Go/master/install.sh)
+```
+
+安装脚本会:
+
+- 自动检测您的网络环境(国内/海外)并使用加速源。
+- 如果系统未安装 Docker,**自动安装 Docker**(Debian / Ubuntu amd64 / arm64,最新稳定版)。
+- 可让您选择安装方式:
+  1. **Docker Compose**(推荐)— 基于镜像,易于更新。
+  2. **本地二进制文件**(systemd)— 无需 Docker;自动检测架构(amd64 / arm64 / armv5-7 / 386 / s390x)。
+- 可选绑定 **HTTPS 域名**(通过 acme.sh 签发 Let's Encrypt 证书)。
+
+常用命令:
+
+```bash
+sudo bash install.sh install         # Install (DM_MODE=compose|binary to force a method, DM_FORCE=1 to reinstall)
+sudo bash install.sh ssl             # SSL certificate management (domain binding)
+sudo bash install.sh update          # Update
+sudo bash install.sh uninstall       # Uninstall (data kept)
+sudo bash install.sh start|stop|restart|status
+sudo bash install.sh backup          # Backup data
+sudo bash install.sh restore         # Restore data
+sudo bash install.sh reset-passwd    # Reset password to admin / 123456
+sudo bash install.sh info            # Show installation info
+```
+
+### Docker Compose(手动)
+
+```bash
+docker run -d --name docker-manager-go \
+  -p 8080:8080 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v docker-manager-data:/data \
+  zhaoweiwen123/docker-manager-go:latest
+```
+
+也可以使用随附的 `docker-compose.yml`。对于远程 Docker 主机,请设置 `DOCKER_HOST=tcp://<host>:2375`。
+
+### 二进制文件(手动)
+
+从 [Releases 发布页](https://github.com/MinimaxFlora/Docker_Manager_Go/releases/latest) 下载 `docker-manager-go-linux-<arch>.tar.gz`,解压后运行:
+
+```bash
+tar xzf docker-manager-go-linux-amd64.tar.gz
+sudo mv docker-manager-go/docker-manager-go /usr/local/bin/
+DATA_DIR=/opt/docker-manager/data PORT=8080 docker-manager-go
+```
+
+## 域名绑定(SSL)
+
+面板支持通过 **设置 → 常规 → 证书** 中配置的证书路径启用 HTTPS。使用安装脚本的 `ssl` 菜单可通过 acme.sh 自动签发 Let's Encrypt 证书(HTTP-01 独立验证 — 请确保域名解析到本机且 80 端口空闲):
+
+```bash
+sudo bash install.sh ssl
+```
+
+证书路径会自动写入面板设置,重启后 HTTPS 生效。
+
+## 环境变量
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `DATA_DIR` | `./data` | 数据目录(SQLite 数据库、设置、用户) |
+| `PORT` | `8080` | 面板监听端口 |
+| `DOCKER_HOST` | `unix:///var/run/docker.sock` (Linux) | Docker 守护进程地址 |
+| `TZ` | — | 容器时区 |
+
+## 支持平台
+
+- **二进制文件**(Linux):amd64、arm64、armv5、armv6、armv7、386、s390x
+- **Docker 镜像**:linux/amd64、linux/arm64、linux/arm/v7、linux/arm/v6、linux/s390x
+- **面板运行环境**:Linux(生产)、Windows(开发)
+
+## 支持的语言
+
+English、简体中文、繁體中文、日本語、한국어、Русский、Türkçe、Español、Português (Brasil)、Tiếng Việt、Indonesia、Українська、العربية、فارسی — 共 14 种语言,自动检测并支持一键切换。
+
+## 许可证
+
+[GPL V3](https://www.gnu.org/licenses/gpl-3.0.en.html)
