@@ -62,7 +62,25 @@
         </div>
       </template>
 
-      <!-- 更新已启动 -->
+      <!-- 更新中:实时阶段进度 -->
+      <div
+        v-if="applying"
+        class="rounded-lg border border-brand/30 bg-brand/5 p-3 text-sm text-brand flex items-center gap-2"
+      >
+        <span class="inline-block w-4 h-4 border-2 border-brand/30 border-t-brand rounded-full animate-spin shrink-0" />
+        {{ phase ? t('update.phase_' + phase) : t('update.applying') }}
+      </div>
+
+      <!-- 更新失败 -->
+      <div
+        v-if="phaseError"
+        class="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger leading-relaxed"
+      >
+        <p class="font-medium mb-1">{{ t('update.phase_failed') }}</p>
+        <p class="text-[12px] break-all">{{ phaseError }}</p>
+      </div>
+
+      <!-- 更新已启动(面板重启中) -->
       <div
         v-if="applied"
         class="rounded-lg border border-brand/30 bg-brand/5 p-3 text-sm text-brand flex items-center gap-2"
@@ -94,11 +112,16 @@ const loading = ref(false)
 const error = ref('')
 const applying = ref(false)
 const applied = ref(false)
+const phase = ref('') // 当前更新阶段(downloading/extracting/replacing/restarting/pulling/helper/done)
+const phaseError = ref('')
 
 async function refresh() {
   loading.value = true
   error.value = ''
   applied.value = false
+  applying.value = false
+  phase.value = ''
+  phaseError.value = ''
   try {
     info.value = await api('/update/check')
   } catch (e) {
@@ -108,7 +131,27 @@ async function refresh() {
   }
 }
 
-// 更新后面板容器重建,轮询 check 直到新版本上线(最多 60 秒)
+// 轮询 /update/status 获取实时进度,每 1s:
+//  - 到 done(compose 已接管)或 restarting(二进制即将重启)返回该状态
+//  - failed 返回状态(带 error)
+//  - 请求失败(面板重启中/进程退出)返回 null,由调用方转轮询版本接口确认新版本上线
+async function pollStatus() {
+  for (let i = 0; i < 300; i++) {
+    await new Promise((r) => setTimeout(r, 1000))
+    let s
+    try {
+      s = await api('/update/status')
+    } catch {
+      return null // 面板重启中
+    }
+    phase.value = s.phase
+    if (s.phase === 'failed') return s
+    if (s.phase === 'done' || s.phase === 'restarting') return s
+  }
+  return null
+}
+
+// 更新后面板重启/容器重建,轮询 check 直到新版本上线(最多 60 秒)
 async function waitDone() {
   for (let i = 0; i < 12; i++) {
     await new Promise((r) => setTimeout(r, 5000))
@@ -130,8 +173,19 @@ async function apply() {
   })
   if (!ok) return
   applying.value = true
+  applied.value = false
+  phase.value = ''
+  phaseError.value = ''
   try {
+    // 异步启动,立即返回;进度轮询 /update/status
     await api('/update/apply', { method: 'POST' })
+    const s = await pollStatus()
+    if (s && s.phase === 'failed') {
+      phaseError.value = s.error || t('update.phase_failed')
+      applying.value = false
+      return
+    }
+    // restarting(二进制)/ done(compose)/ 面板已重启(null) → 等新版本上线
     applying.value = false
     applied.value = true
     toastOk(t('update.started'))

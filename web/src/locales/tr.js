@@ -891,6 +891,13 @@ export default {
     started: 'Güncelleme başladı, panel yakında yeniden başlayacak...',
     completed: 'Güncelleme tamamlandı, panel en son sürümde',
     timeout: 'Panel yeniden başlatma zaman aşımı, sayfayı daha sonra yenileyin',
+    phase_downloading: 'Güncelleme paketi indiriliyor…',
+    phase_extracting: 'Güncelleme paketi açılıyor…',
+    phase_replacing: 'Panel programı değiştiriliyor…',
+    phase_restarting: 'Panel hizmeti yeniden başlatılıyor…',
+    phase_pulling: 'Yardımcı imaj çekiliyor…',
+    phase_helper: 'Güncelleme kapsayıcısı başlatılıyor…',
+    phase_failed: 'Güncelleme başarısız',
   },
 
   appStore: {

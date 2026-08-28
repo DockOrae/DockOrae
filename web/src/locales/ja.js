@@ -891,6 +891,13 @@ export default {
     started: '更新を開始しました。パネルはまもなく再起動します...',
     completed: '更新が完了し、パネルは最新バージョンになりました',
     timeout: 'パネルの再起動がタイムアウトしました。後でページを更新してください',
+    phase_downloading: '更新パッケージをダウンロード中…',
+    phase_extracting: '更新パッケージを解凍中…',
+    phase_replacing: 'パネルプログラムを置換中…',
+    phase_restarting: 'パネルサービスを再起動中…',
+    phase_pulling: '更新ヘルパーイメージを取得中…',
+    phase_helper: '更新コンテナを起動中…',
+    phase_failed: '更新に失敗しました',
   },
 
   appStore: {

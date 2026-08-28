@@ -891,6 +891,13 @@ export default {
     started: 'Atualização iniciada, o painel será reiniciado em breve...',
     completed: 'Atualização concluída, o painel está na versão mais recente',
     timeout: 'Tempo de reinicialização esgotado, atualize a página mais tarde',
+    phase_downloading: 'Baixando pacote de atualização…',
+    phase_extracting: 'Extraindo pacote de atualização…',
+    phase_replacing: 'Substituindo o programa do painel…',
+    phase_restarting: 'Reiniciando o serviço do painel…',
+    phase_pulling: 'Obtendo imagem auxiliar…',
+    phase_helper: 'Iniciando contêiner de atualização…',
+    phase_failed: 'Falha na atualização',
   },
 
   appStore: {

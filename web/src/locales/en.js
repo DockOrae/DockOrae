@@ -889,6 +889,13 @@ export default {
     started: 'Update started, the panel will restart shortly...',
     completed: 'Update complete, the panel is now up to date',
     timeout: 'Panel restart timed out, please refresh the page later',
+    phase_downloading: 'Downloading update package…',
+    phase_extracting: 'Extracting update package…',
+    phase_replacing: 'Replacing panel binary…',
+    phase_restarting: 'Restarting panel service…',
+    phase_pulling: 'Pulling update helper image…',
+    phase_helper: 'Starting update container…',
+    phase_failed: 'Update failed',
   },
 
   appStore: {

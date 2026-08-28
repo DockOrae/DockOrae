@@ -890,6 +890,13 @@ export default {
     started: '更新已开始,面板即将自动重启,请稍候...',
     completed: '更新完成,面板已升级到最新版本',
     timeout: '面板重启超时,请稍后手动刷新页面确认',
+    phase_downloading: '正在下载更新包…',
+    phase_extracting: '正在解压更新包…',
+    phase_replacing: '正在替换面板程序…',
+    phase_restarting: '正在重启面板服务…',
+    phase_pulling: '正在拉取更新辅助镜像…',
+    phase_helper: '正在启动更新容器…',
+    phase_failed: '更新失败',
   },
 
   appStore: {

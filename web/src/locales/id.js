@@ -891,6 +891,13 @@ export default {
     started: 'Pembaruan dimulai, panel akan segera dimulai ulang...',
     completed: 'Pembaruan selesai, panel sudah di versi terbaru',
     timeout: 'Waktu tunggu mulai ulang panel habis, muat ulang halaman nanti',
+    phase_downloading: 'Mengunduh paket pembaruan…',
+    phase_extracting: 'Mengekstrak paket pembaruan…',
+    phase_replacing: 'Mengganti program panel…',
+    phase_restarting: 'Memulai ulang layanan panel…',
+    phase_pulling: 'Menarik image bantuan…',
+    phase_helper: 'Memulai kontainer pembaruan…',
+    phase_failed: 'Pembaruan gagal',
   },
 
   appStore: {

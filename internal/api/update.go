@@ -16,7 +16,13 @@ func updateCheck(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// updateApply 一键更新,按部署模式分流(compose helper 容器代跑 / binary 原子替换)
+// updateStatus 更新进度(前端轮询:downloading → extracting → replacing → restarting / pulling → helper → done)
+func updateStatus(c *gin.Context, d *Deps) error {
+	c.JSON(200, service.GetUpdateStatus())
+	return nil
+}
+
+// updateApply 一键更新(异步启动,立即返回;进度经 /update/status 轮询)
 func updateApply(c *gin.Context, d *Deps) error {
 	if err := service.UpdateApply(d.St, c.Request.Context()); err != nil {
 		return err

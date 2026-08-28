@@ -891,6 +891,13 @@ export default {
     started: 'Đã bắt đầu cập nhật, bảng điều khiển sẽ sớm khởi động lại...',
     completed: 'Cập nhật hoàn tất, bảng điều khiển đã lên phiên bản mới nhất',
     timeout: 'Hết thời gian khởi động lại, vui lòng làm mới trang sau',
+    phase_downloading: 'Đang tải gói cập nhật…',
+    phase_extracting: 'Đang giải nén gói cập nhật…',
+    phase_replacing: 'Đang thay thế chương trình panel…',
+    phase_restarting: 'Đang khởi động lại dịch vụ panel…',
+    phase_pulling: 'Đang kéo ảnh trợ giúp…',
+    phase_helper: 'Đang khởi động container cập nhật…',
+    phase_failed: 'Cập nhật thất bại',
   },
 
   appStore: {

@@ -92,6 +92,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 
 	// ---------- 在线更新 ----------
 	p.GET("/update/check", H(updateCheck).Handler(deps))
+	p.GET("/update/status", H(updateStatus).Handler(deps))
 	p.POST("/update/apply", H(updateApply).Handler(deps))
 
 	p.GET("/ws/events", H(systemEventsWS).Handler(deps))

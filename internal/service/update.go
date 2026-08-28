@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -33,6 +34,70 @@ import (
 // 未注入(本地开发)时默认 dev。使用 Makefile 构建时自动注入。
 var AppVersion = "dev"
 
+// ---------- 更新状态(异步化 + 前端轮询) ----------
+
+// UpdatePhase 更新进行阶段(前端按 phase 显示进度文案)
+type UpdatePhase string
+
+const (
+	PhaseIdle        UpdatePhase = "idle"
+	PhaseDownloading UpdatePhase = "downloading" // binary:下载 release 包
+	PhaseExtracting  UpdatePhase = "extracting"  // binary:解压新二进制
+	PhaseReplacing   UpdatePhase = "replacing"   // binary:原子替换自身
+	PhaseRestarting  UpdatePhase = "restarting"  // binary:延迟重启服务
+	PhasePulling     UpdatePhase = "pulling"     // compose:拉取 helper 镜像
+	PhaseHelper      UpdatePhase = "helper"      // compose:启动 helper 容器
+	PhaseDone        UpdatePhase = "done"        // compose:helper 已接管
+	PhaseFailed      UpdatePhase = "failed"
+)
+
+// UpdateStatus 更新进度(binary/compose 通用;内存态,面板重启后自然消失——
+// 重启本身即更新成功的标志,前端在轮询失败后改查版本接口确认新版本上线)
+type UpdateStatus struct {
+	Running    bool        `json:"running"`
+	Phase      UpdatePhase `json:"phase"`
+	Error      string      `json:"error"`
+	StartedAt  time.Time   `json:"started_at"`
+	FinishedAt time.Time   `json:"finished_at"`
+}
+
+var (
+	updateStatusMu sync.Mutex
+	updateStatus   UpdateStatus
+)
+
+// setUpdatePhase 推进更新阶段
+func setUpdatePhase(p UpdatePhase) {
+	updateStatusMu.Lock()
+	defer updateStatusMu.Unlock()
+	updateStatus.Running = p != PhaseIdle && p != PhaseDone && p != PhaseFailed
+	updateStatus.Phase = p
+	updateStatus.Error = ""
+	if p == PhaseDone || p == PhaseFailed {
+		updateStatus.FinishedAt = time.Now()
+	}
+}
+
+// failUpdate 记录失败状态并返回 error(异步后错误不再经 HTTP 状态码回传)
+func failUpdate(format string, args ...any) error {
+	msg := fmt.Sprintf(format, args...)
+	updateStatusMu.Lock()
+	updateStatus.Running = false
+	updateStatus.Phase = PhaseFailed
+	updateStatus.Error = msg
+	updateStatus.FinishedAt = time.Now()
+	updateStatusMu.Unlock()
+	log.Printf("update: %s", msg)
+	return errors.New(msg)
+}
+
+// GetUpdateStatus 返回当前更新状态副本(供 /update/status 轮询)
+func GetUpdateStatus() UpdateStatus {
+	updateStatusMu.Lock()
+	defer updateStatusMu.Unlock()
+	return updateStatus
+}
+
 const (
 	updateGitHubURL  = "https://api.github.com/repos/MinimaxFlora/Docker_Manager_Go/releases/latest"
 	updateCheckTTL   = 10 * time.Minute
@@ -52,7 +117,6 @@ var (
 	updateMu        sync.Mutex
 	updateCheckedAt time.Time
 	updateCache     *model.UpdateInfo
-	applyMu         sync.Mutex
 )
 
 // CompareVersions 比较版本号("1.0.0" / "v1.0.1"):a<b → -1,a==b → 0,a>b → 1
@@ -143,16 +207,38 @@ func UpdateCheck(st *state.AppState, ctx context.Context) (*model.UpdateInfo, er
 	return info, nil
 }
 
-// UpdateApply 一键更新,按部署模式分流:
-//   - binary(systemd 直跑):下载 release 二进制资产 → 原子替换自身 → 延迟重启服务
-//   - compose(容器内):启动独立 docker/compose 容器代跑 pull + recreate
+// UpdateApply 一键更新(异步):立即返回,goroutine 后台执行,进度经 GetUpdateStatus 轮询。
+// 已在进行时返回 409;其余错误通过状态(PhaseFailed + Error)回传。
 func UpdateApply(st *state.AppState, ctx context.Context) error {
-	applyMu.Lock()
-	defer applyMu.Unlock()
-	if DeploymentMode() == "binary" {
-		return applyBinaryUpdate(ctx)
+	updateStatusMu.Lock()
+	if updateStatus.Running {
+		updateStatusMu.Unlock()
+		return NewApiError(409, "更新已在进行中,请稍候")
 	}
-	return applyComposeUpdate(st, ctx)
+	updateStatus = UpdateStatus{Running: true, Phase: PhaseDownloading, StartedAt: time.Now()}
+	updateStatusMu.Unlock()
+
+	go func() {
+		// 用独立 context:请求结束后 ctx 会被取消,后台任务不受影响
+		var err error
+		if DeploymentMode() == "binary" {
+			err = applyBinaryUpdate(context.Background())
+		} else {
+			err = applyComposeUpdate(st, context.Background())
+		}
+		if err != nil {
+			// 各阶段已通过 failUpdate 记录;兜底补记(防止漏网错误)
+			updateStatusMu.Lock()
+			if updateStatus.Phase != PhaseFailed {
+				updateStatus.Running = false
+				updateStatus.Phase = PhaseFailed
+				updateStatus.Error = err.Error()
+				updateStatus.FinishedAt = time.Now()
+			}
+			updateStatusMu.Unlock()
+		}
+	}()
+	return nil
 }
 
 // DeploymentMode 部署模式:DM_DEPLOY_MODE 环境变量可覆盖(演示/测试);
@@ -171,9 +257,10 @@ func DeploymentMode() string {
 func applyComposeUpdate(st *state.AppState, ctx context.Context) error {
 	dir, err := FindComposeDir(st)
 	if err != nil {
-		return NewApiError(400, err.Error())
+		return failUpdate("%s", err.Error())
 	}
 
+	setUpdatePhase(PhasePulling)
 	// 用独立 context(5 分钟):拉镜像/建容器不随请求断开而中断
 	opCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -181,7 +268,7 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context) error {
 	// 1. 拉取 compose 辅助镜像(读完进度流即等待拉取完成)
 	pullRes, err := docker.PullImage(st.Docker, opCtx, composeHelperImg, client.ImagePullOptions{})
 	if err != nil {
-		return NewApiError(502, "拉取更新辅助镜像失败: "+err.Error())
+		return failUpdate("拉取更新辅助镜像失败: %s", err.Error())
 	}
 	for range pullRes.JSONMessages(opCtx) {
 	}
@@ -190,6 +277,7 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context) error {
 	// 2. 清理上次更新遗留的 helper 容器(幂等)
 	_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
 
+	setUpdatePhase(PhaseHelper)
 	// 3. 创建并启动 helper:挂载 docker.sock + compose 文件目录(宿主路径由 daemon 解释)
 	_, err = docker.CreateContainer(st.Docker, opCtx, client.ContainerCreateOptions{
 		Config: &container.Config{
@@ -207,79 +295,87 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context) error {
 		Name: updateHelperName,
 	})
 	if err != nil {
-		return NewApiError(502, "创建更新容器失败: "+err.Error())
+		return failUpdate("创建更新容器失败: %s", err.Error())
 	}
 	if err := docker.StartContainer(st.Docker, opCtx, updateHelperName); err != nil {
-		return NewApiError(502, "启动更新容器失败: "+err.Error())
+		return failUpdate("启动更新容器失败: %s", err.Error())
 	}
+
+	// helper 已接管更新(它会 pull 新镜像并 recreate 面板容器),标记完成供前端转轮询版本接口
+	setUpdatePhase(PhaseDone)
 	return nil
 }
 
 // applyBinaryUpdate binary(systemd)部署:下载 GitHub Release 二进制资产,
 // 校验后原子替换自身(/proc/self/exe),1.5 秒后 systemctl restart 服务。
+// 阶段进度经 setUpdatePhase 上报,错误经 failUpdate 记录。
 func applyBinaryUpdate(ctx context.Context) error {
 	arch := runtime.GOARCH
 	if arch != "amd64" && arch != "arm64" {
-		return NewApiError(400, "不支持的架构: "+arch)
+		return failUpdate("不支持的架构: %s", arch)
 	}
 	pkg := fmt.Sprintf("docker-manager-go-linux-%s.tar.gz", arch)
 	url := "https://github.com/MinimaxFlora/Docker_Manager_Go/releases/latest/download/" + pkg
 
+	setUpdatePhase(PhaseDownloading)
 	// 1. 下载资产(120s 超时,避免挂死)
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
-		return NewApiError(502, "下载更新包失败: "+err.Error())
+		return failUpdate("下载更新包失败: %s", err.Error())
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return NewApiError(502, fmt.Sprintf("下载更新包失败: HTTP %d", resp.StatusCode))
+		return failUpdate("下载更新包失败: HTTP %d", resp.StatusCode)
 	}
 	tmpFile, err := os.CreateTemp("", "dm-update-*.tar.gz")
 	if err != nil {
-		return NewApiError(500, "创建临时文件失败: "+err.Error())
+		return failUpdate("创建临时文件失败: %s", err.Error())
 	}
 	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
-		return NewApiError(502, "下载中断: "+err.Error())
+		return failUpdate("下载中断: %s", err.Error())
 	}
 	tmpFile.Close()
 
 	// 2. 解压出新的可执行文件
+	setUpdatePhase(PhaseExtracting)
 	newBin, err := extractBinary(tmpFile.Name())
 	os.Remove(tmpFile.Name())
 	if err != nil {
-		return NewApiError(500, "解压更新包失败: "+err.Error())
+		return failUpdate("解压更新包失败: %s", err.Error())
 	}
 	defer os.Remove(newBin)
 
 	// 3. 定位当前二进制并原子替换(先备份,失败可回滚)
+	setUpdatePhase(PhaseReplacing)
 	exe, err := os.Readlink("/proc/self/exe")
 	if err != nil || exe == "" {
-		return NewApiError(500, "无法定位当前二进制(/proc/self/exe)")
+		return failUpdate("无法定位当前二进制(/proc/self/exe)")
 	}
 	// 新二进制先复制到目标同目录(/tmp 常为 tmpfs,跨文件系统 rename 会 EXDEV),再原子替换
 	staged := exe + ".new"
 	if err := copyFile(newBin, staged); err != nil {
-		return NewApiError(500, "暂存新二进制失败: "+err.Error())
+		return failUpdate("暂存新二进制失败: %s", err.Error())
 	}
 	defer os.Remove(staged)
 	if err := os.Chmod(staged, 0o755); err != nil {
-		return NewApiError(500, "设置权限失败: "+err.Error())
+		return failUpdate("设置权限失败: %s", err.Error())
 	}
 	_ = os.Remove(exe + ".old")
 	if err := os.Rename(exe, exe+".old"); err != nil {
-		return NewApiError(500, "备份旧二进制失败: "+err.Error())
+		return failUpdate("备份旧二进制失败: %s", err.Error())
 	}
 	if err := os.Rename(staged, exe); err != nil {
 		_ = os.Rename(exe+".old", exe) // 回滚
-		return NewApiError(500, "替换二进制失败: "+err.Error())
+		return failUpdate("替换二进制失败: %s", err.Error())
 	}
 	// 保留 exe.old 作为备份(下次更新覆盖):新二进制若无法启动,可手动恢复
 	log.Printf("update: 二进制已替换 %s (备份 %s.old),即将重启服务", exe, exe)
 
-	// 4. 延迟重启服务
+	// 4. 延迟重启服务(状态停在 restarting,进程退出后由前端轮询版本接口确认)
+	setUpdatePhase(PhaseRestarting)
 	go func() {
 		time.Sleep(1500 * time.Millisecond)
 		if err := exec.Command("systemctl", "restart", "docker-manager").Run(); err != nil {

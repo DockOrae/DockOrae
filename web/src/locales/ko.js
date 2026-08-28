@@ -891,6 +891,13 @@ export default {
     started: '업데이트가 시작되었습니다. 패널이 곧 재시작됩니다...',
     completed: '업데이트 완료, 패널이 최신 버전입니다',
     timeout: '패널 재시작 시간 초과, 나중에 페이지를 새로고침하세요',
+    phase_downloading: '업데이트 패키지 다운로드 중…',
+    phase_extracting: '업데이트 패키지 압축 해제 중…',
+    phase_replacing: '패널 프로그램 교체 중…',
+    phase_restarting: '패널 서비스 재시작 중…',
+    phase_pulling: '업데이트 헬퍼 이미지 가져오는 중…',
+    phase_helper: '업데이트 컨테이너 시작 중…',
+    phase_failed: '업데이트 실패',
   },
 
   appStore: {

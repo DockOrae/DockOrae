@@ -891,6 +891,13 @@ export default {
     started: 'Actualización iniciada, el panel se reiniciará en breve...',
     completed: 'Actualización completada, el panel está actualizado',
     timeout: 'Tiempo de espera de reinicio agotado, actualice la página más tarde',
+    phase_downloading: 'Descargando paquete de actualización…',
+    phase_extracting: 'Extrayendo paquete de actualización…',
+    phase_replacing: 'Reemplazando el programa del panel…',
+    phase_restarting: 'Reiniciando el servicio del panel…',
+    phase_pulling: 'Obteniendo imagen auxiliar de actualización…',
+    phase_helper: 'Iniciando contenedor de actualización…',
+    phase_failed: 'Error de actualización',
   },
 
   appStore: {
