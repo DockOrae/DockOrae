@@ -327,14 +327,16 @@ set_panel_https() {
       return 0
     fi
   fi
-  log_warn "API 设置失败(默认密码可能已被修改),请登录面板手动设置: 设置 → 常规 → 监听域名 / 证书路径"
+  log_warn "API 设置失败(默认密码可能已被修改,或容器无法安装 curl),请登录面板手动设置: 设置 → 常规 → 监听域名 / 证书路径"
   return 1
 }
 
-# compose 方式:docker exec 进容器,用 busybox wget 调本地面板 API
+# compose 方式:docker exec 进容器,用 curl 调本地面板 API
 # 注意:PUT /api/system/settings 是补丁合并语义(只更新传入字段),直接传三个字段即可。
 # 不要 GET→sed→PUT 全量:gin 返回紧凑 JSON(冒号后无空格),旧 sed 模式匹配不到会静默失败,
 # 导致证书路径永远写不进配置(面板一直 HTTP 模式,https 打不开)——本 bug 已修。
+# busybox wget 不支持 --method=PUT(曾导致容器版写入永远失败,SQLite 里证书路径不更新),
+# 因此统一先确保容器内有 curl 再发 PUT。
 # 安全入口(webBasePath)适配:面板设置了 /入口 时,不带前缀的 API 请求会 302,
 # 先探测 public-config 的重定向 Location 拼出带前缀的 base。
 set_panel_https_via_container() {
@@ -343,15 +345,15 @@ set_panel_https_via_container() {
   local ok
   ok=$(docker exec -i "$CONTAINER_NAME" sh <<EOF
 base=http://localhost:8080
-loc=\$(wget -qO- --server-response "\$base/api/system/public-config" 2>&1 | tr -d '\r' | grep -i '^Location:' | head -1 | awk '{print \$2}')
+command -v curl >/dev/null 2>&1 || apk add --no-cache curl >/dev/null 2>&1 || exit 9
+loc=\$(curl -sI "\$base/api/system/public-config" 2>/dev/null | tr -d '\r' | grep -i '^Location:' | head -1 | sed 's/^[Ll]ocation: //')
 case "\$loc" in
   http*) base="\${loc%/api/system/public-config}" ;;
   /*) base="http://localhost:8080\${loc%/api/system/public-config}" ;;
 esac
-token=\$(wget -qO- --post-data='{"username":"admin","password":"123456"}' --header='Content-Type: application/json' "\$base/api/login" 2>/dev/null | sed 's/.*"token":"\\([^\"]*\\)".*/\\1/')
+token=\$(curl -s -X POST "\$base/api/login" -H 'Content-Type: application/json' -d '{"username":"admin","password":"123456"}' | sed 's/.*"token":"\\([^\"]*\\)".*/\\1/')
 [ -z "\$token" ] && exit 1
-payload='{"webDomain":"$domain","webCertFile":"$cert","webKeyFile":"$key"}'
-wget -qO- --method=PUT --post-data="\$payload" --header='Content-Type: application/json' --header="Authorization: Bearer \$token" "\$base/api/system/settings" 2>/dev/null
+curl -s -X PUT "\$base/api/system/settings" -H 'Content-Type: application/json' -H "Authorization: Bearer \$token" -d '{"webDomain":"$domain","webCertFile":"$cert","webKeyFile":"$key"}'
 EOF
 )
   [[ "$ok" == *"needRestart"* ]]
