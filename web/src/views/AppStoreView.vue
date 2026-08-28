@@ -126,7 +126,7 @@ const installedCount = computed(() => apps.value.filter((a) => a.installed).leng
 
 const validParams = computed(() => {
   if (!detail.value) return false
-  return detail.value.params.every((p) => !p.required || (params[p.key] || '').trim())
+  return (detail.value.params || []).every((p) => !p.required || (params[p.key] || '').trim())
 })
 
 function prettyKey(k) {
@@ -143,10 +143,15 @@ async function load() {
   }
 }
 
-function openDetail(a) {
-  detail.value = a
+async function openDetail(a) {
   installErr.value = ''
-  for (const p of (a.params || [])) params[p.key] = p.default || ''
+  try {
+    const d = await api(`/apps/${a.key}`)
+    detail.value = { ...a, ...d }
+    for (const p of (d.params || [])) params[p.key] = p.default || ''
+  } catch (e) {
+    toastErr(e.message)
+  }
 }
 
 async function install() {
