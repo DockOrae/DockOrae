@@ -3,7 +3,6 @@ name: Docker Hub Publish
 on:
   push:
     branches: [master]
-    tags: ["v*"]
   workflow_dispatch:
 
 env:
@@ -11,12 +10,10 @@ env:
 
 jobs:
   build-push:
-    # 仅源码改动触发构建;tag(v*)与手动触发无条件构建。
-    # 注意:不能用 on.push.paths —— paths 对 tag push 也生效,会导致
-    # 打 tag 时(无源码改动)workflow 被过滤、镜像永远只有 latest。
+    # 仅源码改动触发构建(镜像推送);git tag 是二进制发布用的(release.yml),不参与镜像构建。
+    # 不用 on.push.paths —— 保持 if 判断源码改动即可;workflow_dispatch 无条件构建。
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.ref_type == 'tag' ||
       contains(join(github.event.commits.*.modified, ' ') || '', '.go') ||
       contains(join(github.event.commits.*.added, ' ') || '', '.go') ||
       contains(join(github.event.commits.*.modified, ' ') || '', 'web/') ||
@@ -27,6 +24,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Extract version (main.go Version)
+        id: ver
+        run: |
+          VER=$(grep -oE 'const Version = "[^"]+"' main.go | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+          case "$VER" in
+            v*) V="$VER" ;;
+            "") V="" ;;
+            *) V="v$VER" ;;
+          esac
+          echo "version=$V"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -48,16 +57,15 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6,linux/s390x
           tags: |
             ${{ env.IMAGE }}:latest
-            ${{ startsWith(github.ref, 'refs/tags/') && format('{0}:{1}', env.IMAGE, github.ref_name) || '' }}
+            ${{ steps.ver.outputs.version && format('{0}:{1}', env.IMAGE, steps.ver.outputs.version) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   update-description:
-    # 更新 Docker Hub 仓库说明(overview):源码/tag/说明文件改动均触发,
-    # 但说明文件改动只跑本 job,不触发镜像构建。
+    # 更新 Docker Hub 仓库说明(overview):源码/说明文件改动均触发;
+    # 说明文件改动只跑本 job,不触发镜像构建。
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.ref_type == 'tag' ||
       contains(join(github.event.commits.*.modified, ' ') || '', '.go') ||
       contains(join(github.event.commits.*.added, ' ') || '', '.go') ||
       contains(join(github.event.commits.*.modified, ' ') || '', 'web/') ||
