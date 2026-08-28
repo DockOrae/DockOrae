@@ -19,7 +19,7 @@ import (
 )
 
 // Version 面板版本(CI 通过 grep 本文件提取,勿改动格式)
-const Version = "1.0.1"
+const Version = "1.0.2"
 
 func main() {
 	cfg := config.Load()
