@@ -95,12 +95,42 @@ is_domain() {
 }
 
 # ---------- 域名解析校验(仿 3x-ui ssl_cert_issue:申请证书前必须先确认 A 记录指向本机) ----------
-# 获取本机公网 IP(多源回退;拿不到时返回非 0)
+# 校验 IPv4 是否为可路由的公网地址(排除内网/保留段,含 28.0.0.0/8 DoD 保留段等)
+is_public_ip() {
+  local ip="$1" a b c d
+  [[ "$ip" =~ ^[0-9]+\.([0-9]+\.){2}[0-9]+$ ]] || return 1
+  IFS='.' read -r a b c d <<< "$ip"
+  [ "$a" -le 255 ] && [ "$b" -le 255 ] && [ "$c" -le 255 ] && [ "$d" -le 255 ] || return 1
+  [ "$a" -eq 0 ] && return 1                 # 0.0.0.0/8
+  [ "$a" -eq 10 ] && return 1                # 内网 10/8
+  [ "$a" -eq 28 ] && return 1                # DoD 保留段(本次事故 IP 来源)
+  [ "$a" -eq 100 ] && [ "$b" -ge 64 ] && [ "$b" -le 127 ] && return 1  # CGNAT 100.64/10
+  [ "$a" -eq 127 ] && return 1               # loopback
+  [ "$a" -eq 169 ] && [ "$b" -eq 254 ] && return 1  # link-local
+  [ "$a" -eq 172 ] && [ "$b" -ge 16 ] && [ "$b" -le 31 ] && return 1   # 内网 172.16/12
+  [ "$a" -eq 192 ] && [ "$b" -eq 168 ] && return 1                     # 内网 192.168/16
+  [ "$a" -eq 198 ] && { [ "$b" -eq 18 ] || [ "$b" -eq 19 ]; } && return 1
+  [ "$a" -eq 203 ] && [ "$b" -eq 0 ] && [ "$c" -eq 113 ] && return 1
+  return 0
+}
+
+# 获取本机公网 IP:优先 DM_PUBLIC_IP 手动指定(VPS 控制台公网 IP 为准),
+# 否则多源查询并校验必须是公网地址;全部失败返回非 0。
 get_public_ip() {
+  if [ -n "$DM_PUBLIC_IP" ]; then
+    if is_public_ip "$DM_PUBLIC_IP"; then
+      echo "$DM_PUBLIC_IP"
+      return 0
+    fi
+    log_warn "DM_PUBLIC_IP=$DM_PUBLIC_IP 不是有效公网 IP,忽略"
+  fi
   local ip=""
   for src in "https://api.ipify.org" "https://ifconfig.me/ip" "https://ip.sb" "https://ipinfo.io/ip"; do
     ip=$(timeout 5 curl -s4 --connect-timeout 4 "$src" 2>/dev/null | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
-    [ -n "$ip" ] && { echo "$ip"; return 0; }
+    if [ -n "$ip" ] && is_public_ip "$ip"; then
+      echo "$ip"
+      return 0
+    fi
   done
   return 1
 }
@@ -119,11 +149,20 @@ check_domain_dns() {
   local domain="$1"
   log_step "校验域名解析(仿 3x-ui:必须指向本机公网 IP)..."
   local pub_ip dns_ip
-  pub_ip=$(get_public_ip) || { log_warn "无法获取本机公网 IP,跳过解析校验(acme.sh 申请时会再次验证)"; return 0; }
+  pub_ip=$(get_public_ip) || {
+    log_error "无法获取本机公网 IP(外部查询服务不可达或返回非公网地址)"
+    log_error "请在 VPS 控制台查看公网 IP,然后手动指定重试: DM_PUBLIC_IP=<公网IP> bash install.sh ssl"
+    return 1
+  }
   dns_ip=$(resolve_domain_ip "$domain")
   if [ -z "$dns_ip" ]; then
     log_error "无法解析域名 $domain 的 A 记录"
     log_error "请到 DNS 服务商(如 Cloudflare)添加 A 记录: $domain → $pub_ip"
+    return 1
+  fi
+  if ! is_public_ip "$dns_ip"; then
+    log_error "域名 ${domain} 解析到非公网地址 ${dns_ip}(内网/保留段),请检查 DNS 记录值是否正确"
+    log_error "正确值应为本机公网 IP: ${pub_ip}"
     return 1
   fi
   if [ "$dns_ip" != "$pub_ip" ]; then

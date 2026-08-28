@@ -535,6 +535,8 @@ export default {
     webListen: 'IP listen panel',
     webListenDesc: 'Kosongkan untuk mendengarkan di semua alamat IP',
     webListenPh: 'kosong = semua IP',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'Domain listen panel',
     webDomainDesc: 'Kosongkan untuk memantau semua domain dan alamat IP',
     webDomainPh: 'kosong = semua domain',

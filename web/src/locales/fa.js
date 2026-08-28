@@ -535,6 +535,8 @@ export default {
     webListen: 'IP شنود پنل',
     webListenDesc: 'برای شنود روی همه آدرس‌های IP خالی بگذارید',
     webListenPh: 'خالی = همه IPها',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'دامنه شنود پنل',
     webDomainDesc: 'برای پایش همه دامنه‌ها و آدرس‌های IP خالی بگذارید',
     webDomainPh: 'خالی = همه دامنه‌ها',

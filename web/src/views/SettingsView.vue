@@ -55,13 +55,6 @@
           </div>
           <div class="setting-row">
             <div class="sr-info">
-              <div class="sr-label">{{ t('settings.webDomain') }}</div>
-              <div class="sr-desc">{{ t('settings.webDomainDesc') }}</div>
-            </div>
-            <input v-model="form.webDomain" class="input sr-input" :placeholder="t('settings.webDomainPh')" />
-          </div>
-          <div class="setting-row">
-            <div class="sr-info">
               <div class="sr-label">{{ t('settings.webPort') }}</div>
               <div class="sr-desc">{{ t('settings.webPortDesc') }}</div>
             </div>
@@ -114,6 +107,22 @@
         <!-- 证书 -->
         <div v-if="active === 'cert'" class="card p-5">
           <p class="text-[12px] text-muted mb-4">{{ t('settings.certDesc') }}</p>
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.webForceSSL') }}</div>
+              <div class="sr-desc">{{ t('settings.webForceSSLDesc') }}</div>
+            </div>
+            <button type="button" class="switch" :class="{ on: form.webForceSSL }" @click="form.webForceSSL = !form.webForceSSL">
+              <span class="switch-knob" />
+            </button>
+          </div>
+          <div class="setting-row">
+            <div class="sr-info">
+              <div class="sr-label">{{ t('settings.webDomain') }}</div>
+              <div class="sr-desc">{{ t('settings.webDomainDesc') }}</div>
+            </div>
+            <input v-model="form.webDomain" class="input sr-input" :placeholder="t('settings.webDomainPh')" />
+          </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webCertFile') }}</div>
@@ -884,7 +893,7 @@ function toCrontab() {
 // ---------- 面板设置 ----------
 const form = reactive({
   webListen: '', webDomain: '', webPort: 8080, webBasePath: '/', sessionMaxAge: 10080,
-  webCertFile: '', webKeyFile: '', timeZone: 'Asia/Shanghai', datePickerType: 'gregorian', ntpServer: 'pool.ntp.org',
+  webCertFile: '', webKeyFile: '', webForceSSL: false, timeZone: 'Asia/Shanghai', datePickerType: 'gregorian', ntpServer: 'pool.ntp.org',
   tgEnable: false, tgBotToken: '', tgAdminChatId: '', tgRunTime: '', tgBotBackup: false,
   tgLang: '', tgBotAPIServer: '',
   emailEnable: false, smtpHost: '', smtpPort: 25, smtpUser: '', smtpPass: '', smtpFrom: '',
@@ -912,6 +921,7 @@ async function loadPanelSettings() {
       sessionMaxAge: s.sessionMaxAge || 10080,
       webCertFile: s.webCertFile || '',
       webKeyFile: s.webKeyFile || '',
+      webForceSSL: !!s.webForceSSL,
       timeZone: s.timeZone || 'Asia/Shanghai',
       datePickerType: s.datePickerType || 'gregorian',
       ntpServer: s.ntpServer || 'pool.ntp.org',
@@ -955,6 +965,7 @@ async function savePanel() {
     ipLimitAllowlist: allowlistText.value.split(',').map((s) => s.trim()).filter(Boolean),
     webCertFile: form.webCertFile.trim(),
     webKeyFile: form.webKeyFile.trim(),
+    webForceSSL: form.webForceSSL,
     timeZone: form.timeZone.trim() || 'Asia/Shanghai',
     datePickerType: form.datePickerType.trim() || 'gregorian',
     ntpServer: form.ntpServer.trim() || 'pool.ntp.org',

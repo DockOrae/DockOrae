@@ -535,6 +535,8 @@ export default {
     webListen: '패널 수신 IP',
     webListenDesc: '비워두면 모든 IP 주소에서 수신합니다',
     webListenPh: '비움 = 모든 IP',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: '패널 수신 도메인',
     webDomainDesc: '비워두면 모든 도메인과 IP 주소를 모니터링합니다',
     webDomainPh: '비움 = 모든 도메인',

@@ -535,6 +535,8 @@ export default {
     webListen: 'IP استماع اللوحة',
     webListenDesc: 'اتركه فارغًا للاستماع على جميع عناوين IP',
     webListenPh: 'فارغ = جميع عناوين IP',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'نطاق استماع اللوحة',
     webDomainDesc: 'اتركه فارغًا لمراقبة جميع النطاقات وعناوين IP',
     webDomainPh: 'فارغ = جميع النطاقات',

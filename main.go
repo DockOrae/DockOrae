@@ -53,7 +53,11 @@ func main() {
 		var serveErr error
 		if s.WebCertFile != "" && s.WebKeyFile != "" {
 			if _, err := tls.LoadX509KeyPair(s.WebCertFile, s.WebKeyFile); err != nil {
-				// 证书加载失败:降级 HTTP 监听而不是崩溃退出(否则容器 restart 循环,面板彻底失联)。
+				if s.WebForceSSL {
+					// 强制 HTTPS:证书无效直接退出,绝不降级 HTTP(勾选后仅允许 HTTPS 访问)
+					log.Fatalf("强制 HTTPS 已开启但证书加载失败: %v", err)
+				}
+				// 未开启强制 HTTPS:降级 HTTP 监听而不是崩溃退出(否则容器 restart 循环,面板彻底失联)。
 				// 日志会明确提示,用户可进面板修正证书路径后重启生效。
 				log.Printf("TLS 证书加载失败,已降级为 HTTP 监听: %v", err)
 				serveErr = srv.ListenAndServe()
@@ -61,6 +65,8 @@ func main() {
 				log.Printf("TLS enabled: %s / %s", s.WebCertFile, s.WebKeyFile)
 				serveErr = srv.ListenAndServeTLS(s.WebCertFile, s.WebKeyFile)
 			}
+		} else if s.WebForceSSL {
+			log.Fatalf("强制 HTTPS 已开启但未配置证书路径(webCertFile/webKeyFile)")
 		} else {
 			serveErr = srv.ListenAndServe()
 		}

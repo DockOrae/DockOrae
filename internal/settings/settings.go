@@ -23,6 +23,7 @@ type Settings struct {
 	// 证书
 	WebCertFile string `json:"webCertFile"` // 面板证书公钥文件路径
 	WebKeyFile  string `json:"webKeyFile"`  // 面板证书密钥文件路径
+	WebForceSSL bool   `json:"webForceSSL"` // 强制 HTTPS:勾选后仅允许 HTTPS 访问(证书无效则拒绝启动,不降级 HTTP)
 	// 日期和时间
 	TimeZone       string `json:"timeZone"`       // 时区
 	DatePickerType string `json:"datePickerType"` // 日期选择器日历类型

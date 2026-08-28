@@ -535,6 +535,8 @@ export default {
     webListen: 'IP lắng nghe của bảng điều khiển',
     webListenDesc: 'Để trống để lắng nghe trên tất cả địa chỉ IP',
     webListenPh: 'trống = tất cả IP',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'Tên miền lắng nghe của bảng điều khiển',
     webDomainDesc: 'Để trống để theo dõi tất cả tên miền và địa chỉ IP',
     webDomainPh: 'trống = tất cả tên miền',

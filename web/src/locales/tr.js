@@ -535,6 +535,8 @@ export default {
     webListen: 'Panel dinleme IP',
     webListenDesc: 'Tüm IP adreslerini dinlemek için boş bırakın',
     webListenPh: 'boş = tüm IP adresleri',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'Panel dinleme alan adı',
     webDomainDesc: 'Tüm alan adlarını ve IP adreslerini izlemek için boş bırakın',
     webDomainPh: 'boş = tüm alan adları',

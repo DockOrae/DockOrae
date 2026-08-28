@@ -535,6 +535,8 @@ export default {
     webListen: 'パネル待受 IP',
     webListenDesc: '空の場合はすべての IP アドレスで待ち受けます',
     webListenPh: '空 = すべての IP',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'パネル待受ドメイン',
     webDomainDesc: '空の場合はすべてのドメインと IP アドレスを監視します',
     webDomainPh: '空 = すべてのドメイン',

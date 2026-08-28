@@ -535,6 +535,8 @@ export default {
     webListen: 'IP прослушивания панели',
     webListenDesc: 'Оставьте пустым, чтобы прослушивать все IP-адреса',
     webListenPh: 'пусто = все IP',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'Домен прослушивания панели',
     webDomainDesc: 'Оставьте пустым, чтобы отслеживать все домены и IP-адреса',
     webDomainPh: 'пусто = все домены',

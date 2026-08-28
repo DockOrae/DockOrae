@@ -535,6 +535,8 @@ export default {
     webListen: 'IP de escuta do painel',
     webListenDesc: 'Deixe vazio para escutar em todos os endereços IP',
     webListenPh: 'vazio = todos os IPs',
+    webForceSSL: 'Force HTTPS (SSL only)',
+    webForceSSLDesc: 'When enabled, the panel accepts HTTPS connections only. If the certificate fails to load, the panel will refuse to start instead of falling back to HTTP.',
     webDomain: 'Domínio de escuta do painel',
     webDomainDesc: 'Deixe vazio para monitorar todos os domínios e endereços IP',
     webDomainPh: 'vazio = todos os domínios',
