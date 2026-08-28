@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/db"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/docker"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/notify"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
 )
@@ -113,7 +113,7 @@ type AppState struct {
 
 // New 创建 AppState:惰性连接(仅请求时真正访问 Docker),无 Docker 也能启动面板
 func New(cfg *config.Config) (*AppState, error) {
-	docker, err := newDockerClient()
+	dockerClient, err := docker.NewClient()
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func New(cfg *config.Config) (*AppState, error) {
 	_ = os.MkdirAll(avatarDir, 0o755)
 
 	as := &AppState{
-		Docker:     docker,
+		Docker:     dockerClient,
 		Cfg:        cfg,
 		Settings:   st,
 		DB:         database,
@@ -149,17 +149,6 @@ func New(cfg *config.Config) (*AppState, error) {
 	as.SpawnEventWatcher()
 	notify.StartReporter(as.Settings, cfg.DataDir)
 	return as, nil
-}
-
-func newDockerClient() (*client.Client, error) {
-	if host := os.Getenv("DOCKER_HOST"); host != "" {
-		return client.NewClientWithOpts(client.WithHost(host))
-	}
-	if runtime.GOOS == "windows" {
-		// Windows 本地开发默认 TCP,无 Docker 也能启动面板
-		return client.NewClientWithOpts(client.WithHost("tcp://127.0.0.1:2375"))
-	}
-	return client.NewClientWithOpts()
 }
 
 // initUsers 从 SQLite 加载用户;库为空时迁移旧 users.json,再没有则创建默认 admin

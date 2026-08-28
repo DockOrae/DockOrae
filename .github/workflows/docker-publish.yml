@@ -28,7 +28,7 @@ jobs:
       - name: Extract version (main.go Version)
         id: ver
         run: |
-          VER=$(grep -oE 'const Version = "[^"]+"' main.go | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+          VER=$(grep -oE 'const Version = "[^"]+"' cmd/docker-manager/main.go | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
           case "$VER" in
             v*) V="$VER" ;;
             "") V="" ;;

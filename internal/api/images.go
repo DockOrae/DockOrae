@@ -3,76 +3,50 @@ package api
 import (
 	"bufio"
 	"encoding/json"
-	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/client"
 
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
 func imagesList(c *gin.Context, st *state.AppState) error {
-	res, err := st.Docker.ImageList(c.Request.Context(), client.ImageListOptions{})
+	items, err := service.ImagesList(st, c.Request.Context())
 	if err != nil {
-		return dockerError(err)
-	}
-	// 精简:列表只返回前端用到的字段(Id/RepoTags/Size/Created),全量含 Labels/RepoDigests 等大字段
-	items := make([]imageListItem, 0, len(res.Items))
-	for _, it := range res.Items {
-		items = append(items, imageListItem{ID: it.ID, RepoTags: it.RepoTags, Size: it.Size, Created: it.Created})
+		return err
 	}
 	c.JSON(200, items)
 	return nil
 }
 
-type imageListItem struct {
-	ID       string   `json:"Id"`
-	RepoTags []string `json:"RepoTags"`
-	Size     int64    `json:"Size"`
-	Created  int64    `json:"Created"`
-}
-
 func imagesInspect(c *gin.Context, st *state.AppState) error {
-	res, err := st.Docker.ImageInspect(c.Request.Context(), c.Param("id"))
+	insp, err := service.ImageInspect(st, c.Request.Context(), c.Param("id"))
 	if err != nil {
-		return dockerError(err)
+		return err
 	}
-	c.JSON(200, res)
+	c.JSON(200, insp)
 	return nil
-}
-
-type pullReq struct {
-	FromImage string  `json:"from_image"`
-	Tag       *string `json:"tag"`
 }
 
 // imagesPull 拉取镜像:响应为 application/x-ndjson 流(逐行进度 JSON)
 func imagesPull(c *gin.Context, st *state.AppState) error {
-	var req pullReq
+	var req model.PullImageReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		return BadRequest("err.requestFailed")
+		return service.BadRequest("err.requestFailed")
 	}
 	if req.FromImage == "" {
-		return BadRequest("image.nameEmpty")
+		return service.BadRequest("image.nameEmpty")
 	}
-	ref := req.FromImage
 	tag := "latest"
 	if req.Tag != nil && *req.Tag != "" {
 		tag = *req.Tag
 	}
-	// 镜像名已带 tag 时不再拼接(等价旧版 fromImage+tag 分离传参)
-	lastSlash := strings.LastIndex(ref, "/")
-	namePart := ref
-	if lastSlash >= 0 {
-		namePart = ref[lastSlash+1:]
-	}
-	if !strings.Contains(namePart, ":") {
-		ref = ref + ":" + tag
-	}
+	ref := service.ImagePullRef(req.FromImage, tag)
 
-	pullRes, err := st.Docker.ImagePull(c.Request.Context(), ref, client.ImagePullOptions{})
+	pullRes, err := service.ImagePull(st, c.Request.Context(), ref)
 	if err != nil {
-		return dockerError(err)
+		return err
 	}
 	defer pullRes.Close()
 
@@ -101,43 +75,33 @@ func imagesPull(c *gin.Context, st *state.AppState) error {
 }
 
 func imagesRemove(c *gin.Context, st *state.AppState) error {
-	res, err := st.Docker.ImageRemove(c.Request.Context(), c.Param("id"), client.ImageRemoveOptions{
-		Force:         parseBool(c.Query("force"), false),
-		PruneChildren: false,
-	})
-	if err != nil {
-		return dockerError(err)
-	}
-	c.JSON(200, res.Items)
-	return nil
-}
-
-type tagReq struct {
-	Repo string `json:"repo"`
-	Tag  string `json:"tag"`
-}
-
-func imagesTag(c *gin.Context, st *state.AppState) error {
-	var req tagReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		return BadRequest("err.requestFailed")
-	}
-	_, err := st.Docker.ImageTag(c.Request.Context(), client.ImageTagOptions{
-		Source: c.Param("id"),
-		Target: req.Repo + ":" + req.Tag,
-	})
-	if err != nil {
-		return dockerError(err)
+	if err := service.ImageRemove(st, c.Request.Context(), c.Param("id"), parseBool(c.Query("force"), false)); err != nil {
+		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
 func imagesPrune(c *gin.Context, st *state.AppState) error {
-	res, err := st.Docker.ImagePrune(c.Request.Context(), client.ImagePruneOptions{})
+	report, err := service.ImagesPrune(st, c.Request.Context())
 	if err != nil {
-		return dockerError(err)
+		return err
 	}
-	c.JSON(200, res.Report)
+	c.JSON(200, report)
+	return nil
+}
+
+func imagesTag(c *gin.Context, st *state.AppState) error {
+	var req struct {
+		Repo string `json:"repo"`
+		Tag  string `json:"tag"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return service.BadRequest("err.requestFailed")
+	}
+	if err := service.ImageTag(st, c.Request.Context(), c.Param("id"), req.Repo, req.Tag); err != nil {
+		return err
+	}
+	c.JSON(200, gin.H{"ok": true})
 	return nil
 }

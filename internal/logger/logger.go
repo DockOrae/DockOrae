@@ -1,13 +1,11 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"sync"
 	"time"
 )
-
 // Ring 内存环形日志缓冲(面板日志弹窗数据源)
 type Ring struct {
 	mu   sync.Mutex
@@ -50,6 +48,9 @@ func (r *Ring) Lines(n int) []string {
 	return out
 }
 
+// LogRing 面板日志环形缓冲(日志弹窗数据源;供 cmd/main.go 与 service 引用)
+var LogRing = NewRing(2000)
+
 // MultiWriter 同时写 stdout 和环形缓冲
 type MultiWriter struct {
 	ring *Ring
@@ -65,4 +66,3 @@ func (m *MultiWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-var _ = fmt.Sprintf

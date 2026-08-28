@@ -43,7 +43,7 @@ jobs:
           # ver = 当前仓库最新 Release 的 tag;tag = 代码(main.go Version)中的版本号
           ver=$(curl -s https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
           [ "$ver" = "null" ] && ver="none"
-          tag="v$(grep 'const Version' main.go | grep -o '"[0-9.]*"' | tr -d '"')"
+          tag="v$(grep 'const Version' cmd/docker-manager/main.go | grep -o '"[0-9.]*"' | tr -d '"')"
           echo "代码版本号: ${tag}"
           echo "当前仓库最新 Release: ${ver}"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"

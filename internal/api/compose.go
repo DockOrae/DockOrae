@@ -7,155 +7,14 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/moby/moby/client"
 
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
-
-func composeBin() string {
-	if b := os.Getenv("COMPOSE_BIN"); b != "" {
-		return b
-	}
-	return "docker-compose"
-}
-
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
-		}
-	}
-}
-
-func validateProject(p string) (string, *ApiError) {
-	if p == "" || len(p) > 64 {
-		return "", BadRequest("compose.nameInvalid")
-	}
-	for _, r := range p {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
-			continue
-		}
-		return "", BadRequest("compose.nameInvalid")
-	}
-	return p, nil
-}
-
-func projectDir(st *state.AppState, project string) string {
-	return filepath.Join(st.ComposeDir, project)
-}
-
-func composeFile(st *state.AppState, project string) string {
-	return filepath.Join(projectDir(st, project), "docker-compose.yml")
-}
-
-func composeArgs(st *state.AppState, project string, args ...string) *exec.Cmd {
-	cmd := exec.Command(composeBin(), append([]string{"-p", project, "-f", composeFile(st, project)}, args...)...)
-	return cmd
-}
-
-// runCompose 同步执行 compose 命令,返回 {ok, output}
-func runCompose(st *state.AppState, project string, args ...string) (map[string]any, error) {
-	cmd := composeArgs(st, project, args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		msg := strings.TrimSpace(string(out))
-		if msg == "" {
-			msg = err.Error()
-		}
-		return nil, NewApiError(502, msg)
-	}
-	output := strings.TrimSpace(string(out))
-	return gin.H{"ok": true, "output": output}, nil
-}
-
-// ---------------- 列表 / 详情 ----------------
-
-func composeList(c *gin.Context, st *state.AppState) error {
-	filters := make(client.Filters)
-	filters.Add("label", "com.docker.compose.project")
-	res, err := st.Docker.ContainerList(c.Request.Context(), client.ContainerListOptions{
-		All:     true,
-		Filters: filters,
-	})
-	if err != nil {
-		return dockerError(err)
-	}
-	projects := map[string][2]int{} // name -> [total, running]
-	for _, ctr := range res.Items {
-		name := ctr.Labels["com.docker.compose.project"]
-		if name == "" {
-			continue
-		}
-		entry := projects[name]
-		entry[0]++
-		if string(ctr.State) == "running" {
-			entry[1]++
-		}
-		projects[name] = entry
-	}
-	names := make([]string, 0, len(projects))
-	for name := range projects {
-		names = append(names, name)
-	}
-	sortStrings(names)
-
-	out := make([]gin.H, 0, len(names))
-	for _, name := range names {
-		total, running := projects[name][0], projects[name][1]
-		status := "stopped"
-		if running == total {
-			status = "running"
-		} else if running > 0 {
-			status = "partial"
-		}
-		_, hasFile := os.Stat(composeFile(st, name))
-		out = append(out, gin.H{
-			"project":  name,
-			"services": total,
-			"running":  running,
-			"status":   status,
-			"managed":  hasFile == nil,
-		})
-	}
-	c.JSON(200, out)
-	return nil
-}
-
-func composeInspect(c *gin.Context, st *state.AppState) error {
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		return ae
-	}
-	filters := make(client.Filters)
-	filters.Add("label", "com.docker.compose.project="+project)
-	res, err := st.Docker.ContainerList(c.Request.Context(), client.ContainerListOptions{
-		All:     true,
-		Filters: filters,
-	})
-	if err != nil {
-		return dockerError(err)
-	}
-	var yaml *string
-	if raw, err := os.ReadFile(composeFile(st, project)); err == nil {
-		s := string(raw)
-		yaml = &s
-	}
-	c.JSON(200, gin.H{"project": project, "containers": toContainerItems(res.Items), "yaml": yaml})
-	return nil
-}
-
-// ---------------- 部署 (NDJSON 流式输出) ----------------
-
-type upReq struct {
-	Project string `json:"project"`
-	Yaml    string `json:"yaml"`
-}
 
 func ndjsonLine(line string) string {
 	b, _ := json.Marshal(line)
@@ -165,7 +24,12 @@ func ndjsonLine(line string) string {
 // runComposeStream 以 NDJSON 流式执行 docker-compose 命令:每行输出一条
 // {"type":"line","data":...},结束时发送 {"type":"done","ok":bool,"error":?}
 func runComposeStream(c *gin.Context, st *state.AppState, project string, args ...string) error {
-	cmd := composeArgs(st, project, args...)
+	if _, err := exec.LookPath(service.ComposeBin()); err != nil {
+		_, _ = io.WriteString(c.Writer, `{"type":"done","ok":false,"error":"compose.binaryMissing"}`+"\n")
+		return nil
+	}
+
+	cmd := service.ComposeCommand(st, project, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -232,55 +96,72 @@ func scanLines(r io.Reader, ch chan<- string) {
 	close(ch)
 }
 
-func composeUp(c *gin.Context, st *state.AppState) error {
-	// 许可证限制:未激活时禁止部署 Compose(1Panel 商业版功能锁定)
-	if !licenseActive(st) {
-		return NewApiError(403, "license.required")
-	}
-	var req upReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		return BadRequest("err.requestFailed")
-	}
-	project, ae := validateProject(req.Project)
-	if ae != nil {
-		return ae
-	}
-	dir := projectDir(st, project)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+func composeList(c *gin.Context, st *state.AppState) error {
+	items, err := service.ComposeList(st, c.Request.Context())
+	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(composeFile(st, project), []byte(req.Yaml), 0o644); err != nil {
+	c.JSON(200, items)
+	return nil
+}
+
+func composeInspect(c *gin.Context, st *state.AppState) error {
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
+	}
+	insp, err := service.ComposeInspect(st, c.Request.Context(), project)
+	if err != nil {
+		return err
+	}
+	c.JSON(200, insp)
+	return nil
+}
+
+func composeUp(c *gin.Context, st *state.AppState) error {
+	var req struct {
+		Project string `json:"project"`
+		Yaml    string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return service.BadRequest("err.requestFailed")
+	}
+	project, err := service.ValidateProject(req.Project)
+	if err != nil {
+		return err
+	}
+	if err := service.ComposeSaveYaml(st, project, req.Yaml); err != nil {
 		return err
 	}
 	return runComposeStream(c, st, project, "up", "-d", "--remove-orphans")
 }
 
 func composeUpdate(c *gin.Context, st *state.AppState) error {
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		return ae
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
 	}
-	if _, err := os.Stat(composeFile(st, project)); err != nil {
-		return NewApiError(404, "compose.notManaged")
+	if _, err := os.Stat(service.ComposeFile(st, project)); err != nil {
+		return service.NewApiError(404, "compose.notManaged")
 	}
-	var req upReq
+	var req struct {
+		Yaml string `json:"yaml"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		return BadRequest("err.requestFailed")
+		return service.BadRequest("err.requestFailed")
 	}
-	if err := os.WriteFile(composeFile(st, project), []byte(req.Yaml), 0o644); err != nil {
+	if err := service.ComposeSaveYaml(st, project, req.Yaml); err != nil {
 		return err
 	}
 	return runComposeStream(c, st, project, "up", "-d", "--remove-orphans")
 }
 
-// ---------------- 栈操作 ----------------
-
 func composeStart(c *gin.Context, st *state.AppState) error {
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		return ae
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
 	}
-	res, err := runCompose(st, project, "start")
+	res, err := service.RunCompose(st, project, "start")
 	if err != nil {
 		return err
 	}
@@ -289,11 +170,11 @@ func composeStart(c *gin.Context, st *state.AppState) error {
 }
 
 func composeStop(c *gin.Context, st *state.AppState) error {
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		return ae
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
 	}
-	res, err := runCompose(st, project, "stop")
+	res, err := service.RunCompose(st, project, "stop")
 	if err != nil {
 		return err
 	}
@@ -302,11 +183,11 @@ func composeStop(c *gin.Context, st *state.AppState) error {
 }
 
 func composeRestart(c *gin.Context, st *state.AppState) error {
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		return ae
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
 	}
-	res, err := runCompose(st, project, "restart")
+	res, err := service.RunCompose(st, project, "restart")
 	if err != nil {
 		return err
 	}
@@ -315,15 +196,15 @@ func composeRestart(c *gin.Context, st *state.AppState) error {
 }
 
 func composeDown(c *gin.Context, st *state.AppState) error {
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		return ae
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
 	}
 	args := []string{"down"}
 	if parseBool(c.Query("volumes"), false) {
 		args = append(args, "-v")
 	}
-	res, err := runCompose(st, project, args...)
+	res, err := service.RunCompose(st, project, args...)
 	if err != nil {
 		return err
 	}
@@ -332,31 +213,31 @@ func composeDown(c *gin.Context, st *state.AppState) error {
 }
 
 func composeRemove(c *gin.Context, st *state.AppState) error {
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		return ae
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
 	}
-	_, _ = runCompose(st, project, "down")
-	_ = os.RemoveAll(projectDir(st, project))
+	if err := service.ComposeRemove(st, project); err != nil {
+		return err
+	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
-// ---------------- 日志 (WebSocket 实时) ----------------
-
+// composeLogsWS 日志流(WebSocket 实时)
 func composeLogsWS(c *gin.Context, st *state.AppState) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-	project, ae := validateProject(c.Param("project"))
-	if ae != nil {
-		_ = conn.WriteMessage(websocket.TextMessage, []byte(ae.Message))
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
 		_ = conn.WriteMessage(websocket.CloseMessage, nil)
 		return nil
 	}
-	if _, err := os.Stat(composeFile(st, project)); err != nil {
+	if _, err := os.Stat(service.ComposeFile(st, project)); err != nil {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("compose.notManaged"))
 		_ = conn.WriteMessage(websocket.CloseMessage, nil)
 		return nil
@@ -367,7 +248,7 @@ func composeLogsWS(c *gin.Context, st *state.AppState) error {
 			tail = t
 		}
 	}
-	cmd := composeArgs(st, project, "logs", "-f", "--tail", tail)
+	cmd := service.ComposeCommand(st, project, "logs", "-f", "--tail", tail)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err

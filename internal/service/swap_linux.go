@@ -1,6 +1,6 @@
 //go:build linux
 
-package api
+package service
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// readSwap 交换空间 (total, used) bytes,来源 /proc/meminfo
-func readSwap() (total, used uint64, ok bool) {
+// ReadSwap 交换空间 (total, used) bytes,来源 /proc/meminfo
+func ReadSwap() (total, used uint64, ok bool) {
 	data, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
 		return 0, 0, false

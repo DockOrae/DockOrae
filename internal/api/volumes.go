@@ -2,73 +2,56 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/moby/moby/client"
 
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
 func volumesList(c *gin.Context, st *state.AppState) error {
-	res, err := st.Docker.VolumeList(c.Request.Context(), client.VolumeListOptions{})
+	items, err := service.VolumesList(st, c.Request.Context())
 	if err != nil {
-		return dockerError(err)
+		return err
 	}
-	c.JSON(200, res.Items)
+	c.JSON(200, items)
 	return nil
 }
 
 func volumesInspect(c *gin.Context, st *state.AppState) error {
-	res, err := st.Docker.VolumeInspect(c.Request.Context(), c.Param("name"), client.VolumeInspectOptions{})
+	raw, err := service.VolumeRaw(st, c.Request.Context(), c.Param("name"))
 	if err != nil {
-		return dockerError(err)
+		return err
 	}
-	c.Data(200, "application/json", res.Raw)
+	c.Data(200, "application/json", raw)
 	return nil
 }
 
-type createVolReq struct {
-	Name   string  `json:"name"`
-	Driver *string `json:"driver"`
-}
-
 func volumesCreate(c *gin.Context, st *state.AppState) error {
-	var req createVolReq
+	var req model.CreateVolumeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		return BadRequest("err.requestFailed")
+		return service.BadRequest("err.requestFailed")
 	}
-	if req.Name == "" {
-		return BadRequest("volume.nameEmpty")
-	}
-	driver := "local"
-	if req.Driver != nil && *req.Driver != "" {
-		driver = *req.Driver
-	}
-	res, err := st.Docker.VolumeCreate(c.Request.Context(), client.VolumeCreateOptions{
-		Name:   req.Name,
-		Driver: driver,
-	})
+	vol, err := service.VolumeCreate(st, c.Request.Context(), req)
 	if err != nil {
-		return dockerError(err)
+		return err
 	}
-	c.JSON(200, res.Volume)
+	c.JSON(200, vol)
 	return nil
 }
 
 func volumesRemove(c *gin.Context, st *state.AppState) error {
-	_, err := st.Docker.VolumeRemove(c.Request.Context(), c.Param("name"), client.VolumeRemoveOptions{
-		Force: parseBool(c.Query("force"), false),
-	})
-	if err != nil {
-		return dockerError(err)
+	if err := service.VolumeRemove(st, c.Request.Context(), c.Param("name"), parseBool(c.Query("force"), false)); err != nil {
+		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
 
 func volumesPrune(c *gin.Context, st *state.AppState) error {
-	res, err := st.Docker.VolumePrune(c.Request.Context(), client.VolumePruneOptions{})
+	report, err := service.VolumesPrune(st, c.Request.Context())
 	if err != nil {
-		return dockerError(err)
+		return err
 	}
-	c.JSON(200, res.Report)
+	c.JSON(200, report)
 	return nil
 }

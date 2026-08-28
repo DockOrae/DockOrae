@@ -18,13 +18,14 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
+// Version 面板版本(CI 通过 grep 本文件提取,勿改动格式)
 const Version = "1.0.0"
 
 func main() {
 	cfg := config.Load()
 
 	// 日志同时写 stdout + 环形缓冲(供面板日志弹窗)
-	log.SetOutput(logger.NewMultiWriter(api.LogRing))
+	log.SetOutput(logger.NewMultiWriter(logger.LogRing))
 
 	st, err := state.New(cfg)
 	if err != nil {
@@ -45,6 +46,7 @@ func main() {
 		Addr:              addr,
 		Handler:           engine,
 		ReadHeaderTimeout: 30 * time.Second,
+		ErrorLog:          log.New(tlsErrFilter{}, "", 0),
 	}
 
 	go func() {
@@ -62,8 +64,14 @@ func main() {
 				log.Printf("TLS 证书加载失败,已降级为 HTTP 监听: %v", err)
 				serveErr = srv.ListenAndServe()
 			} else {
-				log.Printf("TLS enabled: %s / %s", s.WebCertFile, s.WebKeyFile)
-				serveErr = srv.ListenAndServeTLS(s.WebCertFile, s.WebKeyFile)
+				log.Printf("TLS enabled: %s / %s (SNI 白名单: %s)", s.WebCertFile, s.WebKeyFile, s.WebDomain)
+				// 手动构建 TLSConfig:GetCertificate 按 SNI 白名单放行,
+				// IP 直连(空 SNI)与陌生域名在握手阶段即被拒绝,扫描噪音大幅减少。
+				srv.TLSConfig = &tls.Config{
+					GetCertificate: makeGetCertificate(s.WebDomain, s.WebCertFile, s.WebKeyFile),
+					MinVersion:     tls.VersionTLS12,
+				}
+				serveErr = srv.ListenAndServeTLS("", "")
 			}
 		} else if s.WebForceSSL {
 			log.Fatalf("强制 HTTPS 已开启但未配置证书路径(webCertFile/webKeyFile)")
