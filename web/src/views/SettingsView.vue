@@ -112,7 +112,7 @@
               <textarea
                 v-model="mirrorsText"
                 class="input !h-24 text-[12px] leading-relaxed w-full"
-                style="resize: both"
+                style="resize: vertical; min-height: 96px"
                 :placeholder="t('settings.mirrorPlaceholder')"
                 spellcheck="false"
               />
