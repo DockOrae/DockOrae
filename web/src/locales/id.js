@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Konfigurasi alamat akselerasi pull image Docker, satu per baris. Perubahan akan ditulis ke registry-mirrors di daemon.json.',
     mirrorRestarted: 'Tersimpan, layanan Docker sedang dimulai ulang…(panel akan terputus sesaat lalu pulih otomatis)',
     mirrorRestartFailed: 'Tersimpan, tetapi mulai ulang Docker otomatis gagal',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'Simpan konfigurasi',
     mirrorSaved: 'Tersimpan',
     mirrorRestartHint: 'Setelah disimpan, layanan Docker akan dimulai ulang otomatis agar akselerasi image berlaku; jika gagal, jalankan systemctl restart docker di host secara manual',

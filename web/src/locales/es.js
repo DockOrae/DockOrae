@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Configure las direcciones de aceleración para extraer imágenes de Docker, una por línea. Se guardarán en registry-mirrors de daemon.json.',
     mirrorRestarted: 'Guardado. Reiniciando el servicio de Docker… (el panel se reconectará en breve)',
     mirrorRestartFailed: 'Guardado, pero falló el reinicio automático de Docker',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'Guardar configuración',
     mirrorSaved: 'Guardado',
     mirrorRestartHint: 'Después de guardar, el servicio de Docker se reiniciará automáticamente para aplicar la aceleración de descargas; si el reinicio automático falla, ejecute "systemctl restart docker" manualmente en el host.',

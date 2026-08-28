@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Налаштуйте адреси прискорення для отримання образів Docker, по одній на рядок. Зміни буде записано в registry-mirrors у daemon.json.',
     mirrorRestarted: 'Збережено. Перезапуск служби Docker… (панель тимчасово втратить з’єднання та автоматично відновиться)',
     mirrorRestartFailed: 'Збережено, але автоматичний перезапуск Docker не вдався',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'Зберегти конфігурацію',
     mirrorSaved: 'Збережено',
     mirrorRestartHint: 'Після збереження службу Docker буде автоматично перезапущено, щоб прискорення запрацювало. Якщо автоматичний перезапуск не вдався, виконайте systemctl restart docker на хості вручну.',

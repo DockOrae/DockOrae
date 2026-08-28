@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Docker 이미지 가져오기 가속 주소를 한 줄에 하나씩 구성하세요. 변경 사항은 daemon.json의 registry-mirrors에 기록됩니다.',
     mirrorRestarted: '저장되었습니다. Docker 서비스를 다시 시작하는 중…(패널이 잠시 끊겼다가 자동으로 복구됩니다)',
     mirrorRestartFailed: '저장되었지만 Docker 자동 재시작에 실패했습니다',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: '구성 저장',
     mirrorSaved: '저장됨',
     mirrorRestartHint: '저장 후 Docker 서비스가 자동으로 재시작되어 미러 가속이 적용됩니다. 자동 재시작에 실패하면 호스트에서 systemctl restart docker를 직접 실행하세요',

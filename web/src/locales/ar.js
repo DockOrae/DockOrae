@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'قم بتكوين عناوين تسريع سحب صور Docker,سطر واحد لكل عنوان. سيتم كتابة التعديلات في registry-mirrors داخل daemon.json.',
     mirrorRestarted: 'تم الحفظ,جارٍ إعادة تشغيل خدمة Docker… (ستنقطع اللوحة مؤقتًا ثم تعود تلقائيًا)',
     mirrorRestartFailed: 'تم الحفظ,لكن إعادة تشغيل Docker التلقائية فشلت',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'حفظ الإعداد',
     mirrorSaved: 'تم الحفظ',
     mirrorRestartHint: 'بعد الحفظ ستُعاد تشغيل خدمة Docker تلقائيًا لتفعيل التسريع;إذا فشلت إعادة التشغيل التلقائية,يرجى تنفيذ systemctl restart docker يدويًا على المضيف',

@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Cấu hình địa chỉ tăng tốc kéo image cho Docker, mỗi dòng một địa chỉ. Thay đổi sẽ được ghi vào registry-mirrors trong daemon.json.',
     mirrorRestarted: 'Đã lưu, đang khởi động lại dịch vụ Docker… (bảng điều khiển sẽ ngắt kết nối ngắn rồi tự khôi phục)',
     mirrorRestartFailed: 'Đã lưu, nhưng tự động khởi động lại Docker thất bại',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'Lưu cấu hình',
     mirrorSaved: 'Đã lưu',
     mirrorRestartHint: 'Sau khi lưu, dịch vụ Docker sẽ tự động khởi động lại để áp dụng tăng tốc; nếu khởi động lại thất bại, hãy chạy thủ công systemctl restart docker trên máy chủ',

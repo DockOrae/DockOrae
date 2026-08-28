@@ -512,7 +512,7 @@ export default {
     mirrorHelper: '設定 Docker 拉取映像檔的加速位址，每行一個。修改後會寫入 daemon.json 的 registry-mirrors。',
     mirrorRestarted: '已儲存，正在重新啟動 Docker 服務…（面板會短暫斷線後自動恢復）',
     mirrorRestartFailed: '已儲存，但自動重新啟動 Docker 失敗',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: '儲存設定',
     mirrorSaved: '已儲存',
     mirrorRestartHint: '儲存後會自動重新啟動 Docker 服務讓映像加速生效；若自動重新啟動失敗，請手動在主機執行 systemctl restart docker',

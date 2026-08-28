@@ -651,7 +651,7 @@ export default {
     mirrorHelper: '配置 Docker 拉取镜像的加速地址,每行一个。修改将写入 daemon.json 的 registry-mirrors。',
     mirrorRestarted: '已保存,正在重启 Docker 服务…(面板会短暂断连后自动恢复)',
     mirrorRestartFailed: '已保存,但自动重启 Docker 失败',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: '保存配置',
     mirrorSaved: '已保存',
     mirrorRestartHint: '保存后会自动重启 Docker 服务使镜像加速生效;若自动重启失败,请手动在宿主机执行 systemctl restart docker',

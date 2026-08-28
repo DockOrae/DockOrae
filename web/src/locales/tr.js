@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Docker imaj çekme hızlandırma adreslerini yapılandırın, her satıra bir tane. Değişiklikler daemon.json içindeki registry-mirrors\'a yazılır.',
     mirrorRestarted: 'Kaydedildi, Docker hizmeti yeniden başlatılıyor… (panel kısa süreliğine bağlantı kesecek ve otomatik olarak geri gelecek)',
     mirrorRestartFailed: 'Kaydedildi, ancak Docker otomatik yeniden başlatılamadı',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'Yapılandırmayı kaydet',
     mirrorSaved: 'Kaydedildi',
     mirrorRestartHint: 'Kaydettikten sonra hızlandırıcının etkili olması için Docker hizmeti otomatik yeniden başlatılır; otomatik yeniden başlatma başarısız olursa lütfen ana makinede systemctl restart docker çalıştırın',

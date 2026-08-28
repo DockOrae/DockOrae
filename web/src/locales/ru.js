@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Настройте адреса ускорения для скачивания образов Docker, по одному в строке. Изменения будут записаны в registry-mirrors файла daemon.json.',
     mirrorRestarted: 'Сохранено, перезапуск службы Docker… (панель на короткое время отключится и восстановится автоматически)',
     mirrorRestartFailed: 'Сохранено, но автоматический перезапуск Docker не удался',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'Сохранить конфигурацию',
     mirrorSaved: 'Сохранено',
     mirrorRestartHint: 'После сохранения служба Docker будет перезапущена автоматически, чтобы применить ускорение зеркал; если автоматический перезапуск не удался, выполните systemctl restart docker на хосте вручную',

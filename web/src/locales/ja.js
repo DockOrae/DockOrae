@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'Docker がイメージをプルする際の加速アドレスを設定します。1 行に 1 つずつ。変更は daemon.json の registry-mirrors に書き込まれます。',
     mirrorRestarted: '保存しました。Docker サービスを再起動しています…(パネルは一時的に切断後、自動的に復旧します)',
     mirrorRestartFailed: '保存しましたが、Docker の自動再起動に失敗しました',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: '設定を保存',
     mirrorSaved: '保存しました',
     mirrorRestartHint: '保存すると Docker サービスが自動再起動され、ミラー加速が有効になります。自動再起動に失敗した場合は、ホスト上で systemctl restart docker を手動で実行してください',

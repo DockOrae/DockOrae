@@ -512,7 +512,7 @@ export default {
     mirrorHelper: 'آدرس‌های تسریع دریافت ایمیج Docker را پیکربندی کنید؛ هر خط یک آدرس. تغییرات در بخش registry-mirrors فایل daemon.json ذخیره می‌شود.',
     mirrorRestarted: 'ذخیره شد؛ سرویس Docker در حال راه‌اندازی مجدد است… (پنل پس از قطع کوتاه به‌صورت خودکار وصل می‌شود)',
     mirrorRestartFailed: 'ذخیره شد، اما راه‌اندازی مجدد خودکار Docker ناموفق بود',
-    mirrorPlaceholder: 'https://docker.m.daocloud.io\nhttps://dockerproxy.com\n...',
+    mirrorPlaceholder: 'https://docker.m.daocloud.io',
     saveMirrors: 'ذخیره پیکربندی',
     mirrorSaved: 'ذخیره شد',
     mirrorRestartHint: 'پس از ذخیره، سرویس Docker به‌صورت خودکار راه‌اندازی مجدد می‌شود تا آینه‌های تسریع اعمال شوند؛ در صورت عدم موفقیت، به‌صورت دستی دستور systemctl restart docker را روی میزبان اجرا کنید.',
