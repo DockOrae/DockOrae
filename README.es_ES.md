@@ -27,7 +27,7 @@
 - **Gestión de imágenes** — descargar con progreso en tiempo real, eliminar y limpiar imágenes no utilizadas.
 - **Gestión de redes** — crear / eliminar / inspeccionar (configuración de subred y puerta de enlace).
 - **Gestión de volúmenes** — crear (local / NFS) / eliminar / inspeccionar.
-- **Tienda de aplicaciones** — más de 260 aplicaciones con un clic (repositorio compatible con 1Panel: iconos / formularios de parámetros / multiversión); sincronización desde GitHub, instalación / actualización con un clic e insignia de actualización disponible.
+- **Tienda de aplicaciones** — más de 260 aplicaciones con un clic (repositorio compatible con 1Panel: iconos / formularios de parámetros / multiversión); sincronización automática en el primer inicio (sin paso manual), instalación / actualización con un clic e insignia de actualización disponible.
 - **Gestión de stacks Compose** — editor YAML, despliegue con un clic (salida en streaming), iniciar/detener y desmontar.
 - **Monitorización en tiempo real** — página de estado al estilo 3x-ui: tarjetas de CPU / memoria / swap / almacenamiento con minigráficos, curvas de rendimiento de red y E/S de disco, conteos de contenedores/imágenes/volúmenes, estadísticas de procesos del panel e IP pública con conmutador de visibilidad.
 - **Licencia** — licencia Pro sin conexión (activación por carga de archivo / vinculación de dispositivo / desvinculación); el plan gratuito limita la creación de contenedores y el despliegue con Compose.
