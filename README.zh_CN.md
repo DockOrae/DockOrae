@@ -36,6 +36,13 @@
 - **安全** — TOTP 双因素认证、JWT 会话、头像上传。
 - **事件流** — 实时 Docker 事件推送至仪表盘。
 
+- **面板设置(仿 1Panel)** — 安全入口(设置后仅可通过 /入口 访问面板)、未认证响应码(200 帮助页/400/401/403/404/408/416/444/500)、面板监听域名白名单(绑定域名后 IP 访问关闭)、面板 SSL 证书路径、密码过期与复杂度策略、出站代理服务器。
+- **工具箱** — 设备信息、Docker 磁盘清理(已停止容器/未使用镜像与卷/构建缓存)、Fail2ban 登录防护(自动封禁/封禁列表/解封)。
+
+## 🤖 Agent Skill
+
+本仓库内置 [GitHub Agent Skill](.github/skills/docker-manager-user-guide/SKILL.md) — `docker-manager-user-guide`,为 AI 助手(Copilot / Claude / ChatGPT 等)提供面板配置、部署与排障知识库。直接问你的 AI:Docker Manager 面板的安全入口/域名绑定/工具箱怎么配置?
+
 ## 快速开始
 
 ### 一键安装(推荐)

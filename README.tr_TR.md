@@ -36,6 +36,13 @@
 - **Güvenlik** — TOTP iki faktörlü kimlik doğrulama, JWT oturumları, avatar yükleme.
 - **Olay akışı** — gerçek zamanlı Docker olayları panoya iletilir.
 
+- **Panel settings (1Panel-inspired)** — security entrance path (panel accessible only via `/entrance`), unauthenticated response codes (200 help page / 400 / 401 / 403 / 404 / 408 / 416 / 444 / 500), panel domain whitelist (IP access disabled once a domain is bound), panel SSL certificate paths, password expiry & complexity policies, proxy server for outbound requests.
+- **Toolbox** — device info, Docker disk cleanup (stopped containers / unused images & volumes / build cache), Fail2ban login protection with auto-ban, ban list and unban.
+
+## 🤖 Agent Skill
+
+This repository ships a built-in [GitHub Agent Skill](.github/skills/docker-manager-user-guide/SKILL.md) — `docker-manager-user-guide` — a knowledge base for AI assistants (Copilot / Claude / ChatGPT / etc.) covering panel configuration, deployment, and troubleshooting. Just ask your AI: How to configure the Docker Manager panel security entrance / domain binding / toolbox?
+
 ## Hızlı Başlangıç
 
 ### Tek satırlık kurulum (önerilen)
