@@ -4,14 +4,6 @@ on:
   push:
     branches: [master]
     tags: ["v*"]
-    # 仅源码改动触发构建;工作流文件/README/.gitignore 等修改不触发
-    # (paths 过滤对 tag push 不生效,发版仍然必定触发)
-    paths:
-      - "**.go"
-      - "go.mod"
-      - "go.sum"
-      - "web/**"
-      - "Dockerfile"
   workflow_dispatch:
 
 env:
@@ -19,6 +11,18 @@ env:
 
 jobs:
   build-push:
+    # 仅源码改动触发构建;tag(v*)与手动触发无条件构建。
+    # 注意:不能用 on.push.paths —— paths 对 tag push 也生效,会导致
+    # 打 tag 时(无源码改动)workflow 被过滤、镜像永远只有 latest。
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.ref_type == 'tag' ||
+      contains(join(github.event.commits.*.modified, ' ') || '', '.go') ||
+      contains(join(github.event.commits.*.added, ' ') || '', '.go') ||
+      contains(join(github.event.commits.*.modified, ' ') || '', 'web/') ||
+      contains(join(github.event.commits.*.added, ' ') || '', 'web/') ||
+      contains(join(github.event.commits.*.modified, ' ') || '', 'Dockerfile') ||
+      contains(join(github.event.commits.*.added, ' ') || '', 'Dockerfile')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,3 +51,41 @@ jobs:
             ${{ startsWith(github.ref, 'refs/tags/') && format('{0}:{1}', env.IMAGE, github.ref_name) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-description:
+    # 更新 Docker Hub 仓库说明(overview):源码/tag/说明文件改动均触发,
+    # 但说明文件改动只跑本 job,不触发镜像构建。
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.ref_type == 'tag' ||
+      contains(join(github.event.commits.*.modified, ' ') || '', '.go') ||
+      contains(join(github.event.commits.*.added, ' ') || '', '.go') ||
+      contains(join(github.event.commits.*.modified, ' ') || '', 'web/') ||
+      contains(join(github.event.commits.*.added, ' ') || '', 'web/') ||
+      contains(join(github.event.commits.*.modified, ' ') || '', 'Dockerfile') ||
+      contains(join(github.event.commits.*.added, ' ') || '', 'Dockerfile') ||
+      contains(join(github.event.commits.*.modified, ' ') || '', 'dockerhub-description.md') ||
+      contains(join(github.event.commits.*.added, ' ') || '', 'dockerhub-description.md')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Update Docker Hub overview (full_description)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          # Docker Hub API: PATCH /v2/repositories/{namespace}/{name}/ {full_description}
+          jq -n --rawfile d dockerhub-description.md '{full_description: $d}' > /tmp/desc.json
+          code=$(curl -sS -X PATCH \
+            -H "Content-Type: application/json" \
+            -u "${DOCKERHUB_USERNAME}:${DOCKERHUB_TOKEN}" \
+            --data-binary @/tmp/desc.json \
+            -o /tmp/resp.json \
+            -w "%{http_code}" \
+            "https://hub.docker.com/v2/repositories/${IMAGE}/")
+          echo "HTTP $code"
+          cat /tmp/resp.json
+          echo
+          test "$code" = "200" || { echo "::error::Docker Hub 说明更新失败(HTTP $code)。请确认 DOCKERHUB_TOKEN 是 Docker Hub PAT 且具有 Read & Write 权限(仅 Read 或密码会 401/403)"; exit 1; }
