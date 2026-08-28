@@ -20,8 +20,11 @@ BIN       := docker-manager-go
 WEB_DIR   := web
 DIST_DIR  := dist
 
-# 版本号:唯一来源是 cmd/docker-manager/main.go 的 const Version(CI 以它为准,勿改格式)
-VERSION := $(shell grep 'const Version' cmd/docker-manager/main.go | grep -o '"[0-9.]*"' | tr -d '"')
+# 版本号:优先取最近 Git tag(如 v1.0.3),无 tag 时 dev;可用 VERSION=xxx 覆盖(CI 传 tag)
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
+
+# ldflags:注入 main.Version + service.AppVersion,与 Git tag 同步(发版打 tag 即可,无需改源码)
+LDFLAGS := -s -w -X main.Version=$(VERSION) -X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=$(VERSION)
 
 # Linux 交叉编译架构(与 README 支持平台一致)
 LINUX_SPECS := amd64: arm64: arm:5 arm:6 arm:7 386: s390x:
@@ -44,7 +47,7 @@ web:
 backend:
 	@test -d $(WEB_DIR)/dist || { echo "❌ web/dist 不存在,请先执行 make web(前端未构建,go:embed 无法编译)"; exit 1; }
 	@echo "==> 编译后端 $(BIN) (v$(VERSION), linux/$$(go env GOARCH))"
-	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="-s -w" -o $(BIN) ./cmd/docker-manager
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN) ./cmd/docker-manager
 
 # ---------- 运行 / 开发 ----------
 .PHONY: run
@@ -72,7 +75,7 @@ cross: web
 	  rm -rf $(DIST_DIR)/docker-manager-go; \
 	  mkdir -p $(DIST_DIR)/docker-manager-go; \
 	  CGO_ENABLED=0 GOOS=linux GOARCH=$$goarch GOARM=$$goarm \
-	    $(GO) build -trimpath -ldflags="-s -w" \
+	    $(GO) build -trimpath -ldflags="$(LDFLAGS)" \
 	    -o $(DIST_DIR)/docker-manager-go/$(BIN) ./cmd/docker-manager || exit 1; \
 	  cp README.md $(DIST_DIR)/docker-manager-go/ 2>/dev/null || true; \
 	  tar -czf $(DIST_DIR)/docker-manager-go-linux-$$suffix.tar.gz -C $(DIST_DIR) docker-manager-go || exit 1; \

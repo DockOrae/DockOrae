@@ -1,13 +1,13 @@
 name: Release Docker Manager Go
 
 on:
-  # 每天北京时间 11:00 / 4:00 自动检测版本(UTC 3:00 / 20:00)
-  schedule:
-    - cron: "0 3,20 * * *"
+  # 打 v* tag 即触发发布(版本号取 tag,无需修改源码)
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       branch:
-        description: '指定编译的版本号(如 v1.1.0)'
+        description: '指定发布的版本号(如 v1.0.3)'
         required: false
         default: ''
       info:
@@ -15,7 +15,7 @@ on:
         required: false
         default: ''
       force:
-        description: '强制使用手动编译'
+        description: '强制构建发布'
         required: true
         default: false
         type: boolean
@@ -32,7 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.getversion.outputs.tag }}
-      ver: ${{ steps.getversion.outputs.ver }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v7
@@ -40,14 +39,14 @@ jobs:
       - name: 获取版本号
         id: getversion
         run: |
-          # ver = 当前仓库最新 Release 的 tag;tag = 代码(main.go Version)中的版本号
-          ver=$(curl -s https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest | jq -r '.tag_name')
-          [ "$ver" = "null" ] && ver="none"
-          tag="v$(grep 'const Version' cmd/docker-manager/main.go | grep -o '"[0-9.]*"' | tr -d '"')"
-          echo "代码版本号: ${tag}"
-          echo "当前仓库最新 Release: ${ver}"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "ver=${ver}" >> "$GITHUB_OUTPUT"
+          # push tags 触发时取 tag 名(v1.0.3);手动触发时取输入的版本号
+          if [[ -n "${{ github.event.inputs.branch }}" ]]; then
+            TAG="${{ github.event.inputs.branch }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "发布版本: ${TAG}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: 删除流程记录
         uses: Mattraks/delete-workflow-runs@v2.1.0
@@ -58,8 +57,8 @@ jobs:
 
   build:
     needs: check
-    # 手动强制构建,或自动检测到代码版本与已发布版本不同(该 tag 不存在)才构建
-    if: ${{ github.event.inputs.force == 'true' || (github.event.inputs.force != 'true' && needs.check.outputs.tag != needs.check.outputs.ver) }}
+    # tag 推送必发;手动触发需 force 或指定版本号
+    if: ${{ github.event_name == 'push' || github.event.inputs.force == 'true' || github.event.inputs.branch != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
@@ -67,13 +66,7 @@ jobs:
 
       - name: 设置版本号
         run: |
-          if [[ -n "${{ github.event.inputs.branch }}" ]]; then
-            TAG="${{ github.event.inputs.branch }}"
-          else
-            TAG="${{ needs.check.outputs.tag }}"
-          fi
-          echo "发布版本: ${TAG}"
-          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "TAG=${{ needs.check.outputs.tag }}" >> "$GITHUB_ENV"
           echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S')" >> "$GITHUB_ENV"
 
       - name: Setup Go
@@ -84,7 +77,8 @@ jobs:
 
       # 前端 dist 必须在 go build 之前构建 —— web/embed.go 的 //go:embed all:dist
       # 编译期要求 web/dist/ 存在;dist 已 gitignore,CI 全新检出时为空。
-      # make cross 内部会 npm install + vite build + 7 架构交叉编译 + tar 打包。
+      # make cross 内部会 npm install + vite build + 7 架构交叉编译 + tar 打包,
+      # 并把 VERSION 通过 ldflags 注入 main.Version / service.AppVersion。
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -93,7 +87,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: 构建全部架构 (make cross)
-        run: make cross
+        run: make cross VERSION=${{ needs.check.outputs.tag }}
 
       - name: 发布 Release
         uses: softprops/action-gh-release@v3.0.2

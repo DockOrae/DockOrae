@@ -20,8 +20,12 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-// Version 面板版本(CI 通过 grep 本文件提取,勿改动格式)
-const Version = "1.0.2"
+// Version 面板版本,构建时由 ldflags 注入(发版只需打 Git tag,无需改源码):
+//
+//	go build -ldflags "-X main.Version=v1.0.3 -X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=v1.0.3"
+//
+// 未注入(本地开发/CI 检查)时默认 dev。使用 Makefile 构建时会自动从 git tag 注入。
+var Version = "dev"
 
 func main() {
 	cfg := config.Load()

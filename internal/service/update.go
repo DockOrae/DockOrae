@@ -26,8 +26,12 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
-// AppVersion 面板当前版本(发版时与 cmd/docker-manager/main.go 的 Version 同步;CI 以 main.go 字面量为准)
-const AppVersion = "1.0.2"
+// AppVersion 面板当前版本,构建时由 ldflags 注入(与 main.Version 同步,发版打 tag 即可):
+//
+//	-X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=v1.0.3
+//
+// 未注入(本地开发)时默认 dev。使用 Makefile 构建时自动注入。
+var AppVersion = "dev"
 
 const (
 	updateGitHubURL  = "https://api.github.com/repos/MinimaxFlora/Docker_Manager_Go/releases/latest"

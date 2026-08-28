@@ -11,6 +11,8 @@ RUN npm run build
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
+# 面板版本:构建时注入(与 Git tag 同步),docker-publish 传 VERSION build-arg;默认 dev
+ARG VERSION=dev
 RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 # 国内代理加速;moby client 模块自带坏的 replace,用自身 replace 覆盖
@@ -20,7 +22,9 @@ COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY web/embed.go ./web/
 COPY --from=web /web/dist ./web/dist
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o docker-manager ./cmd/docker-manager
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
+    -ldflags="-s -w -X main.Version=${VERSION} -X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=${VERSION}" \
+    -o docker-manager ./cmd/docker-manager
 
 # ================= Stage 3: 运行镜像(目标平台) =================
 FROM alpine:3.20
