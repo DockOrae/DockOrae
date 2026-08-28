@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">{{ t('volumes.title') }}</h2>
+      <h2 class="text-lg font-semibold">{{ t('volumes.count', { count: volumes.length }) }}</h2>
       <button class="btn btn-brand btn-sm" @click="openCreate"><Icon name="plus" size="13" /> {{ t('volumes.createTitle') }}</button>
     </div>
 
@@ -11,7 +11,7 @@
           <tr>
             <th class="th">{{ t('volumes.volumeName') }}</th>
             <th class="th">{{ t('volumes.driver') }}</th>
-            <th class="th">{{ t('volumes.createdAt') }}</th>
+            <th class="th">{{ t('volumes.thCreated') }}</th>
             <th class="th"></th>
           </tr>
         </thead>
