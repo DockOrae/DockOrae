@@ -1,7 +1,10 @@
 [English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md) | [Türkçe](/README.tr_TR.md)
 
 <p align="center">
-  <img alt="Docker Manager Go" src="https://img.shields.io/badge/Docker%20Manager-Go-ec4899?logo=docker&logoColor=white&labelColor=0f172a">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./media/docker-manager-dark.svg">
+    <img alt="Docker Manager Go" src="./media/docker-manager-light.svg" width="480">
+  </picture>
 </p>
 
 <p align="center">
