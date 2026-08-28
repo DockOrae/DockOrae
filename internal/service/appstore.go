@@ -168,6 +168,9 @@ func (s *AppStoreService) Install(ctx context.Context, key string, params map[st
 
 // Uninstall 卸载(停栈并删除编排文件)
 func (s *AppStoreService) Uninstall(key string) error {
+	if !appstore.ValidKey(key) {
+		return BadRequest("appstore.notFound")
+	}
 	cs := &ComposeService{docker: s.docker, composeDir: filepath.Join(s.dataDir, "compose"), license: s.license}
 	_, _ = cs.Run(key, "down")
 	return os.RemoveAll(s.projectDir(key))

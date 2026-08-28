@@ -3,6 +3,7 @@ package appstore
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -51,6 +52,13 @@ type versionDataYaml struct {
 
 // ---------- 解析 ----------
 
+var appKeyRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
+
+// ValidKey 应用 key 合法性(防路径穿越;key 来自 URL 路径参数,直接拼接文件路径)
+func ValidKey(key string) bool {
+	return appKeyRe.MatchString(key)
+}
+
 // versionData 单个版本的数据
 type versionData struct {
 	Params []Param
@@ -72,6 +80,9 @@ func LoadApps(dir string) ([]*App, []string, error) {
 		if !e.IsDir() {
 			continue
 		}
+		if !ValidKey(e.Name()) {
+			continue // 非法目录名(非应用/防穿越)
+		}
 		a, err := LoadApp(dir, e.Name())
 		if err != nil || a == nil {
 			continue
@@ -91,6 +102,9 @@ func LoadApps(dir string) ([]*App, []string, error) {
 
 // LoadApp 解析单个应用(元数据 + 全部版本)
 func LoadApp(dir, key string) (*App, error) {
+	if !ValidKey(key) {
+		return nil, os.ErrNotExist
+	}
 	appDir := filepath.Join(dir, "apps", key)
 	raw, err := os.ReadFile(filepath.Join(appDir, "data.yml"))
 	if err != nil {

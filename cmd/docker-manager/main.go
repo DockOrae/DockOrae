@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/api"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/logger"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
@@ -51,7 +52,10 @@ func main() {
 
 	go func() {
 		log.Printf("Docker Manager 已启动: http://%s%s", addr, basePath)
-		log.Printf("Default account: admin / 123456. Please change the password in Settings after first login.")
+		// 仅在默认密码仍有效时提示(避免每次启动泄露默认密码,且改密后不再误导)
+		if u := st.FindUser("admin"); u != nil && auth.VerifyPassword("123456", u.PasswordHash) {
+			log.Printf("Default account: admin / 123456. Please change the password in Settings after first login.")
+		}
 		var serveErr error
 		if s.WebCertFile != "" && s.WebKeyFile != "" {
 			if _, err := tls.LoadX509KeyPair(s.WebCertFile, s.WebKeyFile); err != nil {

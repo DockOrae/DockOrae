@@ -29,6 +29,8 @@ type ContainerService struct {
 	license func() bool
 	// composeDir 面板 compose 数据目录(用于"外部容器不显示"过滤)
 	composeDir string
+	// ops 容器重建所需的最小 Docker 操作集(测试可注入 fake)
+	ops containerOps
 }
 
 // NewContainerService 生产构造:从 AppState 提取实际依赖
@@ -37,7 +39,41 @@ func NewContainerService(st *state.AppState) *ContainerService {
 		docker:     st.Docker,
 		license:    func() bool { return LicenseActive(st) },
 		composeDir: st.ComposeDir,
+		ops:        dockerContainerOps{cli: st.Docker},
 	}
+}
+
+// containerOps 容器重建(Recreate)所需的最小 Docker 操作集:
+// 仅包含实际使用的方法,供测试注入 fake,避免 mock 整个 Docker Client。
+type containerOps interface {
+	Inspect(ctx context.Context, id string) (container.InspectResponse, error)
+	Create(ctx context.Context, opts client.ContainerCreateOptions) (string, error)
+	Stop(ctx context.Context, id string, opts client.ContainerStopOptions) error
+	Remove(ctx context.Context, id string, opts client.ContainerRemoveOptions) error
+	Rename(ctx context.Context, id, newName string) error
+	Start(ctx context.Context, id string) error
+}
+
+// dockerContainerOps 生产实现:包装 docker 包函数
+type dockerContainerOps struct{ cli *client.Client }
+
+func (d dockerContainerOps) Inspect(ctx context.Context, id string) (container.InspectResponse, error) {
+	return docker.InspectContainer(d.cli, ctx, id)
+}
+func (d dockerContainerOps) Create(ctx context.Context, opts client.ContainerCreateOptions) (string, error) {
+	return docker.CreateContainer(d.cli, ctx, opts)
+}
+func (d dockerContainerOps) Stop(ctx context.Context, id string, opts client.ContainerStopOptions) error {
+	return docker.StopContainer(d.cli, ctx, id, opts)
+}
+func (d dockerContainerOps) Remove(ctx context.Context, id string, opts client.ContainerRemoveOptions) error {
+	return docker.RemoveContainer(d.cli, ctx, id, opts)
+}
+func (d dockerContainerOps) Rename(ctx context.Context, id, newName string) error {
+	return docker.RenameContainer(d.cli, ctx, id, newName)
+}
+func (d dockerContainerOps) Start(ctx context.Context, id string) error {
+	return docker.StartContainer(d.cli, ctx, id)
 }
 
 // List 容器列表(精简字段,过滤外部容器)
@@ -354,14 +390,14 @@ func (s *TerminalSession) Close() {
 // 修复:旧容器占用原名时同名创建必然 409;现用 <name>-recreate-<n> 临时名创建,
 // 任一步失败回滚删除临时容器,旧容器不受影响(先建后删,数据卷安全)。
 func (s *ContainerService) Recreate(ctx context.Context, id string) error {
-	insp, err := docker.InspectContainer(s.docker, ctx, id)
+	insp, err := s.ops.Inspect(ctx, id)
 	if err != nil {
 		return err
 	}
 	oldName := strings.TrimPrefix(insp.Name, "/")
 	tmpName := fmt.Sprintf("%s-recreate-%d", oldName, time.Now().UnixNano()%100000)
 
-	newID, err := docker.CreateContainer(s.docker, ctx, client.ContainerCreateOptions{
+	newID, err := s.ops.Create(ctx, client.ContainerCreateOptions{
 		Name:             tmpName,
 		Config:           insp.Config,
 		HostConfig:       insp.HostConfig,
@@ -371,20 +407,20 @@ func (s *ContainerService) Recreate(ctx context.Context, id string) error {
 		return err
 	}
 	rollback := func() {
-		_ = docker.RemoveContainer(s.docker, ctx, newID, client.ContainerRemoveOptions{Force: true})
+		_ = s.ops.Remove(ctx, newID, client.ContainerRemoveOptions{Force: true})
 	}
 
 	// 停旧容器:失败不中止(后续 Force 删除兜底,保持原语义)
-	_ = docker.StopContainer(s.docker, ctx, id, client.ContainerStopOptions{})
-	if err := docker.RemoveContainer(s.docker, ctx, id, client.ContainerRemoveOptions{Force: true}); err != nil {
+	_ = s.ops.Stop(ctx, id, client.ContainerStopOptions{})
+	if err := s.ops.Remove(ctx, id, client.ContainerRemoveOptions{Force: true}); err != nil {
 		rollback()
 		return err
 	}
 	// 临时名改回原名(原名已释放)
-	if err := docker.RenameContainer(s.docker, ctx, newID, oldName); err != nil {
+	if err := s.ops.Rename(ctx, newID, oldName); err != nil {
 		// 改名失败(如原名被外部占用):旧容器已删,先启动临时名容器保证可用
-		_ = docker.StartContainer(s.docker, ctx, newID)
+		_ = s.ops.Start(ctx, newID)
 		return err
 	}
-	return docker.StartContainer(s.docker, ctx, newID)
+	return s.ops.Start(ctx, newID)
 }

@@ -22,6 +22,9 @@ var iconCache = struct {
 // FetchIcon 获取应用图标:本地同步目录 → 内存缓存 → 磁盘缓存 → 远程(jsDelivr → GitHub raw)。
 // appstoreDir 为仓库根(内含 apps/),可为空跳过本地。
 func FetchIcon(key string, appstoreDir, cacheDir string) ([]byte, error) {
+	if !ValidKey(key) {
+		return nil, fmt.Errorf("invalid app key")
+	}
 	// 本地同步目录优先(仓库已含 logo.png)
 	if appstoreDir != "" {
 		if b, err := os.ReadFile(filepath.Join(appstoreDir, "apps", key, "logo.png")); err == nil && len(b) > 0 {
