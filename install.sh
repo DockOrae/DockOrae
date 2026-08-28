@@ -229,65 +229,58 @@ EOF
   log_info "compose 文件已生成(端口 ${DM_PORT},数据目录 ${DM_DATA_DIR},证书目录 ${DM_CERT_DIR})"
 }
 
-# ---------- 设置面板 HTTPS(监听域名 + 证书路径,写入 settings.json) ----------
-# 参数:$1=域名 $2=证书文件(面板视角路径) $3=私钥文件(面板视角路径)
+# ---------- 设置面板 HTTPS(监听域名 + 证书路径) ----------
+# 注意:面板设置实际存储在 SQLite(settings.json 只是首次启动的迁移源,
+# 直接改 settings.json 无效!)—— 必须通过面板 API:
+# 登录 → GET 现有设置 → sed 替换三个字段 → PUT 全量 → 重启
 set_panel_https() {
   local domain="$1" cert="$2" key="$3"
-  local settings="$DM_DATA_DIR/settings.json"
-  mkdir -p "$DM_DATA_DIR"
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$settings" "$domain" "$cert" "$key" <<'EOF'
-import json, sys
-p, domain, cert, key = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-try:
-    with open(p) as f: d = json.load(f)
-except Exception:
-    d = {}
-d["webDomain"] = domain
-d["webCertFile"] = cert
-d["webKeyFile"] = key
-with open(p, "w") as f:
-    json.dump(d, f, indent=2, ensure_ascii=False)
-EOF
+  local mode
+  mode=$(read_mode)
+  if [ "$mode" = "compose" ]; then
+    if set_panel_https_via_container "$domain" "$cert" "$key"; then
+      log_info "面板已配置: 监听域名 ${domain},证书 ${cert} / ${key}(通过面板 API 写入)"
+      return 0
+    fi
   else
-    # 无 python3 时用简单 sed(仅在已有键时替换)
-    if [ -f "$settings" ] && grep -q 'webDomain' "$settings"; then
-      sed -i "s|\"webDomain\"[^,]*|\"webDomain\": \"$domain\"|; s|\"webCertFile\"[^,]*|\"webCertFile\": \"$cert\"|; s|\"webKeyFile\"[^,]*|\"webKeyFile\": \"$key\"|" "$settings"
-    else
-      log_warn "未找到 settings.json,请在面板「设置 → 常规」中手动填写监听域名与证书路径"
+    if set_panel_https_via_host "$domain" "$cert" "$key"; then
+      log_info "面板已配置: 监听域名 ${domain},证书 ${cert} / ${key}(通过面板 API 写入)"
+      return 0
     fi
   fi
-  log_info "面板已配置: 监听域名 ${domain},证书 ${cert} / ${key}(https://${domain}:${DM_PORT})"
-  sync_cert_into_container "$domain" "$cert" "$key"
+  log_warn "API 设置失败(默认密码可能已被修改),请登录面板手动设置: 设置 → 常规 → 监听域名 / 证书路径"
+  return 1
 }
 
-# 把域名/证书设置同步进容器 /data/settings.json(兼容命名卷等非宿主目录挂载场景)
-sync_cert_into_container() {
+# compose 方式:docker exec 进容器,用 busybox wget 调本地面板 API
+set_panel_https_via_container() {
   local domain="$1" cert="$2" key="$3"
-  docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" || return 0
-  docker exec -i "$CONTAINER_NAME" sh <<EOF
-f=/data/settings.json
-[ -f "\$f" ] || echo '{}' > "\$f"
-awk -v dom="$domain" -v cert="$cert" -v key="$key" '
-/\"webDomain\"/ { next }
-/\"webCertFile\"/ { next }
-/\"webKeyFile\"/ { next }
-{ lines[++n] = \$0 }
-END {
-  print "{"
-  print "  \\"webDomain\\": \\"" dom "\\","
-  print "  \\"webCertFile\\": \\"" cert "\\","
-  print "  \\"webKeyFile\\": \\"" key "\\","
-  for (i = 1; i <= n; i++) {
-    if (i == 1) continue
-    line = lines[i]
-    if (i == n - 1 && line ~ /,$/) sub(/,$/, "", line)
-    print line
-  }
-}
-' "\$f" > "\$f.tmp" && mv "\$f.tmp" "\$f"
+  docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" || return 1
+  local ok
+  ok=$(docker exec -i "$CONTAINER_NAME" sh <<EOF
+base=http://localhost:8080
+token=\$(wget -qO- --post-data='{"username":"admin","password":"123456"}' --header='Content-Type: application/json' \$base/api/login 2>/dev/null | sed 's/.*"token":"\([^"]*\)".*/\1/')
+[ -z "\$token" ] && exit 1
+settings=\$(wget -qO- --header="Authorization: Bearer \$token" \$base/api/system/settings 2>/dev/null)
+settings=\$(echo "\$settings" | sed -E 's/"webDomain": [^,}]*/"webDomain": "$domain"/; s/"webCertFile": [^,}]*/"webCertFile": "$cert"/; s/"webKeyFile": [^,}]*/"webKeyFile": "$key"/')
+wget -qO- --method=PUT --post-data="\$settings" --header='Content-Type: application/json' --header="Authorization: Bearer \$token" \$base/api/system/settings >/dev/null 2>&1
+echo DONE
 EOF
-  log_info "已同步写入容器内 /data/settings.json"
+)
+  [[ "$ok" == *DONE* ]]
+}
+
+# 二进制方式:宿主 curl 调面板 API
+set_panel_https_via_host() {
+  local domain="$1" cert="$2" key="$3"
+  local base="http://127.0.0.1:${DM_PORT}"
+  local token settings
+  token=$(curl -s -X POST "$base/api/login" -H 'Content-Type: application/json' -d '{"username":"admin","password":"123456"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
+  [ -z "$token" ] && return 1
+  settings=$(curl -s -H "Authorization: Bearer $token" "$base/api/system/settings")
+  settings=$(echo "$settings" | sed -E "s/\"webDomain\": [^,}]*/\"webDomain\": \"$domain\"/; s/\"webCertFile\": [^,}]*/\"webCertFile\": \"$cert\"/; s/\"webKeyFile\": [^,}]*/\"webKeyFile\": \"$key\"/")
+  curl -s -X PUT -H 'Content-Type: application/json' -H "Authorization: Bearer $token" -d "$settings" "$base/api/system/settings" >/dev/null 2>&1 && echo DONE
+  return $?
 }
 
 # ================= Docker Compose 安装 =================
