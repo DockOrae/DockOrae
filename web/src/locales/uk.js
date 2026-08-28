@@ -559,7 +559,7 @@ export default {
     datePickerType: 'Засіб вибору дати',
     datePickerTypeDesc: 'Тип календаря, який використовується для вибору дат закінчення терміну дії',
     ntpServer: 'NTP-сервер',
-    ntpServerDesc: 'Сервер синхронізації часу (порожньо = pool.ntp.org)',
+    ntpServerDesc: 'Сервер синхронізації часу',
     adminCredentials: 'Облікові дані адміністратора',
     oldUsername: 'Старе ім’я користувача',
     oldUsernamePh: 'Поточне ім’я користувача для входу',

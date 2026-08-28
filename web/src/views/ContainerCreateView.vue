@@ -120,7 +120,7 @@
           v-if="!licenseActive"
           class="btn btn-ghost !text-amber-400 border border-amber-400/40"
           :title="t('license.requiredHint')"
-          @click="$router.push('/settings?tab=license')"
+          @click="$router.push('/settings#license')"
         >
           <Icon name="lock" size="14" /> {{ t('license.required') }}
         </button>

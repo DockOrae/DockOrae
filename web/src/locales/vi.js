@@ -559,7 +559,7 @@ export default {
     datePickerType: 'Bộ chọn ngày',
     datePickerTypeDesc: 'Loại lịch được bộ chọn ngày sử dụng để chọn ngày hết hạn',
     ntpServer: 'Máy chủ NTP',
-    ntpServerDesc: 'Máy chủ đồng bộ thời gian (để trống dùng pool.ntp.org)',
+    ntpServerDesc: 'Máy chủ đồng bộ thời gian',
     adminCredentials: 'Thông tin đăng nhập quản trị viên',
     oldUsername: 'Tên người dùng cũ',
     oldUsernamePh: 'Tên người dùng đang đăng nhập',

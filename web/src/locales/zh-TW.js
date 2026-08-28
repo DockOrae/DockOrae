@@ -559,7 +559,7 @@ export default {
     datePickerType: '日期選擇器',
     datePickerTypeDesc: '日期選擇器用於到期日期的日曆類型',
     ntpServer: 'NTP 伺服器',
-    ntpServerDesc: '系統時間同步伺服器,留空使用預設 pool.ntp.org',
+    ntpServerDesc: '系統時間同步伺服器',
     adminCredentials: '管理員憑證',
     oldUsername: '原使用者名稱',
     oldUsernamePh: '目前登入的使用者名稱',

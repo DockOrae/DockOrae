@@ -559,7 +559,7 @@ export default {
     datePickerType: 'Pemilih tanggal',
     datePickerTypeDesc: 'Jenis kalender yang digunakan pemilih tanggal untuk tanggal kedaluwarsa',
     ntpServer: 'Server NTP',
-    ntpServerDesc: 'Server sinkronisasi waktu (kosong pakai pool.ntp.org)',
+    ntpServerDesc: 'Server sinkronisasi waktu',
     adminCredentials: 'Kredensial admin',
     oldUsername: 'Nama pengguna lama',
     oldUsernamePh: 'Nama pengguna masuk saat ini',

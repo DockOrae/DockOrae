@@ -153,23 +153,32 @@
 
     <!-- ============ Docker 统计三卡:容器 / 镜像 / 卷(仿 3x-ui ConnectionsCard 风格) ============ -->
     <div class="ov-docker">
-      <!-- 容器卡(仅显示数量,点击跳转容器列表) -->
+      <!-- 容器卡(数量 + 图标,点击跳转容器列表) -->
       <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/containers')">
-        <div class="ov-kicker">{{ t('nav.containers') }}</div>
+        <div class="count-card-head">
+          <div class="ov-kicker">{{ t('nav.containers') }}</div>
+          <span class="count-card-icon"><Icon name="container" size="20" /></span>
+        </div>
         <div class="count-card-num">{{ counts.total }}</div>
         <div class="count-card-sub">{{ t('dashboard.running') }} {{ counts.running }} · {{ t('dashboard.stopped') }} {{ counts.total - counts.running }}</div>
       </div>
 
-      <!-- 镜像卡(仅显示数量,点击跳转镜像列表) -->
+      <!-- 镜像卡(数量 + 图标,点击跳转镜像列表) -->
       <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/images')">
-        <div class="ov-kicker">{{ t('nav.images') }}</div>
+        <div class="count-card-head">
+          <div class="ov-kicker">{{ t('nav.images') }}</div>
+          <span class="count-card-icon"><Icon name="image" size="20" /></span>
+        </div>
         <div class="count-card-num">{{ counts.images }}</div>
         <div class="count-card-sub">{{ t('dashboard.totalSize') }} {{ imageSizeText }}</div>
       </div>
 
-      <!-- 卷卡(仅显示数量,点击跳转卷列表) -->
+      <!-- 卷卡(数量 + 图标,点击跳转卷列表) -->
       <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/volumes')">
-        <div class="ov-kicker">{{ t('nav.volumes') }}</div>
+        <div class="count-card-head">
+          <div class="ov-kicker">{{ t('nav.volumes') }}</div>
+          <span class="count-card-icon"><Icon name="volume" size="20" /></span>
+        </div>
         <div class="count-card-num">{{ counts.volumes }}</div>
         <div class="count-card-sub">{{ t('dashboard.mounted') }} {{ mountedVolumes }} · {{ t('dashboard.unmounted') }} {{ counts.volumes - mountedVolumes }}</div>
       </div>
@@ -999,7 +1008,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-/* ---------- 容器/镜像/卷数量卡(仅显示部署数量,点击跳转) ---------- */
+/* ---------- 容器/镜像/卷数量卡(数量 + 图标,点击跳转) ---------- */
 .count-card {
   display: flex;
   flex-direction: column;
@@ -1007,6 +1016,21 @@ onBeforeUnmount(() => {
   padding: var(--ov-pad);
   min-height: 150px;
   justify-content: center;
+}
+.count-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.count-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-brand) 12%, transparent);
+  color: var(--color-brand);
 }
 .count-card-num {
   font-size: 46px;

@@ -559,7 +559,7 @@ export default {
     datePickerType: '日付ピッカー',
     datePickerTypeDesc: '有効期限の日付ピッカーで使用するカレンダータイプ',
     ntpServer: 'NTP サーバー',
-    ntpServerDesc: 'システム時刻同期サーバー(空欄でデフォルトの pool.ntp.org)',
+    ntpServerDesc: 'システム時刻同期サーバー',
     adminCredentials: '管理者資格情報',
     oldUsername: '現在のユーザー名',
     oldUsernamePh: '現在のログインユーザー名',

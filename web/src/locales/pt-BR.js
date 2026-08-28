@@ -559,7 +559,7 @@ export default {
     datePickerType: 'Seletor de data',
     datePickerTypeDesc: 'Tipo de calendário usado pelo seletor de data para datas de expiração',
     ntpServer: 'Servidor NTP',
-    ntpServerDesc: 'Servidor de sincronização de horário (vazio usa pool.ntp.org)',
+    ntpServerDesc: 'Servidor de sincronização de horário',
     adminCredentials: 'Credenciais do administrador',
     oldUsername: 'Nome de usuário antigo',
     oldUsernamePh: 'Nome de usuário atual do login',

@@ -504,7 +504,7 @@ export default {
     datePickerType: 'Date picker',
     datePickerTypeDesc: 'Calendar type used by the date picker for expiration dates',
     ntpServer: 'NTP server',
-    ntpServerDesc: 'NTP time sync server, empty uses default pool.ntp.org',
+    ntpServerDesc: 'NTP time sync server',
     adminCredentials: 'Admin credentials',
     oldUsername: 'Old username',
     oldUsernamePh: 'Current login username',

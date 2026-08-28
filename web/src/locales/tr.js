@@ -559,7 +559,7 @@ export default {
     datePickerType: 'Tarih seçici',
     datePickerTypeDesc: 'Tarih seçicinin son kullanma tarihleri için kullandığı takvim türü',
     ntpServer: 'NTP sunucusu',
-    ntpServerDesc: 'Zaman senkronlama sunucusu (boşsa pool.ntp.org)',
+    ntpServerDesc: 'Zaman senkronlama sunucusu',
     adminCredentials: 'Yönetici kimlik bilgileri',
     oldUsername: 'Eski kullanıcı adı',
     oldUsernamePh: 'Mevcut giriş kullanıcı adı',

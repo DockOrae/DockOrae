@@ -559,7 +559,7 @@ export default {
     datePickerType: 'انتخاب‌گر تاریخ',
     datePickerTypeDesc: 'نوع تقویم مورد استفاده انتخاب‌گر تاریخ برای تاریخ‌های انقضا',
     ntpServer: 'سرور NTP',
-    ntpServerDesc: 'سرور همگام‌سازی زمان (خالی = pool.ntp.org)',
+    ntpServerDesc: 'سرور همگام‌سازی زمان',
     adminCredentials: 'اطلاعات ورود مدیر',
     oldUsername: 'نام کاربری قبلی',
     oldUsernamePh: 'نام کاربری فعلی برای ورود',

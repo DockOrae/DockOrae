@@ -505,7 +505,7 @@ export default {
     datePickerType: '日期选择器',
     datePickerTypeDesc: '选择器日历类型指定到期日期',
     ntpServer: 'NTP 服务器',
-    ntpServerDesc: '系统时间同步服务器,留空使用默认 pool.ntp.org',
+    ntpServerDesc: '系统时间同步服务器',
     adminCredentials: '管理员凭证',
     oldUsername: '原用户名',
     oldUsernamePh: '当前登录用户名',

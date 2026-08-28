@@ -2,7 +2,7 @@
   <div class="space-y-4 fade-up">
     <div class="flex items-center justify-between">
       <p class="text-[13px] text-muted">{{ t('compose.count', { count: stacks.length }) }}</p>
-      <button v-if="!licenseActive" class="btn btn-ghost btn-sm !text-amber-400 border border-amber-400/40" :title="t('license.requiredHint')" @click="$router.push('/settings?tab=license')">
+      <button v-if="!licenseActive" class="btn btn-ghost btn-sm !text-amber-400 border border-amber-400/40" :title="t('license.requiredHint')" @click="$router.push('/settings#license')">
         <Icon name="lock" size="14" /> {{ t('license.required') }}
       </button>
       <button v-else class="btn btn-brand btn-sm" @click="createOpen = true"><Icon name="plus" size="14" /> {{ t('compose.newStack') }}</button>

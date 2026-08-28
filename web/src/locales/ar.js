@@ -559,7 +559,7 @@ export default {
     datePickerType: 'منتقي التاريخ',
     datePickerTypeDesc: 'نوع التقويم المستخدم في منتقي التاريخ لتواريخ الانتهاء',
     ntpServer: 'خادم NTP',
-    ntpServerDesc: 'خادم مزامنة الوقت (فارغ = pool.ntp.org)',
+    ntpServerDesc: 'خادم مزامنة الوقت',
     adminCredentials: 'بيانات اعتماد المسؤول',
     oldUsername: 'اسم المستخدم القديم',
     oldUsernamePh: 'اسم مستخدم تسجيل الدخول الحالي',
