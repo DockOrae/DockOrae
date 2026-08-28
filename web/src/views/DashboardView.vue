@@ -243,7 +243,7 @@
           </div>
         </div>
         <div class="log-toolbar">
-          <select v-model="logRows" class="input !w-20 !h-8 text-[12px]" @change="loadLogs">
+          <select v-model="logRows" class="input text-[12px] shrink-0" style="width: 110px" @change="loadLogs">
             <option v-for="n in [20, 50, 100, 500, 1000]" :key="n" :value="n">{{ n }}</option>
           </select>
           <label class="log-check"><input type="checkbox" v-model="logAuto" /> {{ t('status.autoUpdate') }}</label>
