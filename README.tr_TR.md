@@ -23,13 +23,12 @@
 
 ## Özellikler
 
-- **Konteyner yönetimi** — oluşturma / başlatma / durdurma / yeniden başlatma / duraklatma / silme / inceleme / bağlanma, yerleşik **Web terminali** ile.
+- **Konteyner yönetimi** — oluşturma / başlatma / durdurma / yeniden başlatma / duraklatma / silme / inceleme / bağlanma, yerleşik **konteyner terminali** (WebSocket) ile.
 - **İmaj yönetimi** — gerçek zamanlı ilerlemeyle çekme (pull), silme ve kullanılmayan imajları temizleme.
 - **Ağ yönetimi** — oluşturma / silme / inceleme (alt ağ ve ağ geçidi yapılandırması).
 - **Birim (volume) yönetimi** — oluşturma / silme / inceleme.
 - **Compose yığın yönetimi** — YAML düzenleyici, tek tıkla dağıtım (akış çıktısı), başlatma/durdurma ve kaldırma.
 - **Gerçek zamanlı izleme** — 3x-ui tarzı durum sayfası: mini grafikli CPU / bellek / takas / depolama kartları, ağ bant genişliği ve disk G/Ç eğrileri, konteyner/imaj/birim sayıları, panel süreç istatistikleri ve görünürlük açma/kapama özellikli genel IP.
-- **Terminal** — ana makine terminali (chroot `/host`), konteyner terminali ve **SSH ana makine yönetimi** (gruplar / bağlanma / parola ve anahtar kimlik doğrulaması), hızlı komutlar, terminal görünüm ayarları.
 - **Lisans** — çevrimdışı Pro lisansı (dosya yükleme ile etkinleştirme / cihaz bağlama / bağlama kaldırma); ücretsiz sürüm konteyner oluşturmayı ve Compose dağıtımını sınırlar.
 - **Kayıt defteri aynası (registry mirror)** — `daemon.json` kayıt defteri aynalarını doğrudan panelden yapılandırın.
 - **Çok dilli** — koyu ve açık temalarla 14 arayüz dili.

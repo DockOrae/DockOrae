@@ -23,13 +23,12 @@
 
 ## Funciones
 
-- **Gestión de contenedores** — crear / iniciar / detener / reiniciar / pausar / eliminar / inspeccionar / adjuntar, con una **terminal web** integrada.
+- **Gestión de contenedores** — crear / iniciar / detener / reiniciar / pausar / eliminar / inspeccionar / adjuntar, con una **terminal de contenedor** integrada (WebSocket).
 - **Gestión de imágenes** — descargar con progreso en tiempo real, eliminar y limpiar imágenes no utilizadas.
 - **Gestión de redes** — crear / eliminar / inspeccionar (configuración de subred y puerta de enlace).
 - **Gestión de volúmenes** — crear / eliminar / inspeccionar.
 - **Gestión de stacks Compose** — editor YAML, despliegue con un clic (salida en streaming), iniciar/detener y desmontar.
 - **Monitorización en tiempo real** — página de estado al estilo 3x-ui: tarjetas de CPU / memoria / swap / almacenamiento con minigráficos, curvas de rendimiento de red y E/S de disco, conteos de contenedores/imágenes/volúmenes, estadísticas de procesos del panel e IP pública con conmutador de visibilidad.
-- **Terminal** — terminal del host (chroot `/host`), terminal de contenedor y **gestión de hosts SSH** (grupos / conectar / autenticación por contraseña y clave), comandos rápidos y ajustes de apariencia de la terminal.
 - **Licencia** — licencia Pro sin conexión (activación por carga de archivo / vinculación de dispositivo / desvinculación); el plan gratuito limita la creación de contenedores y el despliegue con Compose.
 - **Espejo del registro** — configure los espejos de registro de `daemon.json` directamente desde el panel.
 - **Multilingüe** — 14 idiomas de interfaz con temas claro y oscuro.
