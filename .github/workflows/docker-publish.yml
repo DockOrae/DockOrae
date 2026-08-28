@@ -85,10 +85,15 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           # Docker Hub API: PATCH /v2/repositories/{namespace}/{name}/ {full_description}
-          jq -n --rawfile d dockerhub-description.md '{full_description: $d}' > /tmp/desc.json
+          # 认证:先登录换 JWT(密码或 PAT 均可),再带 Authorization: JWT 调用
+          jq -n --rawfile d .github/release/dockerhub-description.md '{full_description: $d}' > /tmp/desc.json
+          jwt=$(curl -s -X POST https://hub.docker.com/v2/users/login/ \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"${DOCKERHUB_USERNAME}\",\"password\":\"${DOCKERHUB_TOKEN}\"}" | jq -r .token)
+          [ -z "$jwt" ] || [ "$jwt" = "null" ] && { echo "::error::Docker Hub 登录失败,请检查 DOCKERHUB_USERNAME/DOCKERHUB_TOKEN"; exit 1; }
           code=$(curl -sS -X PATCH \
             -H "Content-Type: application/json" \
-            -u "${DOCKERHUB_USERNAME}:${DOCKERHUB_TOKEN}" \
+            -H "Authorization: JWT ${jwt}" \
             --data-binary @/tmp/desc.json \
             -o /tmp/resp.json \
             -w "%{http_code}" \
@@ -96,4 +101,4 @@ jobs:
           echo "HTTP $code"
           cat /tmp/resp.json
           echo
-          test "$code" = "200" || { echo "::error::Docker Hub 说明更新失败(HTTP $code)。请确认 DOCKERHUB_TOKEN 是 Docker Hub PAT 且具有 Read & Write 权限(仅 Read 或密码会 401/403)"; exit 1; }
+          test "$code" = "200" || { echo "::error::Docker Hub 说明更新失败(HTTP $code),请检查凭据权限"; exit 1; }
