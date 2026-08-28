@@ -8,7 +8,7 @@ COPY web/ ./
 RUN npm run build
 
 # ================= Stage 2: Go 后端编译(原生交叉编译,不需要 QEMU) =================
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
 RUN apk add --no-cache git ca-certificates
