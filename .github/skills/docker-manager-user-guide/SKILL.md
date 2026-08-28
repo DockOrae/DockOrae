@@ -87,6 +87,15 @@ disable-model-invocation: false
 - **磁盘清理**:分析并清理 Docker 占用(已停止容器/未使用镜像/未使用卷/构建缓存,等效 `docker system prune`;`/api/toolbox/clean/analysis` + `/api/toolbox/clean`)。
 - **Fail2ban 登录防护**:失败阈值/封禁时长/封禁列表/解封/清空(内存态,重启清零;已登录管理员不受封禁影响)。
 
+### 在线更新(页脚版本图标)
+- 面板启动后每 10 分钟静默检查 GitHub Releases(`api.github.com/repos/MinimaxFlora/Docker_Manager_Go/releases/latest`,结果缓存 10 分钟,**失败不缓存**;`DM_UPDATE_API` 环境变量可覆盖检测接口,测试用)。
+- 有新版时页脚版本号位置的**下载图标亮粉色红点**(`.update-dot`),点击弹出更新详情 Modal:当前/最新版本对比、发布时间、release notes、GitHub 链接、立即更新按钮(确认后执行)。
+- **一键更新按部署模式自动分流**(`deploymentMode()`;`DM_DEPLOY_MODE=compose|binary` 可强制,生产自动判断:cgroup 含 docker 容器 ID → compose,否则 binary):
+  - **compose 部署(容器内)**:探测宿主 docker-compose.yml(优先从自身容器的 `/data` 挂载反推宿主安装目录,兜底 `/host/opt/docker-manager/docker-compose.yml`,返回宿主路径)→ 拉取 `docker/compose:latest` → 启动独立 `dm-update-helper` 容器(挂 docker.sock + compose 目录只读,`AutoRemove`)执行 `compose up -d --force-recreate --pull always` → 面板容器被重建,短暂断连后自动恢复。
+  - **binary 部署(systemd)**:下载 GitHub Release 资产 `docker-manager-go-linux-<amd64|arm64>.tar.gz` → 解压 → **先复制到 `/proc/self/exe` 同目录再原子 rename**(避免 /tmp tmpfs 跨文件系统 EXDEV)→ 保留 `.old` 备份 → 1.5 秒后 `systemctl restart docker-manager`。
+- 更新中前端轮询 `/api/update/check` 直到 `has_update=false` 且无错误(新版本上线)才算完成。
+- **排障**:检测失败显示"检查更新失败"(GitHub API 403/网络不通,不阻塞面板);compose 模式找不到 compose 文件会提示**已探测的路径**(数据目录不在安装目录下等特殊情况,需手动 `install.sh update`);binary 模式需 root 权限(能写 /usr/local/bin + systemctl);更新后版本号在 `main.go`(CI 提取)与 `internal/api/update.go` 的 `AppVersion` 两处同步。
+
 ---
 
 ## 第三部分:面板设置配置项详解

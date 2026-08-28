@@ -848,7 +848,7 @@ Docker Manager 一键脚本 v2.0.0
   bash install.sh                 交互菜单
   bash install.sh install         安装(可选 DM_MODE=compose|binary 指定方式;DM_FORCE=1 覆盖重装)
   bash install.sh ssl             SSL 证书管理(域名绑定,acme.sh)
-  bash install.sh update          更新
+  bash install.sh update          更新(面板内也已支持一键在线更新)
   bash install.sh uninstall       卸载(数据保留)
   bash install.sh start|stop|restart|status
   bash install.sh backup          备份数据

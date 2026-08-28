@@ -37,6 +37,7 @@
 - **Panel settings (1Panel-inspired)** — security entrance path (panel accessible only via `/entrance`), unauthenticated response codes (200 help page / 400 / 401 / 403 / 404 / 408 / 416 / 444 / 500), panel domain whitelist (IP access disabled once a domain is bound), panel SSL certificate paths, password expiry & complexity policies, proxy server for outbound requests.
 - **Toolbox** — device info, Docker disk cleanup (stopped containers / unused images & volumes / build cache), Fail2ban login protection with auto-ban, ban list and unban.
 - **Event stream** — real-time Docker events pushed to the dashboard.
+- **Online update** — auto-checks GitHub Releases (badge on the version icon in the footer when a new version is available) and updates with one click for both deployment modes: compose (independent helper container re-pulls & recreates the panel) or binary (atomic self-replacement + systemd restart).
 
 ## 🤖 Agent Skill
 
