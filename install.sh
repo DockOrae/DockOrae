@@ -153,7 +153,16 @@ install_docker_if_missing() {
       die "Docker 自动安装失败,请手动安装后重试"
   fi
   command -v docker >/dev/null 2>&1 || die "Docker 安装失败,请手动安装后重试"
-  log_info "Docker 安装成功: $(docker --version)"
+  # 确保服务启动 + socket 就绪(刚安装的 Docker daemon 可能未完全起来)
+  systemctl enable docker >/dev/null 2>&1 || true
+  systemctl start docker >/dev/null 2>&1 || service docker start >/dev/null 2>&1 || true
+  log_step "等待 Docker 服务就绪..."
+  for i in $(seq 1 15); do
+    [ -S /var/run/docker.sock ] && docker info >/dev/null 2>&1 && break
+    sleep 1
+  done
+  docker info >/dev/null 2>&1 || die "Docker 服务未就绪,请手动排查: systemctl status docker"
+  log_info "Docker 就绪: $(docker --version)"
 }
 
 # ---------- 架构检测(二进制安装) ----------
@@ -220,40 +229,42 @@ EOF
   log_info "compose 文件已生成(端口 ${DM_PORT},数据目录 ${DM_DATA_DIR},证书目录 ${DM_CERT_DIR})"
 }
 
-# ---------- 设置面板证书路径(settings.json) ----------
-# 参数:$1=证书文件(面板视角路径) $2=私钥文件(面板视角路径)
-set_panel_cert() {
-  local cert="$1" key="$2"
+# ---------- 设置面板 HTTPS(监听域名 + 证书路径,写入 settings.json) ----------
+# 参数:$1=域名 $2=证书文件(面板视角路径) $3=私钥文件(面板视角路径)
+set_panel_https() {
+  local domain="$1" cert="$2" key="$3"
   local settings="$DM_DATA_DIR/settings.json"
   mkdir -p "$DM_DATA_DIR"
   if command -v python3 >/dev/null 2>&1; then
-    python3 - "$settings" "$cert" "$key" <<'EOF'
+    python3 - "$settings" "$domain" "$cert" "$key" <<'EOF'
 import json, sys
-p, cert, key = sys.argv[1], sys.argv[2], sys.argv[3]
+p, domain, cert, key = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 try:
     with open(p) as f: d = json.load(f)
 except Exception:
     d = {}
+d["webDomain"] = domain
 d["webCertFile"] = cert
 d["webKeyFile"] = key
 with open(p, "w") as f:
     json.dump(d, f, indent=2, ensure_ascii=False)
 EOF
   else
-    # 无 python3 时用简单 sed(仅在已有 webCertFile/webKeyFile 键时替换)
-    if [ -f "$settings" ] && grep -q 'webCertFile' "$settings"; then
-      sed -i "s|\"webCertFile\"[^,]*|\"webCertFile\": \"$cert\"|; s|\"webKeyFile\"[^,]*|\"webKeyFile\": \"$key\"|" "$settings"
+    # 无 python3 时用简单 sed(仅在已有键时替换)
+    if [ -f "$settings" ] && grep -q 'webDomain' "$settings"; then
+      sed -i "s|\"webDomain\"[^,]*|\"webDomain\": \"$domain\"|; s|\"webCertFile\"[^,]*|\"webCertFile\": \"$cert\"|; s|\"webKeyFile\"[^,]*|\"webKeyFile\": \"$key\"|" "$settings"
     else
-      log_warn "未找到 settings.json,请在面板「设置 → 常规 → 证书」中手动填写证书路径"
+      log_warn "未找到 settings.json,请在面板「设置 → 常规」中手动填写监听域名与证书路径"
     fi
   fi
-  log_info "面板证书路径已配置: $cert / $key"
+  log_info "面板已配置: 监听域名 ${domain},证书 ${cert} / ${key}(https://${domain}:${DM_PORT})"
 }
 
 # ================= Docker Compose 安装 =================
 install_compose() {
   log_step "使用 Docker Compose 方式安装"
   install_docker_if_missing
+  [ -S /var/run/docker.sock ] || die "Docker socket 不存在(/var/run/docker.sock),请确认 Docker 服务已启动"
   command -v docker compose >/dev/null 2>&1 || die "未检测到 Docker Compose 插件,请安装 docker-compose-plugin"
   generate_compose
   pull_image
@@ -539,18 +550,18 @@ ssl_domain() {
   chmod 600 "$cert_dir/$domain.key"
   log_info "证书已生成: $cert_dir"
 
-  # 配置面板证书路径
+  # 配置面板:监听域名 + 证书路径
   local mode
   mode=$(read_mode)
   if [ "$mode" = "compose" ]; then
     # 容器内证书挂载在 /data/cert
-    set_panel_cert "/data/cert/$domain/fullchain.cer" "/data/cert/$domain/$domain.key"
+    set_panel_https "$domain" "/data/cert/$domain/fullchain.cer" "/data/cert/$domain/$domain.key"
     ( cd "$DM_INSTALL_DIR" && docker compose restart ) >/dev/null 2>&1
   else
-    set_panel_cert "$cert_dir/fullchain.cer" "$cert_dir/$domain.key"
+    set_panel_https "$domain" "$cert_dir/fullchain.cer" "$cert_dir/$domain.key"
     systemctl restart docker-manager >/dev/null 2>&1
   fi
-  log_info "HTTPS 已启用: https://${domain}:${DM_PORT} (证书路径已写入面板设置)"
+  log_info "HTTPS 已启用: https://${domain}:${DM_PORT} (监听域名与证书已自动写入面板设置)"
 }
 
 # 查看已申请证书
