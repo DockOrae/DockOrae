@@ -163,3 +163,16 @@ func ComposeRemove(st *state.AppState, project string) error {
 	_, _ = RunCompose(st, project, "down")
 	return os.RemoveAll(ProjectDir(st, project))
 }
+
+// ComposeAdopt 接管外部创建的栈:把 yaml 保存到面板数据目录,使其变为面板管理。
+// 仅保存文件不部署(用户后续可编辑/up);不做许可证限制(接管≠创建)。
+func ComposeAdopt(st *state.AppState, project, yaml string) error {
+	if strings.TrimSpace(yaml) == "" {
+		return BadRequest("compose.yamlEmpty")
+	}
+	dir := ProjectDir(st, project)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(ComposeFile(st, project), []byte(yaml), 0o644)
+}

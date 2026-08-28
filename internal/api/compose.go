@@ -224,6 +224,25 @@ func composeRemove(c *gin.Context, st *state.AppState) error {
 	return nil
 }
 
+// composeAdopt 接管外部创建的栈(保存 yaml 到面板目录 → 变为面板管理)
+func composeAdopt(c *gin.Context, st *state.AppState) error {
+	project, err := service.ValidateProject(c.Param("project"))
+	if err != nil {
+		return err
+	}
+	var req struct {
+		Yaml string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return service.BadRequest("err.requestFailed")
+	}
+	if err := service.ComposeAdopt(st, project, req.Yaml); err != nil {
+		return err
+	}
+	c.JSON(200, gin.H{"ok": true})
+	return nil
+}
+
 // composeLogsWS 日志流(WebSocket 实时)
 func composeLogsWS(c *gin.Context, st *state.AppState) error {
 	conn, err := upgradeWS(c)

@@ -124,12 +124,14 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 
 	p.GET("/volumes", H(volumesList).Handler(st))
 	p.POST("/volumes", H(volumesCreate).Handler(st))
+	p.GET("/volumes/drivers", H(volumesDrivers).Handler(st))
 	p.POST("/volumes/prune", H(volumesPrune).Handler(st))
 	p.GET("/volumes/:name", H(volumesInspect).Handler(st))
 	p.DELETE("/volumes/:name", H(volumesRemove).Handler(st))
 
 	p.GET("/compose", H(composeList).Handler(st))
 	p.POST("/compose", H(composeUp).Handler(st))
+	p.POST("/compose/:project/adopt", H(composeAdopt).Handler(st))
 	p.GET("/compose/:project", H(composeInspect).Handler(st))
 	p.PUT("/compose/:project", H(composeUpdate).Handler(st))
 	p.DELETE("/compose/:project", H(composeRemove).Handler(st))

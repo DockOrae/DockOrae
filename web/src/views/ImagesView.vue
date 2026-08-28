@@ -59,8 +59,27 @@
           <label class="label">{{ t('images.tag') }}</label>
           <input v-model="pullForm.tag" class="input !w-40" :placeholder="t('images.tagPh')" />
         </div>
-        <div v-if="pullProgress.length" class="code-panel border border-line rounded-lg p-3 h-44 overflow-y-auto font-mono text-[11px] leading-relaxed">
-          <div v-for="(l, i) in pullProgress" :key="i" class="whitespace-pre-wrap break-all text-muted">{{ l }}</div>
+        <div v-if="pulling || overall || layerList.length" class="rounded-lg border border-line p-3">
+          <!-- 整体进度条 -->
+          <div class="flex items-center gap-2 mb-2">
+            <div class="flex-1 h-1.5 rounded-full bg-surface2 overflow-hidden">
+              <div class="h-full bg-brand transition-all duration-300" :style="{ width: overallPct + '%' }" />
+            </div>
+            <span class="text-[11px] text-muted font-mono w-10 text-right">{{ overallPct }}%</span>
+          </div>
+          <div v-if="overall" class="text-[11px] text-muted mb-2 break-all">{{ overall }}</div>
+          <div v-if="pullError" class="text-[11px] text-danger mb-2 break-all">{{ pullError }}</div>
+          <!-- 层列表 -->
+          <div class="max-h-44 overflow-y-auto space-y-1">
+            <div v-for="l in layerList" :key="l.id" class="flex items-center gap-2 text-[11px] font-mono">
+              <span :class="l.status === 'Pull complete' ? 'text-ok' : 'text-muted'">
+                {{ l.status === 'Pull complete' ? '✓' : (l.status.includes('Downloading') || l.status.includes('Extracting') || l.status.includes('Verifying') ? '⟳' : '○') }}
+              </span>
+              <span class="text-muted w-16 truncate shrink-0">{{ shortId(l.id) }}</span>
+              <span class="flex-1 truncate" :class="l.status === 'Pull complete' ? 'text-ok' : 'text-muted'">{{ l.status }}</span>
+              <span v-if="l.progress" class="text-muted shrink-0">{{ l.progress }}</span>
+            </div>
+          </div>
         </div>
       </div>
       <template #footer>
@@ -95,10 +114,22 @@ const keyword = ref('')
 const pullOpen = ref(false)
 const pulling = ref(false)
 const pullForm = ref({ from_image: '', tag: 'latest' })
-const pullProgress = ref([])
+const layers = ref({})
+const overall = ref('')
+const pullError = ref('')
 const detailOpen = ref(false)
 const detailJson = ref('')
 const confirm = useConfirm()
+
+// 层列表(按发现顺序)
+const layerList = computed(() => Object.values(layers.value))
+// 整体进度:已完成的层 / 总层数
+const overallPct = computed(() => {
+  const list = layerList.value
+  if (!list.length) return 0
+  const done = list.filter((l) => l.status === 'Pull complete').length
+  return Math.round((done / list.length) * 100)
+})
 
 const filtered = computed(() => {
   if (!keyword.value) return images.value
@@ -115,26 +146,41 @@ async function load() {
 
 async function pull() {
   pulling.value = true
-  pullProgress.value = []
+  layers.value = {}
+  overall.value = ''
+  pullError.value = ''
   try {
     await pullImageStream(
       { from_image: pullForm.value.from_image, tag: pullForm.value.tag || 'latest' },
       (line) => {
-        const status = line.status || line.error || line.id || ''
-        if (line.progressDetail?.current != null && line.progressDetail?.total) {
-          const pct = Math.round((line.progressDetail.current / line.progressDetail.total) * 100)
-          pullProgress.value.push(`${status} ${pct}%`)
-        } else if (status) {
-          pullProgress.value.push(status)
+        const id = line.id || ''
+        const status = line.status || ''
+        if (line.error) {
+          pullError.value = line.error
+          overall.value = line.error
+          return
         }
-        if (pullProgress.value.length > 300) pullProgress.value.shift()
+        if (id) {
+          const l = layers.value[id] || { id, status: '', progress: '', pct: 0 }
+          l.status = status
+          if (line.progressDetail?.current != null && line.progressDetail?.total) {
+            l.pct = Math.round((line.progressDetail.current / line.progressDetail.total) * 100)
+            l.progress = `${formatBytes(line.progressDetail.current)} / ${formatBytes(line.progressDetail.total)}`
+          } else if (line.progress) {
+            l.progress = line.progress
+          }
+          layers.value = { ...layers.value, [id]: l }
+        } else if (status) {
+          // 整体状态行(Pulling from / Status: Downloaded newer image / Digest / Pull complete)
+          overall.value = status
+        }
       }
     )
     toastOk(t('images.toastPullDone'))
     pullOpen.value = false
     load()
   } catch (e) {
-    pullProgress.value.push(`❌ ${e.message}`)
+    pullError.value = e.message
     toastErr(e.message)
   } finally {
     pulling.value = false
@@ -144,7 +190,9 @@ async function pull() {
 function closePull() {
   if (pulling.value) return
   pullOpen.value = false
-  pullProgress.value = []
+  layers.value = {}
+  overall.value = ''
+  pullError.value = ''
 }
 
 async function remove(img) {

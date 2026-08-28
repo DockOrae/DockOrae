@@ -44,6 +44,10 @@
         </div>
       </div>
       <textarea v-model="yamlText" rows="20" class="input" spellcheck="false" :disabled="!editable" />
+      <div v-if="!editable" class="mt-3 rounded-lg border border-line bg-surface2/50 p-3">
+        <p class="text-xs text-muted mb-2">{{ t('composeDetail.adoptDesc') }}</p>
+        <button class="btn btn-brand btn-sm" @click="adoptOpen = true"><Icon name="download" size="12" /> {{ t('composeDetail.adopt') }}</button>
+      </div>
       <p v-if="!editable" class="text-xs text-muted mt-2">{{ t('composeDetail.notEditable') }}</p>
       <!-- 保存部署过程实时输出 -->
       <div v-if="saving || output" class="mt-3 code-panel border border-line rounded-lg p-3 max-h-52 overflow-y-auto font-mono text-[11px] whitespace-pre-wrap" :class="saveFailed ? 'text-danger' : 'text-muted'">
@@ -91,6 +95,22 @@
     <div v-else-if="tab === 'logs'" class="card p-4">
       <LogViewer :stream="`/compose/${project}/logs`" follow />
     </div>
+
+    <!-- 接管外部栈 -->
+    <Modal :model-value="adoptOpen" :title="t('composeDetail.adoptTitle')" @close="adoptOpen = false">
+      <div class="space-y-3">
+        <p class="text-xs text-muted">{{ t('composeDetail.adoptDesc') }}</p>
+        <textarea v-model="adoptText" rows="14" class="input font-mono text-[12px]" spellcheck="false" :placeholder="t('composeDetail.adoptYamlPh')" />
+        <p v-if="adoptErr" class="text-xs text-danger">{{ adoptErr }}</p>
+      </div>
+      <template #footer>
+        <button class="btn btn-ghost btn-sm" @click="adoptOpen = false">{{ t('common.cancel') }}</button>
+        <button class="btn btn-brand btn-sm" :disabled="adopting || !adoptText.trim()" @click="adopt">
+          <span v-if="adopting" class="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin mr-1.5" />
+          {{ t('composeDetail.adopt') }}
+        </button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -99,6 +119,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
+import Modal from '../components/Modal.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import LogViewer from '../components/LogViewer.vue'
 import { api, composeStream } from '../api'
@@ -117,6 +138,10 @@ const tab = ref('file')
 const saving = ref(false)
 const saveFailed = ref(false)
 const outputLines = ref([])
+const adoptOpen = ref(false)
+const adoptText = ref('')
+const adopting = ref(false)
+const adoptErr = ref('')
 let timer = null
 
 const tabs = [
@@ -153,6 +178,22 @@ async function act(action) {
     load()
   } catch (e) {
     toastErr(e.message)
+  }
+}
+
+// 接管外部创建的栈:粘贴 yaml 保存到面板 → 变为可管理
+async function adopt() {
+  adopting.value = true
+  adoptErr.value = ''
+  try {
+    await api(`/compose/${project.value}/adopt`, { method: 'POST', json: { yaml: adoptText.value } })
+    toastOk(t('composeDetail.adopted'))
+    adoptOpen.value = false
+    load()
+  } catch (e) {
+    adoptErr.value = e.message
+  } finally {
+    adopting.value = false
   }
 }
 
