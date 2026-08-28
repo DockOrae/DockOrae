@@ -258,6 +258,36 @@ EOF
     fi
   fi
   log_info "面板已配置: 监听域名 ${domain},证书 ${cert} / ${key}(https://${domain}:${DM_PORT})"
+  sync_cert_into_container "$domain" "$cert" "$key"
+}
+
+# 把域名/证书设置同步进容器 /data/settings.json(兼容命名卷等非宿主目录挂载场景)
+sync_cert_into_container() {
+  local domain="$1" cert="$2" key="$3"
+  docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$" || return 0
+  docker exec -i "$CONTAINER_NAME" sh <<EOF
+f=/data/settings.json
+[ -f "\$f" ] || echo '{}' > "\$f"
+awk -v dom="$domain" -v cert="$cert" -v key="$key" '
+/\"webDomain\"/ { next }
+/\"webCertFile\"/ { next }
+/\"webKeyFile\"/ { next }
+{ lines[++n] = \$0 }
+END {
+  print "{"
+  print "  \\"webDomain\\": \\"" dom "\\","
+  print "  \\"webCertFile\\": \\"" cert "\\","
+  print "  \\"webKeyFile\\": \\"" key "\\","
+  for (i = 1; i <= n; i++) {
+    if (i == 1) continue
+    line = lines[i]
+    if (i == n && line ~ /,$/) sub(/,$/, "", line)
+    print line
+  }
+}
+' "\$f" > "\$f.tmp" && mv "\$f.tmp" "\$f"
+EOF
+  log_info "已同步写入容器内 /data/settings.json"
 }
 
 # ================= Docker Compose 安装 =================
@@ -271,6 +301,16 @@ install_compose() {
   log_step "启动容器..."
   ( cd "$DM_INSTALL_DIR" && docker compose up -d ) || die "容器启动失败,请查看: docker compose -f $COMPOSE_FILE logs"
   wait_ready
+  # 容器内 Docker socket 校验:首次部署时 daemon 未就绪会把 socket 挂载成目录,
+  # 面板将永远连不上 Docker —— 检测到异常自动重建容器
+  if ! docker exec "$CONTAINER_NAME" test -S /var/run/docker.sock 2>/dev/null; then
+    log_warn "容器内 Docker socket 异常(挂载成了目录),自动重建容器..."
+    ( cd "$DM_INSTALL_DIR" && docker compose down && docker compose up -d ) || die "重建失败"
+    wait_ready
+  fi
+  docker exec "$CONTAINER_NAME" test -S /var/run/docker.sock 2>/dev/null \
+    && log_info "容器内 Docker socket 正常 ✓" \
+    || log_warn "容器内仍未检测到 Docker socket,请检查: systemctl status docker 与 docker logs ${CONTAINER_NAME}"
   write_mode_marker compose
 }
 
@@ -556,12 +596,17 @@ ssl_domain() {
   if [ "$mode" = "compose" ]; then
     # 容器内证书挂载在 /data/cert
     set_panel_https "$domain" "/data/cert/$domain/fullchain.cer" "/data/cert/$domain/$domain.key"
-    ( cd "$DM_INSTALL_DIR" && docker compose restart ) >/dev/null 2>&1
+    # HTTPS 端口映射:8080 → 443(https://域名 直接访问,无需端口号)
+    if [ -f "$COMPOSE_FILE" ] && grep -q "${DM_PORT}:8080" "$COMPOSE_FILE"; then
+      sed -i "s|${DM_PORT}:8080|443:8080|" "$COMPOSE_FILE"
+      log_info "compose 端口已改为 443:8080,访问地址: https://${domain}/"
+    fi
+    ( cd "$DM_INSTALL_DIR" && docker compose up -d --force-recreate ) >/dev/null 2>&1
   else
     set_panel_https "$domain" "$cert_dir/fullchain.cer" "$cert_dir/$domain.key"
     systemctl restart docker-manager >/dev/null 2>&1
   fi
-  log_info "HTTPS 已启用: https://${domain}:${DM_PORT} (监听域名与证书已自动写入面板设置)"
+  log_info "HTTPS 已启用: https://${domain}/ (监听域名、证书、端口已全部自动配置)"
 }
 
 # 查看已申请证书
