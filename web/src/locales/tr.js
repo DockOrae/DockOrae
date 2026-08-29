@@ -908,6 +908,8 @@ export default {
     install_binary: 'İkili',
     install_docker: 'Docker Compose',
     failedKeepOld: 'Mevcut sürüm hâlâ çalışıyor; daha sonra tekrar deneyin',
+    upgrade: 'Yükselt',
+    restartHint: 'Güncelleme sırasında panel kısa süreliğine yeniden başlatılır. Bu sayfayı kapatmayın.',
   },
 
   appStore: {

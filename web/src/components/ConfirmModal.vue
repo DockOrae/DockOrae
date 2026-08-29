@@ -11,7 +11,7 @@
         class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         @click.self="resolveConfirm(false)"
       >
-        <div class="card w-full max-w-sm fade-up shadow-2xl shadow-black/40 overflow-hidden">
+        <div class="card w-full fade-up shadow-2xl shadow-black/40 overflow-hidden" :class="sizeClass">
           <div class="px-5 py-4">
             <div class="flex items-center gap-3 mb-2">
               <span
@@ -46,8 +46,9 @@ import { confirmState, resolveConfirm } from '../confirm'
 import { useI18n } from 'vue-i18n'
 
 // 支持 ESC 取消
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 const { t } = useI18n()
+const sizeClass = computed(() => ({ sm: 'max-w-sm', lg: 'max-w-lg', xl: 'max-w-xl' }[confirmState.size] || 'max-w-sm'))
 function onKey(e) {
   if (e.key === 'Escape' && confirmState.visible) resolveConfirm(false)
 }

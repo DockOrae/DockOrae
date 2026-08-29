@@ -908,6 +908,8 @@ export default {
     install_binary: 'Бінарний',
     install_docker: 'Docker Compose',
     failedKeepOld: 'Поточна версія продовжує працювати; повторіть пізніше',
+    upgrade: 'Оновити',
+    restartHint: 'Панель тимчасово перезапуститься під час оновлення. Не закривайте цю сторінку.',
   },
 
   appStore: {

@@ -908,6 +908,8 @@ export default {
     install_binary: '바이너리',
     install_docker: 'Docker Compose',
     failedKeepOld: '현재 버전이 그대로 유지됩니다. 나중에 다시 시도하세요',
+    upgrade: '업그레이드',
+    restartHint: '업데이트 중 패널이 잠시 재시작됩니다. 페이지를 닫지 마세요',
   },
 
   appStore: {

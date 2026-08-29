@@ -908,6 +908,8 @@ export default {
     install_binary: 'Binario',
     install_docker: 'Docker Compose',
     failedKeepOld: 'La versión actual sigue en ejecución; puede reintentar más tarde',
+    upgrade: 'Actualizar',
+    restartHint: 'El panel se reiniciará brevemente durante la actualización. No cierre esta página.',
   },
 
   appStore: {

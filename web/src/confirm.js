@@ -7,6 +7,7 @@ export const confirmState = reactive({
   message: '',
   danger: true,
   confirmText: '',
+  size: 'sm', // sm | lg | xl
   _resolve: null,
 })
 
@@ -17,6 +18,7 @@ export function useConfirm() {
       confirmState.message = message
       confirmState.danger = opts.danger !== false
       confirmState.confirmText = opts.confirmText || t('common.ok')
+      confirmState.size = opts.size || 'sm'
       confirmState._resolve = resolve
       confirmState.visible = true
     })

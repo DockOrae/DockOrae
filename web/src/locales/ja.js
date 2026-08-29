@@ -908,6 +908,8 @@ export default {
     install_binary: 'バイナリ',
     install_docker: 'Docker Compose',
     failedKeepOld: '現在のバージョンはそのままです。後で再試行できます',
+    upgrade: 'アップグレード',
+    restartHint: '更新中はパネルが一時的に再起動します。ページを閉じないでください',
   },
 
   appStore: {

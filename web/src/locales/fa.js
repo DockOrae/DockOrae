@@ -908,6 +908,8 @@ export default {
     install_binary: 'باینری',
     install_docker: 'Docker Compose',
     failedKeepOld: 'نسخه فعلی همچنان در حال اجراست؛ بعداً دوباره تلاش کنید',
+    upgrade: 'ارتقا',
+    restartHint: 'پنل در طول بهروزرسانی به طور موقت راهاندازی مجدد میشود. این صفحه را نبندید.',
   },
 
   appStore: {

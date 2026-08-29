@@ -909,6 +909,8 @@ export default {
     install_binary: '二進位安裝',
     install_docker: 'Docker Compose 安裝',
     failedKeepOld: '目前版本仍為舊版,可稍後重試',
+    upgrade: '升級',
+    restartHint: '更新過程中面板會短暫重啟,請勿關閉頁面',
   },
 
   appStore: {

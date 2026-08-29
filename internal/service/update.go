@@ -57,9 +57,33 @@ const (
 type UpdateStatus struct {
 	Running    bool        `json:"running"`
 	Phase      UpdatePhase `json:"phase"`
+	Percent    int         `json:"percent"` // 0-100,前端进度条
 	Error      string      `json:"error"`
 	StartedAt  time.Time   `json:"started_at"`
 	FinishedAt time.Time   `json:"finished_at"`
+}
+
+// phasePercent 各阶段的基准进度(下载阶段会按实际字节数实时推进到 40)
+func phasePercent(p UpdatePhase) int {
+	switch p {
+	case PhaseDownloading:
+		return 10
+	case PhaseVerifying:
+		return 45
+	case PhaseExtracting:
+		return 60
+	case PhaseReplacing:
+		return 80
+	case PhaseRestarting:
+		return 95
+	case PhasePulling:
+		return 15
+	case PhaseHelper:
+		return 70
+	case PhaseDone:
+		return 100
+	}
+	return 0
 }
 
 var (
@@ -67,15 +91,25 @@ var (
 	updateStatus   UpdateStatus
 )
 
-// setUpdatePhase 推进更新阶段
+// setUpdatePhase 推进更新阶段(同时更新基准进度)
 func setUpdatePhase(p UpdatePhase) {
 	updateStatusMu.Lock()
 	defer updateStatusMu.Unlock()
 	updateStatus.Running = p != PhaseIdle && p != PhaseDone && p != PhaseFailed
 	updateStatus.Phase = p
+	updateStatus.Percent = phasePercent(p)
 	updateStatus.Error = ""
 	if p == PhaseDone || p == PhaseFailed {
 		updateStatus.FinishedAt = time.Now()
+	}
+}
+
+// updatePercent 仅推进进度(下载阶段实时调用,不改变阶段)
+func updatePercent(pct int) {
+	updateStatusMu.Lock()
+	defer updateStatusMu.Unlock()
+	if pct > updateStatus.Percent {
+		updateStatus.Percent = pct
 	}
 }
 
@@ -367,7 +401,13 @@ func applyBinaryUpdate(ctx context.Context) error {
 	if err != nil {
 		return failUpdate("创建临时文件失败: %s", err.Error())
 	}
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+	// 下载进度:响应头给出总大小时按字节实时推进 percent(10→40)
+	if resp.ContentLength > 0 {
+		_, err = io.Copy(tmpFile, io.TeeReader(resp.Body, &progressWriter{total: resp.ContentLength, from: 10, to: 40}))
+	} else {
+		_, err = io.Copy(tmpFile, resp.Body)
+	}
+	if err != nil {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
 		return failUpdate("下载中断: %s", err.Error())
@@ -425,6 +465,28 @@ func applyBinaryUpdate(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+// progressWriter 下载进度统计:每 256KB 更新一次状态 percent(节流,避免频繁加锁)
+type progressWriter struct {
+	total    int64
+	done     int64
+	from, to int
+	next     int64
+}
+
+func (w *progressWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	w.done += int64(n)
+	if w.total > 0 && w.done >= w.next {
+		w.next = w.done + 256*1024
+		pct := w.from + int(float64(w.done)/float64(w.total)*float64(w.to-w.from))
+		if pct > w.to {
+			pct = w.to
+		}
+		updatePercent(pct)
+	}
+	return n, nil
 }
 
 // copyFile 复制文件内容与权限

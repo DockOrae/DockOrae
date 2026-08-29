@@ -907,6 +907,8 @@ export default {
     install_binary: '二进制安装',
     install_docker: 'Docker Compose 安装',
     failedKeepOld: '当前版本仍为旧版本,可稍后重试',
+    upgrade: '升级',
+    restartHint: '更新过程中面板会短暂重启,请勿关闭页面',
   },
 
   appStore: {

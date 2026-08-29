@@ -908,6 +908,8 @@ export default {
     install_binary: 'ثنائي',
     install_docker: 'Docker Compose',
     failedKeepOld: 'النسخة الحالية ما تزال تعمل، يمكنك إعادة المحاولة لاحقًا',
+    upgrade: 'ترقية',
+    restartHint: 'ستتم إعادة تشغيل اللوحة لفترة وجيزة أثناء التحديث. لا تغلق هذه الصفحة.',
   },
 
   appStore: {
