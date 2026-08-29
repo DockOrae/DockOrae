@@ -615,9 +615,11 @@
             <table class="table !m-0">
               <thead>
                 <tr>
-                  <th class="th">{{ t('license.id') }}</th>
+                  <th class="th">{{ t('license.licenseId') }}</th>
                   <th class="th">{{ t('license.authorizedUser') }}</th>
                   <th class="th">{{ t('license.edition') }}</th>
+                  <th class="th">{{ t('license.features') }}</th>
+                  <th class="th">{{ t('license.maxDevices') }}</th>
                   <th class="th">{{ t('license.status') }}</th>
                   <th class="th">{{ t('license.boundTo') }}</th>
                   <th class="th">{{ t('license.expires') }}</th>
@@ -626,16 +628,18 @@
               </thead>
               <tbody>
                 <tr v-if="licActive && licInfo">
-                  <td class="td font-mono text-[11px]">{{ licKey.slice(0, 14) }}…</td>
-                  <td class="td">{{ licInfo.user || '-' }}</td>
-                  <td class="td"><span class="badge" :style="okStyle">{{ t('license.' + licInfo.type) }}</span></td>
+                  <td class="td font-mono text-[11px]">{{ licInfo.license_id || licKey.slice(0, 14) }}…</td>
+                  <td class="td">{{ licInfo.customer || licInfo.user || '-' }}</td>
+                  <td class="td"><span class="badge" :style="okStyle">{{ t('license.' + (licInfo.plan || licInfo.type || 'pro')) }}</span></td>
+                  <td class="td text-[12px]">{{ fmtFeatures(licInfo.features) }}</td>
+                  <td class="td">{{ licInfo.max_devices ?? '-' }}</td>
                   <td class="td">
                     <span class="badge" :style="licInfo.status === 'expired' ? dangerStyle : okStyle">
                       {{ t('license.' + (licInfo.status === 'expired' ? 'expired' : 'active')) }}
                     </span>
                   </td>
                   <td class="td font-mono text-[11px]">{{ licDeviceId }}</td>
-                  <td class="td">{{ fmtDate(licInfo.exp) }}</td>
+                  <td class="td">{{ fmtDate(licInfo.expires_at || licInfo.exp) }}</td>
                   <td class="td">
                     <div class="flex items-center gap-1">
                       <button class="btn btn-icon btn-sm" :title="t('license.unbind')" :disabled="licBusy" @click="deactivate">
@@ -648,7 +652,7 @@
                   </td>
                 </tr>
                 <tr v-else>
-                  <td colspan="7" class="td text-center text-muted py-8">{{ t('license.empty') }}</td>
+                  <td colspan="9" class="td text-center text-muted py-8">{{ t('license.empty') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -792,6 +796,11 @@ const okStyle = { color: '#34d399', background: 'rgba(52,211,153,.12)', border: 
 const mutedStyle = { color: '#8b93a7', background: 'rgba(139,147,167,.12)', border: '1px solid rgba(139,147,167,.3)' }
 const dangerStyle = { color: '#f87171', background: 'rgba(248,113,113,.12)', border: '1px solid rgba(248,113,113,.3)' }
 const fmtDate = (ts) => (ts ? new Date(ts * 1000).toLocaleDateString() : '-')
+// V2 Key 的功能列表展示(与 License Server Feature Registry 一致)
+const fmtFeatures = (feats) => {
+  if (!Array.isArray(feats) || feats.length === 0) return '-'
+  return feats.join(', ')
+}
 
 // 子 tab 状态(仿 3x-ui TelegramTab/EmailTab:面板设置|通知、SMTP 设置|通知)
 const tgTab = ref('panel')

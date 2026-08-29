@@ -27,7 +27,7 @@ func NewAppStoreService(st *state.AppState) *AppStoreService {
 	return &AppStoreService{
 		docker:  st.Docker,
 		dataDir: st.Cfg.DataDir,
-		license: func() bool { return LicenseActive(st) },
+		license: func() bool { return LicenseFeatureActive(st, "appstore") },
 	}
 }
 

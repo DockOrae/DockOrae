@@ -56,7 +56,7 @@ func NewComposeService(st *state.AppState) *ComposeService {
 	return &ComposeService{
 		docker:     st.Docker,
 		composeDir: st.ComposeDir,
-		license:    func() bool { return LicenseActive(st) },
+		license:    func() bool { return LicenseFeatureActive(st, "compose") },
 	}
 }
 

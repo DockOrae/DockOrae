@@ -37,7 +37,7 @@ type ContainerService struct {
 func NewContainerService(st *state.AppState) *ContainerService {
 	return &ContainerService{
 		docker:     st.Docker,
-		license:    func() bool { return LicenseActive(st) },
+		license:    func() bool { return LicenseFeatureActive(st, "container_create") },
 		composeDir: st.ComposeDir,
 		ops:        dockerContainerOps{cli: st.Docker},
 	}
