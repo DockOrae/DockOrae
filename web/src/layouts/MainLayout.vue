@@ -99,7 +99,7 @@
             <Icon name="book" size="18" />
           </a>
           <a
-            href="https://github.com/MinimaxFlora/Docker_Manager_Go"
+            href="https://github.com/DockerManger/Docker_Manager_Go"
             target="_blank"
             rel="noopener"
             class="header-btn"
@@ -135,11 +135,11 @@
           Copyright © {{ year }} MinimaxFlora
         </a>
         <div class="ml-auto flex items-center gap-3">
-          <a href="https://github.com/MinimaxFlora/Docker_Manager_Go" target="_blank" rel="noopener" class="hover:text-brand transition-colors">
+          <a href="https://github.com/DockerManger/Docker_Manager_Go" target="_blank" rel="noopener" class="hover:text-brand transition-colors">
             {{ t('footer.project') }}
           </a>
           <span class="text-muted">|</span>
-          <a href="https://github.com/MinimaxFlora/Docker_Manager_Go#readme" target="_blank" rel="noopener" class="hover:text-brand transition-colors">
+          <a href="https://github.com/DockerManger/Docker_Manager_Go#readme" target="_blank" rel="noopener" class="hover:text-brand transition-colors">
             {{ t('footer.manual') }}
           </a>
           <span class="text-muted">|</span>
