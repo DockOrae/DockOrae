@@ -95,7 +95,7 @@ jobs:
           token: ${{ github.token }}
           tag_name: ${{ env.TAG }}
           name: ${{ env.TAG }}
-          files: dist/*.tar.gz
+          files: dist/*.tar.gz dist/*.sha256
           body: |
             > ### ![](https://img.shields.io/badge/编译时间-${{ env.build_time }}-8267?logo=github&labelColor=需)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.TAG }}/total?label=下载次数&logo=github)
 

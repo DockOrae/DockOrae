@@ -20,11 +20,18 @@ BIN       := docker-manager-go
 WEB_DIR   := web
 DIST_DIR  := dist
 
-# 版本号:优先取最近 Git tag(如 v1.0.3),无 tag 时 dev;可用 VERSION=xxx 覆盖(CI 传 tag)
-VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo dev)
+# 版本号:优先取最近 Git tag(如 v1.0.3),无 tag 时 unknown;可用 VERSION=xxx 覆盖(CI 传 tag)
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo unknown)
+# 构建信息:commit + 构建时间(与版本一起经 ldflags 注入)
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-# ldflags:注入 main.Version + service.AppVersion,与 Git tag 同步(发版打 tag 即可,无需改源码)
-LDFLAGS := -s -w -X main.Version=$(VERSION) -X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=$(VERSION)
+# ldflags:注入 main.Version/Commit/BuildTime + service.AppVersion,与 Git tag 同步(发版打 tag 即可,无需改源码)
+LDFLAGS := -s -w \
+	-X main.Version=$(VERSION) \
+	-X main.Commit=$(GIT_COMMIT) \
+	-X main.BuildTime=$(BUILD_TIME) \
+	-X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=$(VERSION)
 
 # Linux 交叉编译架构(与 README 支持平台一致)
 LINUX_SPECS := amd64: arm64: arm:5 arm:6 arm:7 386: s390x:
@@ -79,10 +86,11 @@ cross: web
 	    -o $(DIST_DIR)/docker-manager-go/$(BIN) ./cmd/docker-manager || exit 1; \
 	  cp README.md $(DIST_DIR)/docker-manager-go/ 2>/dev/null || true; \
 	  tar -czf $(DIST_DIR)/docker-manager-go-linux-$$suffix.tar.gz -C $(DIST_DIR) docker-manager-go || exit 1; \
+	  (cd $(DIST_DIR) && sha256sum docker-manager-go-linux-$$suffix.tar.gz > docker-manager-go-linux-$$suffix.tar.gz.sha256) || exit 1; \
 	  rm -rf $(DIST_DIR)/docker-manager-go; \
 	done
 	@echo "✅ 交叉编译完成,产物:"
-	@ls -lh $(DIST_DIR)/*.tar.gz
+	@ls -lh $(DIST_DIR)/*.tar.gz $(DIST_DIR)/*.sha256
 
 # ---------- 质量检查(与 .github/workflows/go-checks.yml 一致) ----------
 .PHONY: test

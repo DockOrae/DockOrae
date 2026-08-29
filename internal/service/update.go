@@ -14,13 +14,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"golang.org/x/mod/semver"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/docker"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
@@ -31,8 +31,8 @@ import (
 //
 //	-X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=v1.0.3
 //
-// 未注入(本地开发)时默认 dev。使用 Makefile 构建时自动注入。
-var AppVersion = "dev"
+// 未注入(本地开发)时为空字符串,运行时按 unknown 处理。使用 Makefile 构建时自动注入。
+var AppVersion string
 
 // ---------- 更新状态(异步化 + 前端轮询) ----------
 
@@ -42,6 +42,7 @@ type UpdatePhase string
 const (
 	PhaseIdle        UpdatePhase = "idle"
 	PhaseDownloading UpdatePhase = "downloading" // binary:下载 release 包
+	PhaseVerifying   UpdatePhase = "verifying"   // binary:SHA256 校验
 	PhaseExtracting  UpdatePhase = "extracting"  // binary:解压新二进制
 	PhaseReplacing   UpdatePhase = "replacing"   // binary:原子替换自身
 	PhaseRestarting  UpdatePhase = "restarting"  // binary:延迟重启服务
@@ -119,47 +120,34 @@ var (
 	updateCache     *model.UpdateInfo
 )
 
-// CompareVersions 比较版本号("1.0.0" / "v1.0.1"):a<b → -1,a==b → 0,a>b → 1
+// CompareVersions 基于 SemVer 比较版本号("v1.0.3" / "1.0.2" / 空):
+// a<b → -1,a==b → 0,a>b → 1。
+// 正确处理 v1.10.0 > v1.2.0、v1.3.0 > v1.3.0-rc.1 > v1.3.0-alpha。
+// 空/无效版本按 v0.0.0 处理(总是落后于任何正式版本)。
 func CompareVersions(a, b string) int {
-	na, nb := versionNums(a), versionNums(b)
-	n := len(na)
-	if len(nb) > n {
-		n = len(nb)
-	}
-	for i := 0; i < n; i++ {
-		x, y := 0, 0
-		if i < len(na) {
-			x = na[i]
-		}
-		if i < len(nb) {
-			y = nb[i]
-		}
-		if x < y {
-			return -1
-		}
-		if x > y {
-			return 1
-		}
-	}
-	return 0
+	return semver.Compare(normalizeSemVer(a), normalizeSemVer(b))
 }
 
-func versionNums(s string) []int {
+// normalizeSemVer 归一化为 golang.org/x/mod/semver 要求的 "vX.Y.Z" 格式
+func normalizeSemVer(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "v")
-	if i := strings.IndexAny(s, "-+"); i >= 0 { // 截断预发布/构建后缀
-		s = s[:i]
+	if s == "" {
+		return "v0.0.0"
 	}
-	parts := strings.Split(s, ".")
-	out := make([]int, 0, len(parts))
-	for _, p := range parts {
-		n, err := strconv.Atoi(strings.TrimSpace(p))
-		if err != nil {
-			n = 0
-		}
-		out = append(out, n)
+	v := "v" + s
+	if semver.IsValid(v) {
+		return v
 	}
-	return out
+	return "v0.0.0" // 无效版本视为最老
+}
+
+// DisplayVersion 展示用版本号:构建未注入(本地开发/CI 检查)时为 unknown
+func DisplayVersion() string {
+	if AppVersion == "" {
+		return "unknown"
+	}
+	return AppVersion
 }
 
 // UpdateCheck 检测 GitHub 最新 Release(结果缓存 10 分钟,防 GitHub API 限流;失败不缓存)
@@ -170,7 +158,7 @@ func UpdateCheck(st *state.AppState, ctx context.Context) (*model.UpdateInfo, er
 		return updateCache, nil
 	}
 
-	info := &model.UpdateInfo{Current: AppVersion}
+	info := &model.UpdateInfo{Current: DisplayVersion()}
 	checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(checkCtx, http.MethodGet, UpdateCheckURL(), nil)
@@ -183,11 +171,28 @@ func UpdateCheck(st *state.AppState, ctx context.Context) (*model.UpdateInfo, er
 				var rel model.UpdateRelease
 				if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil || rel.TagName == "" {
 					info.Error = "invalid release payload"
+				} else if rel.Draft {
+					// draft 不对外发布,视为无更新
+					info.Latest = DisplayVersion()
+				} else if rel.Prerelease {
+					// 预发布版本默认不提示普通用户(仅记录,不触发更新提示)
+					info.Latest = DisplayVersion()
+					info.Release = &rel
 				} else {
-					latest := strings.TrimPrefix(rel.TagName, "v")
+					latest := rel.TagName
 					info.Latest = latest
 					info.Release = &rel
+					info.InstallType = installType()
 					info.HasUpdate = CompareVersions(AppVersion, latest) < 0
+					// Release Notes 分类解析(失败回退原始 body,不影响更新检查)
+					info.Notes = ParseReleaseNotes(rel.Body)
+					info.NotesRaw = len(info.Notes) == 0 && strings.TrimSpace(rel.Body) != ""
+					// 当前安装方式的更新包可用性:不可用则前端禁用"立即更新"
+					if info.HasUpdate {
+						info.Installable, info.NotInstallableReason = checkInstallable(rel.Assets, latest)
+					} else {
+						info.Installable = true
+					}
 				}
 			} else {
 				info.Error = fmt.Sprintf("github api http %d", resp.StatusCode)
@@ -218,13 +223,31 @@ func UpdateApply(st *state.AppState, ctx context.Context) error {
 	updateStatus = UpdateStatus{Running: true, Phase: PhaseDownloading, StartedAt: time.Now()}
 	updateStatusMu.Unlock()
 
+	// 目标版本来自最近一次检查的缓存(带 v 的 tag,如 v1.0.3);未检查过则拒绝
+	updateMu.Lock()
+	tag := ""
+	if updateCache != nil && updateCache.Release != nil {
+		tag = updateCache.Release.TagName
+	}
+	updateMu.Unlock()
+	if !validReleaseTag(tag) {
+		updateStatusMu.Lock()
+		updateStatus.Running = false
+		updateStatus.Phase = PhaseFailed
+		updateStatus.Error = "无法确定目标版本,请先检查更新"
+		updateStatus.FinishedAt = time.Now()
+		updateStatusMu.Unlock()
+		return NewApiError(400, "无法确定目标版本,请先检查更新")
+	}
+
 	go func() {
 		// 用独立 context:请求结束后 ctx 会被取消,后台任务不受影响
+		log.Printf("update started: mode=%s version=%s current=%s", DeploymentMode(), tag, DisplayVersion())
 		var err error
 		if DeploymentMode() == "binary" {
 			err = applyBinaryUpdate(context.Background())
 		} else {
-			err = applyComposeUpdate(st, context.Background())
+			err = applyComposeUpdate(st, context.Background(), tag)
 		}
 		if err != nil {
 			// 各阶段已通过 failUpdate 记录;兜底补记(防止漏网错误)
@@ -236,6 +259,9 @@ func UpdateApply(st *state.AppState, ctx context.Context) error {
 				updateStatus.FinishedAt = time.Now()
 			}
 			updateStatusMu.Unlock()
+			log.Printf("update failed: mode=%s version=%s error=%v", DeploymentMode(), tag, err)
+		} else {
+			log.Printf("update completed: mode=%s version=%s", DeploymentMode(), tag)
 		}
 	}()
 	return nil
@@ -253,8 +279,9 @@ func DeploymentMode() string {
 	return "binary"
 }
 
-// applyComposeUpdate compose 部署:独立 compose 容器代跑(面板容器重建期间执行者不受影响)
-func applyComposeUpdate(st *state.AppState, ctx context.Context) error {
+// applyComposeUpdate compose 部署:独立 compose 容器代跑(面板容器重建期间执行者不受影响)。
+// 更新目标为明确版本 tag(禁止依赖 latest):helper 先备份并替换 compose 中的镜像 tag,再 pull+up。
+func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) error {
 	dir, err := FindComposeDir(st)
 	if err != nil {
 		return failUpdate("%s", err.Error())
@@ -278,17 +305,25 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context) error {
 	_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
 
 	setUpdatePhase(PhaseHelper)
-	// 3. 创建并启动 helper:挂载 docker.sock + compose 文件目录(宿主路径由 daemon 解释)
+	// 3. 创建并启动 helper:挂载 docker.sock + compose 目录(可写)。
+	//    面板容器对宿主 compose 目录只读(/:/host:ro),无法直接改文件,
+	//    由 helper(root) 先备份 compose 文件,再把镜像 tag 从 latest 替换为明确版本,然后 up。
+	//    tag 已经 validReleaseTag 校验(仅字母数字 . - +),可安全拼接进 shell。
+	helperCmd := fmt.Sprintf(
+		"cp /work/docker-compose.yml /work/docker-compose.yml.bak 2>/dev/null; "+
+			"sed -i 's|\\(docker-manager-go\\):latest|\\1:%s|g' /work/docker-compose.yml; "+
+			"docker compose -f /work/docker-compose.yml up -d --force-recreate --pull always",
+		tag)
 	_, err = docker.CreateContainer(st.Docker, opCtx, client.ContainerCreateOptions{
 		Config: &container.Config{
 			Image:      composeHelperImg,
-			Cmd:        []string{"-f", "/work/docker-compose.yml", "up", "-d", "--force-recreate", "--pull", "always"},
+			Cmd:        []string{"sh", "-c", helperCmd},
 			WorkingDir: "/work",
 		},
 		HostConfig: &container.HostConfig{
 			Binds: []string{
 				"/var/run/docker.sock:/var/run/docker.sock",
-				dir + ":/work:ro",
+				dir + ":/work",
 			},
 			AutoRemove: true,
 		},
@@ -301,7 +336,7 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context) error {
 		return failUpdate("启动更新容器失败: %s", err.Error())
 	}
 
-	// helper 已接管更新(它会 pull 新镜像并 recreate 面板容器),标记完成供前端转轮询版本接口
+	// helper 已接管更新(它会替换 tag、拉取新镜像并 recreate 面板容器),标记完成供前端转轮询版本接口
 	setUpdatePhase(PhaseDone)
 	return nil
 }
@@ -339,7 +374,14 @@ func applyBinaryUpdate(ctx context.Context) error {
 	}
 	tmpFile.Close()
 
-	// 2. 解压出新的可执行文件
+	// 2. SHA256 校验(校验失败立即中止,绝不替换当前运行文件)
+	setUpdatePhase(PhaseVerifying)
+	if err := verifySHA256(tmpFile.Name(), url+".sha256", client); err != nil {
+		os.Remove(tmpFile.Name())
+		return failUpdate("%s", err.Error())
+	}
+
+	// 3. 解压出新的可执行文件
 	setUpdatePhase(PhaseExtracting)
 	newBin, err := extractBinary(tmpFile.Name())
 	os.Remove(tmpFile.Name())
@@ -348,7 +390,7 @@ func applyBinaryUpdate(ctx context.Context) error {
 	}
 	defer os.Remove(newBin)
 
-	// 3. 定位当前二进制并原子替换(先备份,失败可回滚)
+	// 4. 定位当前二进制并原子替换(先备份,失败可回滚)
 	setUpdatePhase(PhaseReplacing)
 	exe, err := os.Readlink("/proc/self/exe")
 	if err != nil || exe == "" {
@@ -374,7 +416,7 @@ func applyBinaryUpdate(ctx context.Context) error {
 	// 保留 exe.old 作为备份(下次更新覆盖):新二进制若无法启动,可手动恢复
 	log.Printf("update: 二进制已替换 %s (备份 %s.old),即将重启服务", exe, exe)
 
-	// 4. 延迟重启服务(状态停在 restarting,进程退出后由前端轮询版本接口确认)
+	// 5. 延迟重启服务(状态停在 restarting,进程退出后由前端轮询版本接口确认)
 	setUpdatePhase(PhaseRestarting)
 	go func() {
 		time.Sleep(1500 * time.Millisecond)

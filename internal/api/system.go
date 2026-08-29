@@ -10,7 +10,7 @@ func systemHealth(c *gin.Context, d *Deps) error {
 	c.JSON(200, gin.H{
 		"ok":      true,
 		"name":    "docker-manager-go",
-		"version": service.AppVersion,
+		"version": service.DisplayVersion(),
 	})
 	return nil
 }

@@ -11,8 +11,10 @@ RUN npm run build
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
-# 面板版本:构建时注入(与 Git tag 同步),docker-publish 传 VERSION build-arg;默认 dev
-ARG VERSION=dev
+# 构建信息:版本/commit/构建时间,由 docker-publish 传 build-arg;默认 unknown
+ARG VERSION=unknown
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
 RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 # 国内代理加速;moby client 模块自带坏的 replace,用自身 replace 覆盖
@@ -23,13 +25,22 @@ COPY internal/ ./internal/
 COPY web/embed.go ./web/
 COPY --from=web /web/dist ./web/dist
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
-    -ldflags="-s -w -X main.Version=${VERSION} -X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=${VERSION}" \
+    -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=${VERSION}" \
     -o docker-manager ./cmd/docker-manager
 
 # ================= Stage 3: 运行镜像(目标平台) =================
 FROM alpine:3.20
 ARG TARGETARCH
 ARG TARGETVARIANT
+# OCI Labels(辅助信息):docker inspect 可查镜像版本/commit/构建时间
+ARG VERSION=unknown
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
+LABEL org.opencontainers.image.title="Docker Manager Go"
+LABEL org.opencontainers.image.source="https://github.com/MinimaxFlora/Docker_Manager_Go"
+LABEL org.opencontainers.image.version=${VERSION}
+LABEL org.opencontainers.image.revision=${COMMIT}
+LABEL org.opencontainers.image.created=${BUILD_TIME}
 RUN apk add --no-cache ca-certificates tini curl \
     && case "${TARGETARCH}${TARGETVARIANT}" in \
          amd64) A=x86_64 ;; \
