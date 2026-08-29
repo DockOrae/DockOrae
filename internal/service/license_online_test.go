@@ -1,10 +1,19 @@
 package service
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,21 +67,49 @@ func testLicState(t *testing.T, serverURL string) *state.AppState {
 	}
 }
 
-// v1TestKey 生成测试用 V1 Key(本地验签通过,status=active,无 features = 全功能)。
-func v1TestKey() string {
-	return LicenseGenerateKey("zhao", "pro", 365)
+// ---------- V2 测试密钥(固定注册,供在线闭环测试) ----------
+
+var (
+	testKeyOnce sync.Once
+	testPriv    ed25519.PrivateKey
+)
+
+// ensureTestKey 注册一个固定测试公钥到注册表(全测试共享,不清理)。
+func ensureTestKey() {
+	testKeyOnce.Do(func() {
+		pub, priv, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			panic(err)
+		}
+		der, err := x509.MarshalPKIXPublicKey(pub)
+		if err != nil {
+			panic(err)
+		}
+		licensePublicKeys["test-local"] = string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
+		testPriv = priv
+	})
 }
 
-const okActivate = `{"status":"active","activation_id":"test-activation-001","license_id":"DMG-TEST","expires_at":1900000000,"next_verify_after":86400}`
-const okVerify = `{"status":"valid","valid":true,"license_id":"DMG-TEST","expires_at":1900000000,"features":["compose"],"next_verify_after":86400}`
+// v2TestKey 生成测试用 V2 Key(本地验签通过,status=active,features 全开)。
+func v2TestKey() string {
+	ensureTestKey()
+	p := v2Payload("test-local")
+	raw, _ := json.Marshal(p)
+	sig := ed25519.Sign(testPriv, raw)
+	return base64.RawURLEncoding.EncodeToString(raw) + "." +
+		base64.RawURLEncoding.EncodeToString(sig)
+}
+
+const okActivate = `{"status":"active","activation_id":"ACT-TESTACTIVATION0001","activation_token":"tok-0123456789abcdef0123456789abcdef","license_id":"DMG-TEST","expires_at":1900000000,"max_devices":3,"server_time":1900000000,"next_verify_after":86400}`
+const okVerify = `{"status":"valid","valid":true,"license_id":"DMG-TEST","expires_at":1900000000,"features":["compose"],"server_time":1900000000,"next_verify_after":86400}`
 const errBody = `{"error":{"code":"%s","message":"%s"}}`
 
-// TestOnlineActivateSuccess 在线激活成功:license.json 写入 activation_id,状态 verified,功能可用。
+// TestOnlineActivateSuccess 在线激活成功:license.json 写入 activation_id + activation_token,状态 verified,功能可用。
 func TestOnlineActivateSuccess(t *testing.T) {
 	srv := mockLicenseServer(t, 200, okActivate, 200, okVerify)
 	st := testLicState(t, srv.URL)
 
-	info, err := LicenseDoActivate(st, v1TestKey())
+	info, err := LicenseDoActivate(st, v2TestKey())
 	if err != nil {
 		t.Fatalf("activate: %v", err)
 	}
@@ -83,8 +120,12 @@ func TestOnlineActivateSuccess(t *testing.T) {
 	if !ok {
 		t.Fatal("license.json not written")
 	}
-	if strOr(m["activation_id"]) != "test-activation-001" {
+	if strOr(m["activation_id"]) != "ACT-TESTACTIVATION0001" {
 		t.Fatalf("activation_id not stored: %v", m["activation_id"])
+	}
+	// V3:activation_token 必须保存
+	if strOr(m["activation_token"]) != "tok-0123456789abcdef0123456789abcdef" {
+		t.Fatalf("activation_token not stored: %v", m["activation_token"])
 	}
 	if int64(float64(numOr(m["last_successful_verify"]))) == 0 {
 		t.Fatal("last_successful_verify not stored")
@@ -112,7 +153,7 @@ func TestOnlineActivateDeviceLimit(t *testing.T) {
 	srv := mockLicenseServer(t, 409, `{"error":{"code":"DEVICE_LIMIT_REACHED","message":"limit"}}`, 200, okVerify)
 	st := testLicState(t, srv.URL)
 
-	_, err := LicenseDoActivate(st, v1TestKey())
+	_, err := LicenseDoActivate(st, v2TestKey())
 	if err == nil {
 		t.Fatal("activate must fail on device limit")
 	}
@@ -130,7 +171,7 @@ func TestOnlineActivateRevoked(t *testing.T) {
 	srv := mockLicenseServer(t, 403, `{"error":{"code":"LICENSE_REVOKED","message":"revoked"}}`, 200, okVerify)
 	st := testLicState(t, srv.URL)
 
-	_, err := LicenseDoActivate(st, v1TestKey())
+	_, err := LicenseDoActivate(st, v2TestKey())
 	if err == nil {
 		t.Fatal("activate must fail on revoked")
 	}
@@ -144,7 +185,7 @@ func TestOnlineActivateRevoked(t *testing.T) {
 func TestOnlineActivateServerDown(t *testing.T) {
 	st := testLicState(t, "http://127.0.0.1:1") // 必然连接失败
 
-	_, err := LicenseDoActivate(st, v1TestKey())
+	_, err := LicenseDoActivate(st, v2TestKey())
 	if err == nil {
 		t.Fatal("activate must fail when server unreachable")
 	}
@@ -158,7 +199,7 @@ func TestOnlineActivateServerDown(t *testing.T) {
 func TestOfflineModeUnchanged(t *testing.T) {
 	st := testLicState(t, "")
 
-	info, err := LicenseDoActivate(st, v1TestKey())
+	info, err := LicenseDoActivate(st, v2TestKey())
 	if err != nil {
 		t.Fatalf("offline activate: %v", err)
 	}
@@ -182,7 +223,7 @@ func TestOfflineModeUnchanged(t *testing.T) {
 func TestVerifyNowValid(t *testing.T) {
 	srv := mockLicenseServer(t, 200, okActivate, 200, okVerify)
 	st := testLicState(t, srv.URL)
-	if _, err := LicenseDoActivate(st, v1TestKey()); err != nil {
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
 		t.Fatal(err)
 	}
 	// 模拟上次验证在 2 天前(验证未成功的宽限状态)
@@ -211,7 +252,7 @@ func TestVerifyNowValid(t *testing.T) {
 func TestVerifyNowRevoked(t *testing.T) {
 	srv := mockLicenseServer(t, 200, okActivate, 200, `{"status":"revoked","valid":false}`)
 	st := testLicState(t, srv.URL)
-	if _, err := LicenseDoActivate(st, v1TestKey()); err != nil {
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
 		t.Fatal(err)
 	}
 	if !LicenseFeatureActive(st, "compose") {
@@ -233,11 +274,11 @@ func TestVerifyNowRevoked(t *testing.T) {
 // TestGraceExpiredDisablesFeature 超过 7 天宽限期 → 功能禁用(即使本地签名有效)。
 func TestGraceExpiredDisablesFeature(t *testing.T) {
 	st := testLicState(t, "http://127.0.0.1:1") // 服务器不可达,验证必然失败
-	if _, err := LicenseDoActivate(st, v1TestKey()); err == nil {
+	if _, err := LicenseDoActivate(st, v2TestKey()); err == nil {
 		t.Fatal("activate must fail with unreachable server")
 	}
 	// 直接写入在线激活结果(模拟此前激活成功过),再把 last_successful_verify 推到 8 天前
-	key := v1TestKey()
+	key := v2TestKey()
 	deviceID := LicenseDeviceID(st.Cfg.DataDir)
 	if err := writeLicenseStore(st, map[string]any{
 		"key": key, "device_id": deviceID,
@@ -262,7 +303,7 @@ func TestGraceExpiredDisablesFeature(t *testing.T) {
 func TestOnlineDeactivateCallsServer(t *testing.T) {
 	srv := mockLicenseServer(t, 200, okActivate, 200, okVerify)
 	st := testLicState(t, srv.URL)
-	if _, err := LicenseDoActivate(st, v1TestKey()); err != nil {
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
 		t.Fatal(err)
 	}
 	if err := LicenseDeactivate(st); err != nil {
@@ -289,7 +330,7 @@ func TestVerifyOfflineNoop(t *testing.T) {
 func TestVerifyServerErrorKeepsGrace(t *testing.T) {
 	srv := mockLicenseServer(t, 200, okActivate, 500, `{"error":{"code":"INTERNAL","message":"boom"}}`)
 	st := testLicState(t, srv.URL)
-	if _, err := LicenseDoActivate(st, v1TestKey()); err != nil {
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
 		t.Fatal(err)
 	}
 	m, _ := readLicenseStore(st)
@@ -310,12 +351,196 @@ func TestVerifyServerErrorKeepsGrace(t *testing.T) {
 // TestLicenseInfoJSON 序列化完整性(前端消费 online 字段)。
 func TestLicenseInfoJSON(t *testing.T) {
 	st := testLicState(t, "")
-	_, err := LicenseDoActivate(st, v1TestKey())
+	_, err := LicenseDoActivate(st, v2TestKey())
 	if err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(LicenseInfo(st))
 	if !strings.Contains(string(raw), `"online"`) || !strings.Contains(string(raw), `"mode"`) {
 		t.Fatalf("LicenseInfo must include online info: %s", raw)
+	}
+}
+
+// ---------- V3 协议测试(token / server_time / 时钟回退 / 版本控制) ----------
+
+// TestVerifyUsesTokenAndNonce verify 请求必须携带 activation_token + timestamp + nonce(不带 key)。
+func TestVerifyUsesTokenAndNonce(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/verify") {
+			_ = json.NewDecoder(r.Body).Decode(&gotBody)
+			_, _ = w.Write([]byte(okVerify))
+			return
+		}
+		_, _ = w.Write([]byte(okActivate))
+	}))
+	t.Cleanup(srv.Close)
+	st := testLicState(t, srv.URL)
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
+		t.Fatal(err)
+	}
+	VerifyNow(st)
+	if gotBody == nil {
+		t.Fatal("no verify request captured")
+	}
+	if _, hasKey := gotBody["key"]; hasKey {
+		t.Fatal("V3 verify must NOT send license key")
+	}
+	if strOr(gotBody["activation_token"]) == "" {
+		t.Fatal("verify must send activation_token")
+	}
+	if int64(float64(numOr(gotBody["timestamp"]))) == 0 {
+		t.Fatal("verify must send timestamp")
+	}
+	if strOr(gotBody["nonce"]) == "" {
+		t.Fatal("verify must send nonce")
+	}
+}
+
+// TestClockRollbackDetected 本地时钟回退超过 5 分钟 → 禁用 Pro。
+func TestClockRollbackDetected(t *testing.T) {
+	st := testLicState(t, "http://127.0.0.1:1")
+	key := v2TestKey()
+	deviceID := LicenseDeviceID(st.Cfg.DataDir)
+	// 模拟正常激活(写入在线凭据),last_local_time 在 10 分钟前(当前时间已回退)
+	if err := writeLicenseStore(st, map[string]any{
+		"key": key, "device_id": deviceID,
+		"activation_id":          "ACT-OLD",
+		"activation_token":       "old-token",
+		"last_successful_verify": time.Now().Unix(),
+		"last_local_time":        time.Now().Unix() + 600, // 模拟回退 10 分钟
+		"server_url":             "http://127.0.0.1:1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if s := onlineStateOf(st); s != onlineClockRollback {
+		t.Fatalf("state = %s, want clock_rollback", s)
+	}
+	if LicenseFeatureActive(st, "compose") {
+		t.Fatal("feature must be disabled on clock rollback")
+	}
+	// VerifyNow 也应标记并返回 clock_rollback
+	out := VerifyNow(st)
+	if strOr(out["state"]) != onlineClockRollback {
+		t.Fatalf("VerifyNow state = %v, want clock_rollback", out["state"])
+	}
+}
+
+// TestNormalClockNoFalsePositive 正常时钟(无回退)不误判。
+func TestNormalClockNoFalsePositive(t *testing.T) {
+	st := testLicState(t, "http://127.0.0.1:1")
+	key := v2TestKey()
+	deviceID := LicenseDeviceID(st.Cfg.DataDir)
+	if err := writeLicenseStore(st, map[string]any{
+		"key": key, "device_id": deviceID,
+		"activation_id":          "ACT-OLD",
+		"activation_token":       "old-token",
+		"last_successful_verify": time.Now().Unix(),
+		"last_local_time":        time.Now().Unix() - 60, // 正常流逝 1 分钟
+		"server_url":             "http://127.0.0.1:1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if s := onlineStateOf(st); s != onlineVerified {
+		t.Fatalf("state = %s, want verified (no false positive)", s)
+	}
+}
+
+// TestServerTimeClockOffset 服务端 server_time → clock_offset 维护(防时间作弊)。
+func TestServerTimeClockOffset(t *testing.T) {
+	serverTime := time.Now().Unix() + 3600 // 服务端快 1 小时
+	activateBody := fmt.Sprintf(`{"status":"active","activation_id":"ACT-X","activation_token":"tok-x","license_id":"DMG-TEST","expires_at":1900000000,"server_time":%d,"next_verify_after":86400}`, serverTime)
+	srv := mockLicenseServer(t, 200, activateBody, 200, okVerify)
+	st := testLicState(t, srv.URL)
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
+		t.Fatal(err)
+	}
+	m, _ := readLicenseStore(st)
+	offset := int64(float64(numOr(m["clock_offset"])))
+	if offset < 3590 || offset > 3610 {
+		t.Fatalf("clock_offset = %d, want ~3600", offset)
+	}
+	// trusted_now 应 ≈ 本地 + 3600
+	tn := trustedNow(st)
+	if tn < time.Now().Unix()+3590 || tn > time.Now().Unix()+3610 {
+		t.Fatalf("trusted_now = %d, want ~now+3600", tn)
+	}
+}
+
+// TestVerifyNowBlocked 服务端 blocked(版本封禁)→ 禁用 Pro。
+func TestVerifyNowBlocked(t *testing.T) {
+	srv := mockLicenseServer(t, 200, okActivate, 200, `{"status":"blocked","valid":false,"server_time":1900000000}`)
+	st := testLicState(t, srv.URL)
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
+		t.Fatal(err)
+	}
+	if !LicenseFeatureActive(st, "compose") {
+		t.Fatal("feature must be active before block")
+	}
+	out := VerifyNow(st)
+	if strOr(out["state"]) != onlineVersionBlocked {
+		t.Fatalf("verify result: %+v", out)
+	}
+	if LicenseFeatureActive(st, "compose") {
+		t.Fatal("feature must be disabled after version block")
+	}
+}
+
+// TestVerifyNowUpdateRequired minimum_client_version 高于当前版本 → 提示升级(不封禁)。
+func TestVerifyNowUpdateRequired(t *testing.T) {
+	oldVer := AppVersion
+	AppVersion = "1.0.0"
+	t.Cleanup(func() { AppVersion = oldVer })
+	srv := mockLicenseServer(t, 200, okActivate, 200,
+		`{"status":"valid","valid":true,"server_time":1900000000,"minimum_client_version":"999.0.0"}`)
+	st := testLicState(t, srv.URL)
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
+		t.Fatal(err)
+	}
+	out := VerifyNow(st)
+	if strOr(out["state"]) != onlineUpdateRequired {
+		t.Fatalf("verify result: %+v", out)
+	}
+	// update_required 只提示,不禁用功能
+	if !LicenseFeatureActive(st, "compose") {
+		t.Fatal("feature must stay active on update_required")
+	}
+}
+
+// TestVerifyNoVersionIssue 当前版本满足 minimum_client_version → 正常 verified。
+func TestVerifyNoVersionIssue(t *testing.T) {
+	oldVer := AppVersion
+	AppVersion = "2.0.0"
+	t.Cleanup(func() { AppVersion = oldVer })
+	srv := mockLicenseServer(t, 200, okActivate, 200,
+		`{"status":"valid","valid":true,"server_time":1900000000,"minimum_client_version":"0.1.0"}`)
+	st := testLicState(t, srv.URL)
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
+		t.Fatal(err)
+	}
+	out := VerifyNow(st)
+	if strOr(out["state"]) != onlineVerified {
+		t.Fatalf("verify result: %+v", out)
+	}
+}
+
+// TestLicenseFileMode0600 license.json 权限 0600(敏感 token 保护)。
+// Windows 无 POSIX 权限位,该测试仅限 Linux/Unix。
+func TestLicenseFileMode0600(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 无 POSIX 文件权限位")
+	}
+	srv := mockLicenseServer(t, 200, okActivate, 200, okVerify)
+	st := testLicState(t, srv.URL)
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(licensePath(st))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("license.json mode = %o, want 600", perm)
 	}
 }

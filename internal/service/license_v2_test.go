@@ -135,27 +135,51 @@ func TestLicenseVerifyV2UnsupportedVersion(t *testing.T) {
 	}
 }
 
-// TestLicenseVerifyV1StillWorks V1 旧 Key 仍可验证(向后兼容)。
-func TestLicenseVerifyV1StillWorks(t *testing.T) {
-	key := LicenseGenerateKey("olduser", "pro", 30)
-	info, ok := LicenseVerifyKey(key)
-	if !ok {
-		t.Fatal("V1 key must still verify")
-	}
-	if strOr(info["user"]) != "olduser" {
-		t.Fatalf("user = %v", info["user"])
+// TestLicenseVerifyV2UnknownFeature 未知 feature → 拒绝。
+func TestLicenseVerifyV2UnknownFeature(t *testing.T) {
+	_, priv := testInjectKey(t, "test-06")
+	p := v2Payload("test-06")
+	p["features"] = []string{"compose", "hack_feature"}
+	key := testSignV2(t, priv, p)
+	if _, ok := LicenseVerifyKey(key); ok {
+		t.Fatal("unknown feature must be rejected")
 	}
 }
 
-// TestLicenseVerifyV1Expired V1 过期 Key → status=expired。
-func TestLicenseVerifyV1Expired(t *testing.T) {
-	key := LicenseGenerateKey("olduser", "pro", -1)
+// TestLicenseVerifyV2WrongProduct product 不匹配 → 拒绝。
+func TestLicenseVerifyV2WrongProduct(t *testing.T) {
+	_, priv := testInjectKey(t, "test-07")
+	p := v2Payload("test-07")
+	p["product"] = "other-app"
+	key := testSignV2(t, priv, p)
+	if _, ok := LicenseVerifyKey(key); ok {
+		t.Fatal("wrong product must be rejected")
+	}
+}
+
+// TestLicenseVerifyV2InvalidMaxDevices max_devices < 1 → 拒绝。
+func TestLicenseVerifyV2InvalidMaxDevices(t *testing.T) {
+	_, priv := testInjectKey(t, "test-08")
+	p := v2Payload("test-08")
+	p["max_devices"] = 0
+	key := testSignV2(t, priv, p)
+	if _, ok := LicenseVerifyKey(key); ok {
+		t.Fatal("max_devices < 1 must be rejected")
+	}
+}
+
+// TestLicenseVerifyV2EmptyFeatures 空 features = 无商业功能(不再视为全功能)。
+func TestLicenseVerifyV2EmptyFeatures(t *testing.T) {
+	_, priv := testInjectKey(t, "test-09")
+	p := v2Payload("test-09")
+	p["features"] = []string{}
+	key := testSignV2(t, priv, p)
 	info, ok := LicenseVerifyKey(key)
 	if !ok {
-		t.Fatal("expired V1 key must still parse")
+		t.Fatal("valid key with empty features must parse")
 	}
-	if strOr(info["status"]) != "expired" {
-		t.Fatalf("status = %v, want expired", info["status"])
+	if strOr(info["status"]) != "active" {
+		t.Fatalf("status = %v", info["status"])
 	}
 }
 

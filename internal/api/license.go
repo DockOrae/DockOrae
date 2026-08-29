@@ -65,12 +65,8 @@ func licenseDeactivate(c *gin.Context, d *Deps) error {
 }
 
 func licenseDemoKey(c *gin.Context, d *Deps) error {
-	// SEC-001:demo key 仅限开发构建(版本未注入 → unknown,即本地 go run / 未打 tag 构建)。
-	// 正式 release 由 CI 经 ldflags 注入版本号,此接口返回 403——
-	// 杜绝"登录 → /license/demo → 永久 Pro key"的生产环境授权绕过。
-	if service.DisplayVersion() == "unknown" {
-		c.JSON(200, gin.H{"key": service.DemoKey()})
-		return nil
-	}
+	// V1 已完全移除:客户端无私钥,无法本地签发 V2 demo key。
+	// 开发调试请配置本地 License Server(DM_LICENSE_SERVER_URL=http://localhost:3000)
+	// 并用其签发的 License;正式使用向授权方购买。
 	return service.NewApiError(403, "license.demoUnavailable")
 }

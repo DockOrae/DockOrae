@@ -112,6 +112,16 @@ Pro features (Compose stacks, container creation, App Store installs) are gated 
 the panel verifies a signed Ed25519 license key against a License Server, with device binding,
 24h periodic verification, a 7-day grace period, and instant revocation.
 
+Security model (V3):
+- **License Key** is used only for first activation / re-activation (local Ed25519 verify)
+- Runtime verification uses an **Activation Token** (stored locally in `license.json`, mode 0600;
+  the server keeps only a SHA-256 hash — never the plaintext)
+- Every verify/deactivate carries `timestamp + nonce` (replay protection)
+- The server returns `server_time` on every response; the panel maintains a `clock_offset`
+  (trusted time) and detects local **clock rollback** (>5min → Pro disabled)
+- Server-side version control: `minimum_client_version` (upgrade prompt) and
+  `blocked_versions` (emergency block → Pro disabled)
+
 ### 1. Deploy the License Server
 
 Deploy [Docker_Manager_License](https://github.com/DockerManger/Docker_Manager_License) on any

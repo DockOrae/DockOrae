@@ -1288,6 +1288,9 @@ const onlineStyle = computed(() => {
     case 'grace': return { color: '#fbbf24', background: 'rgba(251,191,36,.12)', border: '1px solid rgba(251,191,36,.3)' }
     case 'grace_expired': return dangerStyle
     case 'revoked': return dangerStyle
+    case 'version_blocked': return dangerStyle
+    case 'clock_rollback': return dangerStyle
+    case 'update_required': return { color: '#fbbf24', background: 'rgba(251,191,36,.12)', border: '1px solid rgba(251,191,36,.3)' }
     default: return mutedStyle
   }
 })
@@ -1297,6 +1300,9 @@ const onlineStateLabel = computed(() => {
     case 'grace': return t('license.onlineGrace')
     case 'grace_expired': return t('license.onlineGraceExpired')
     case 'revoked': return t('license.onlineRevoked')
+    case 'version_blocked': return t('license.onlineVersionBlocked')
+    case 'clock_rollback': return t('license.onlineClockRollback')
+    case 'update_required': return t('license.onlineUpdateRequired')
     case 'never': return t('license.onlineNever')
     default: return t('license.offlineMode')
   }
