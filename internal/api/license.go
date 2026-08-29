@@ -13,6 +13,12 @@ func licenseGet(c *gin.Context, d *Deps) error {
 	return nil
 }
 
+// licenseVerifyNow POST /license/verify 手动触发一次在线验证(吊销即时触达)。
+func licenseVerifyNow(c *gin.Context, d *Deps) error {
+	c.JSON(200, service.VerifyNow(d.St))
+	return nil
+}
+
 func licenseActivate(c *gin.Context, d *Deps) error {
 	var req struct {
 		Key string `json:"key"`

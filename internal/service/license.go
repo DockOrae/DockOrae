@@ -32,10 +32,10 @@ const licenseSecret = "docker-manager-go-license-v1"
 // 替换公钥:在 Docker_Manager_License 日志(首次启动 PUBLIC KEY)或
 // `license-server pubkey` 命令获取当前公钥,替换下方对应 key_id 的值。
 var licensePublicKeys = map[string]string{
-	// 固定公钥(与 Docker_Manager_License 部署端私钥配对,永久不变)。
+	// 固定公钥(与 Docker_Manager_License 仓库 private/license.key 配对,永久不变)。
 	// 私钥由授权方保管(部署端 private/license.key),此公钥可安全公开。
 	"2026-01": `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAai6bOp+bgHTgU2bD6vDTbCZ5FIFVQNtVRLCqNYHGiAQ=
+MCowBQYDK2VwAyEAdD7pzvzYQClRQC6AfDBed6vottConCnihO881v1A008=
 -----END PUBLIC KEY-----`,
 }
 
@@ -168,8 +168,17 @@ func licensePath(st *state.AppState) string {
 	return filepath.Join(st.Cfg.DataDir, "license.json")
 }
 
+// LicenseDeviceID 本机设备唯一标识(在线激活/绑定的凭据)。
+//
+// 稳定性要求:容器重建/面板升级后必须保持不变,否则在线绑定失效。
+//   - Linux:数据目录的 (dev, inode) 特征(挂载卷在宿主机稳定,推荐部署形态)
+//   - Windows:COMPUTERNAME
+//   - 兜底:机器 ID / (数据目录+主机名) hash
 func LicenseDeviceID(dataDir string) string {
-	// 优先 /etc/machine-id;fallback:data 目录 + 主机名 hash
+	if id, ok := dataDirDeviceID(dataDir); ok {
+		return id
+	}
+	// 兜底:机器 ID 优先;否则 (dataDir|hostname) hash
 	if raw, err := os.ReadFile("/etc/machine-id"); err == nil {
 		id := strings.TrimSpace(string(raw))
 		if len(id) >= 12 {
@@ -183,19 +192,25 @@ func LicenseDeviceID(dataDir string) string {
 
 // LicenseActive 当前是否已激活(供 UI 展示与整体判断)
 func LicenseActive(st *state.AppState) bool {
-	return strOr(LicenseInfo(st)["active"]) == "true"
+	if b, ok := LicenseInfo(st)["active"].(bool); ok {
+		return b
+	}
+	return false
 }
 
 // LicenseFeatureActive 指定功能是否可用(功能级门控)。
 //
-//   - V1 旧 Key(无 features 字段):视为全部功能开启(兼容旧授权)
-//   - V2 Key:按 payload.features 精确控制(与 License Server 的 Feature Registry 一致)
+//   - 在线模式(配置了授权服务器):先过在线状态检查(吊销/宽限过期 → 全部禁用),再按 features 判断
+//   - 离线模式:V1 旧 Key(无 features 字段)= 全部功能开启(兼容旧授权);V2 Key 按 payload.features 精确控制
 //
 // Feature 名称(与 Docker_Manager_License 完全一致,勿改):
 //   - compose           Compose 编排部署
 //   - container_create  容器创建
 //   - appstore          应用商店安装
 func LicenseFeatureActive(st *state.AppState, feature string) bool {
+	if !licenseOnlineAllowed(st) {
+		return false // 在线模式 revoked / grace 过期 → 功能全部禁用
+	}
 	raw, err := os.ReadFile(licensePath(st))
 	if err != nil {
 		return false
@@ -220,35 +235,63 @@ func LicenseFeatureActive(st *state.AppState, feature string) bool {
 	return false
 }
 
-// LicenseInfo 查询授权状态
+// LicenseInfo 查询授权状态(含在线验证状态,供前端展示)。
 func LicenseInfo(st *state.AppState) map[string]any {
 	deviceID := LicenseDeviceID(st.Cfg.DataDir)
-	raw, err := os.ReadFile(licensePath(st))
-	if err != nil {
-		return map[string]any{"active": false, "key": "", "info": nil, "device_id": deviceID, "bound": false}
+	m, ok := readLicenseStore(st)
+	if !ok {
+		return map[string]any{"active": false, "key": "", "info": nil, "device_id": deviceID, "bound": false, "online": onlineInfo(st)}
 	}
-	var stored map[string]any
-	if json.Unmarshal(raw, &stored) != nil {
-		return map[string]any{"active": false, "key": "", "info": nil, "device_id": deviceID, "bound": false}
-	}
-	key := strOr(stored["key"])
+	key := strOr(m["key"])
 	info, ok := LicenseVerifyKey(key)
 	if !ok {
-		return map[string]any{"active": false, "key": key, "info": nil, "device_id": deviceID, "bound": false}
+		return map[string]any{"active": false, "key": key, "info": nil, "device_id": deviceID, "bound": false, "online": onlineInfo(st)}
 	}
-	boundID := strOr(stored["device_id"])
+	boundID := strOr(m["device_id"])
 	bound := boundID != "" && boundID == deviceID
+	active := strOr(info["status"]) == "active" && bound && licenseOnlineAllowed(st)
 	return map[string]any{
-		"active":    strOr(info["status"]) == "active" && bound,
-		"key":       key,
-		"info":      info,
-		"device_id": deviceID,
-		"bound":     bound,
-		"bound_to":  boundID,
+		"active":        active,
+		"key":           key,
+		"info":          info,
+		"device_id":     deviceID,
+		"bound":         bound,
+		"bound_to":      boundID,
+		"activation_id": strOr(m["activation_id"]),
+		"online":        onlineInfo(st),
 	}
 }
 
-// LicenseDoActivate 激活核心逻辑(校验 key → 绑定本机)
+// onlineInfo 在线验证状态详情(未配置服务器 = 离线模式)。
+func onlineInfo(st *state.AppState) map[string]any {
+	out := map[string]any{"mode": "offline", "state": onlineStateOf(st)}
+	serverURL := serverURLOf(st)
+	if serverURL == "" {
+		return out
+	}
+	out["mode"] = "online"
+	out["server_url"] = serverURL
+	m, ok := readLicenseStore(st)
+	if !ok {
+		return out
+	}
+	if lv := int64(float64(numOr(m["last_successful_verify"]))); lv > 0 {
+		out["last_verify"] = lv
+		out["grace_deadline"] = lv + int64(licenseGracePeriod.Seconds())
+	}
+	if vs := strOr(m["verify_state"]); vs != "" {
+		out["verify_state"] = vs
+	}
+	if ra := int64(float64(numOr(m["revoked_at"]))); ra > 0 {
+		out["revoked_at"] = ra
+	}
+	return out
+}
+
+// LicenseDoActivate 激活核心逻辑(本地验签 → 绑定本机;在线模式必须激活成功)。
+//
+// 在线模式(配置了授权服务器):本地验签通过后,必须 POST 服务端 /activate 成功
+// (设备绑定/上限/吊销由服务端权威判定;服务器不可达 → 拒绝激活,严格在线)。
 func LicenseDoActivate(st *state.AppState, key string) (map[string]any, error) {
 	if strings.TrimSpace(key) == "" {
 		return nil, BadRequest("license.keyEmpty")
@@ -272,25 +315,58 @@ func LicenseDoActivate(st *state.AppState, key string) (map[string]any, error) {
 			}
 		}
 	}
-	out, _ := json.MarshalIndent(map[string]any{
+	store := map[string]any{
 		"key":          strings.TrimSpace(key),
 		"device_id":    deviceID,
 		"activated_at": time.Now().Unix(),
-	}, "", "  ")
-	if err := os.WriteFile(path, out, 0o644); err != nil {
+	}
+	if serverURL := serverURLOf(st); serverURL != "" {
+		// 在线激活(严格):服务器不可达/拒绝 → 激活失败
+		res, code, err := licenseActivateRemote(serverURL, store["key"].(string), deviceID, DisplayVersion())
+		if err != nil {
+			switch code {
+			case "DEVICE_LIMIT_REACHED":
+				return nil, BadRequest("license.deviceLimit")
+			case "LICENSE_REVOKED":
+				return nil, BadRequest("license.revokedKey")
+			case "LICENSE_EXPIRED":
+				return nil, BadRequest("license.expiredKey")
+			case "INVALID_SIGNATURE", "LICENSE_NOT_FOUND":
+				return nil, BadRequest("license.invalid")
+			default:
+				return nil, BadRequest("license.serverUnreachable")
+			}
+		}
+		activationID := strOr(res["activation_id"])
+		if activationID == "" {
+			return nil, BadRequest("license.serverError")
+		}
+		store["activation_id"] = activationID
+		store["last_successful_verify"] = time.Now().Unix()
+		store["server_url"] = serverURL
+	}
+	if err := writeLicenseStore(st, store); err != nil {
 		return nil, BadRequest("write failed: " + err.Error())
 	}
 	info["device_id"] = deviceID
 	return info, nil
 }
 
-// LicenseDeactivate 解除激活(删除本地授权文件)
+// LicenseDeactivate 解除激活(删除本地授权文件;在线模式先通知服务端解绑)。
 func LicenseDeactivate(st *state.AppState) error {
-	path := licensePath(st)
-	if _, err := os.Stat(path); err != nil {
+	m, ok := readLicenseStore(st)
+	if !ok {
 		return BadRequest("license.notActivated")
 	}
-	return os.Remove(path)
+	// 在线模式:先尝试服务端解绑(尽力而为,失败不阻断本地解绑)
+	serverURL := serverURLOf(st)
+	key := strOr(m["key"])
+	activationID := strOr(m["activation_id"])
+	deviceID := strOr(m["device_id"])
+	if serverURL != "" && key != "" && deviceID != "" && activationID != "" {
+		licenseDeactivateRemote(serverURL, key, activationID, deviceID)
+	}
+	return os.Remove(licensePath(st))
 }
 
 // licenseDemoKey 演示/开发用 key(2100 年过期,永久授权)

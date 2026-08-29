@@ -30,7 +30,7 @@
 - **App Store** — 260+ one-click apps from a 1Panel-compatible repository (icons, parameter forms, multi-version); auto-synced on first start (no manual step), one-click install / upgrade with an "updatable" badge.
 - **Compose stack management** — YAML editor, one-click deploy (streaming output), start/stop, and teardown.
 - **Real-time monitoring** — 3x-ui style status page: CPU / memory / swap / storage cards with sparklines, network throughput & disk I/O curves, container/image/volume counts, panel process stats, and public IP with visibility toggle.
-- **License** — offline Pro license (file upload activation / device binding / unbind); free tier limits container creation and Compose deployment.
+- **License** — online licensing powered by Docker_Manager_License (Ed25519 signed keys, device binding, 24h periodic verification, 7-day grace period, instant revocation); offline activation retained for existing users
 - **Registry mirror** — configure `daemon.json` registry-mirrors right from the panel.
 - **Multi-language** — 14 UI languages with dark and light themes.
 - **Security** — TOTP two-factor authentication, JWT sessions, avatar upload.

@@ -88,6 +88,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/license/activate", H(licenseActivate).Handler(deps))
 	p.POST("/license/activate-file", H(licenseActivateFile).Handler(deps))
 	p.POST("/license/deactivate", H(licenseDeactivate).Handler(deps))
+	p.POST("/license/verify", H(licenseVerifyNow).Handler(deps))
 	p.GET("/license/demo", H(licenseDemoKey).Handler(deps))
 
 	// ---------- 在线更新 ----------

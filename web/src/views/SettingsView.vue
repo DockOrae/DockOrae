@@ -611,6 +611,29 @@
             </button>
           </div>
 
+          <!-- 在线授权状态(固定官方授权服务器,自动周期验证) -->
+          <div class="rounded-xl border border-line p-4 mb-4">
+            <div class="flex items-center gap-2 mb-1">
+              <Icon name="link" size="14" class="text-brand" />
+              <span class="text-[12px] font-medium">{{ t('license.onlineTitle') }}</span>
+              <span class="badge ml-auto" :style="onlineStyle">{{ onlineStateLabel }}</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
+              <span v-if="licOnline.last_verify">{{ t('license.lastVerify') }}: {{ fmtDateTime(licOnline.last_verify) }}</span>
+              <span v-if="licOnline.grace_deadline">{{ t('license.graceDeadline') }}: {{ fmtDateTime(licOnline.grace_deadline) }}</span>
+              <span v-if="licOnline.verify_state" class="text-danger">{{ t('license.verifyState' + (licOnline.verify_state === 'revoked' ? 'Revoked' : 'Invalid')) }}</span>
+              <button
+                v-if="licActive || licInfo"
+                class="btn btn-ghost btn-sm ml-auto"
+                :disabled="licBusy"
+                @click="verifyNow"
+              >
+                <span v-if="licBusy" class="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin mr-1" />
+                {{ licBusy ? t('license.verifying') : t('license.verifyNow') }}
+              </button>
+            </div>
+          </div>
+
           <div class="rounded-xl border border-line overflow-x-auto">
             <table class="table !m-0">
               <thead>
@@ -725,7 +748,7 @@ import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
 import Icon from '../components/Icon.vue'
 import { LANGS } from '../i18n'
-import { api, setToken, getRegistryMirrors, saveRegistryMirrors, getLicense, activateLicenseFile, deactivateLicense } from '../api'
+import { api, setToken, getRegistryMirrors, saveRegistryMirrors, getLicense, activateLicenseFile, deactivateLicense, verifyLicense } from '../api'
 import { toastErr, toastOk } from '../toast'
 import { useConfirm } from '../confirm'
 import { applyUser, loadLicense as refreshLicense, user } from '../store'
@@ -1256,6 +1279,32 @@ const licDragging = ref(false)
 const licFileName = ref('')
 const licFile = ref(null)
 const licFileInput = ref(null)
+const licOnline = ref({}) // { mode: offline|online, state, last_verify, grace_deadline, verify_state }
+
+// 在线验证状态展示(style + label)
+const onlineStyle = computed(() => {
+  switch (licOnline.value.state) {
+    case 'verified': return okStyle
+    case 'grace': return { color: '#fbbf24', background: 'rgba(251,191,36,.12)', border: '1px solid rgba(251,191,36,.3)' }
+    case 'grace_expired': return dangerStyle
+    case 'revoked': return dangerStyle
+    default: return mutedStyle
+  }
+})
+const onlineStateLabel = computed(() => {
+  switch (licOnline.value.state) {
+    case 'verified': return t('license.onlineVerified')
+    case 'grace': return t('license.onlineGrace')
+    case 'grace_expired': return t('license.onlineGraceExpired')
+    case 'revoked': return t('license.onlineRevoked')
+    case 'never': return t('license.onlineNever')
+    default: return t('license.offlineMode')
+  }
+})
+
+function fmtDateTime(ts) {
+  return ts ? new Date(ts * 1000).toLocaleString() : '-'
+}
 
 async function refreshLic() {
   try {
@@ -1264,8 +1313,26 @@ async function refreshLic() {
     licInfo.value = r.info || null
     licKey.value = r.key || ''
     licDeviceId.value = r.device_id || ''
+    licOnline.value = r.online || {}
     refreshLicense()
   } catch { /* 静默 */ }
+}
+
+// 手动触发一次在线验证(吊销即时触达)
+async function verifyNow() {
+  licBusy.value = true
+  licErr.value = ''
+  try {
+    const r = await verifyLicense()
+    await refreshLic()
+    if (r.state === 'verified') toastOk(t('license.verifyOk'))
+    else if (r.state === 'revoked') toastErr(t('license.onlineRevoked'))
+    else if (r.error) toastErr(r.error)
+  } catch (e) {
+    toastErr(e.message)
+  } finally {
+    licBusy.value = false
+  }
 }
 
 function openLicForm() {

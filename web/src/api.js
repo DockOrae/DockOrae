@@ -166,6 +166,11 @@ export async function deactivateLicense() {
   return api('/license/deactivate', { method: 'POST' })
 }
 
+// 手动触发一次在线验证(配置了授权服务器时生效;吊销即时触达)
+export async function verifyLicense() {
+  return api('/license/verify', { method: 'POST' })
+}
+
 export async function getDemoKey() {
   return api('/license/demo')
 }
