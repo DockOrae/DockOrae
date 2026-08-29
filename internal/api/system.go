@@ -34,10 +34,19 @@ func systemLogin(c *gin.Context, d *Deps) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("login.errPwd")
 	}
-	resp, err := service.Login(d.St, req.Username, req.Password, c.ClientIP())
-	if err != nil {
+	// SEC-002:失败限速(IP+用户名,5 次失败锁 15 分钟)
+	if err := loginThrottled(c.ClientIP(), req.Username); err != nil {
 		return err
 	}
+	resp, err := service.Login(d.St, req.Username, req.Password, c.ClientIP())
+	if err != nil {
+		// 仅凭据错误(401)计入失败次数;服务异常不计数
+		if ae, ok := err.(*service.ApiError); ok && ae.Status == 401 {
+			loginGuardInst.fail(loginKey(c.ClientIP(), req.Username), loginMaxFails, loginLockTime)
+		}
+		return err
+	}
+	loginGuardInst.success(loginKey(c.ClientIP(), req.Username))
 	c.JSON(200, resp)
 	return nil
 }
@@ -50,10 +59,18 @@ func systemLoginTotp(c *gin.Context, d *Deps) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("login.errTotpCode")
 	}
-	resp, err := service.LoginTotp(d.St, req.Username, req.Code, c.ClientIP())
-	if err != nil {
+	// SEC-002:TOTP 限速(3 次失败锁 5 分钟,防 6 位码穷举)
+	if err := totpThrottled(c.ClientIP(), req.Username); err != nil {
 		return err
 	}
+	resp, err := service.LoginTotp(d.St, req.Username, req.Code, c.ClientIP())
+	if err != nil {
+		if ae, ok := err.(*service.ApiError); ok && ae.Status == 401 {
+			loginGuardInst.fail(loginKey(c.ClientIP(), req.Username), totpMaxFails, totpLockTime)
+		}
+		return err
+	}
+	loginGuardInst.success(loginKey(c.ClientIP(), req.Username))
 	c.JSON(200, resp)
 	return nil
 }

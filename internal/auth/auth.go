@@ -80,41 +80,49 @@ func b64(data []byte) string {
 	return base64.RawURLEncoding.EncodeToString(data)
 }
 
-func MakeToken(secret, username string, ttlSeconds int64) string {
+// MakeToken 签发 JWT(HS256)。pca 为用户的 password_changed_at(安全凭据变更时间戳):
+// 修改密码/启用或关闭 2FA 后 pca 递增,旧 token(pca 落后)在中间件校验时被拒绝(SEC-003)。
+func MakeToken(secret, username string, ttlSeconds, pca int64) string {
 	now := time.Now().Unix()
 	header := b64([]byte(`{"alg":"HS256","typ":"JWT"}`))
-	payloadBytes, _ := json.Marshal(map[string]any{"sub": username, "iat": now, "exp": now + ttlSeconds})
+	payloadBytes, _ := json.Marshal(map[string]any{
+		"sub": username, "iat": now, "exp": now + ttlSeconds, "pca": pca,
+	})
 	payload := b64(payloadBytes)
 	signing := header + "." + payload
 	return signing + "." + sign(secret, signing)
 }
 
-func VerifyToken(secret, token string) (string, bool) {
+// VerifyToken 校验 JWT,返回 (username, pca, ok)。
+// 旧格式 token(无 pca 字段,签发于引入本机制之前)按 pca=0 处理——与用户 pca=0
+// (从未变更过安全凭据)匹配,保证升级后已有会话不失效。
+func VerifyToken(secret, token string) (string, int64, bool) {
 	parts := strings.SplitN(token, ".", 3)
 	if len(parts) != 3 {
-		return "", false
+		return "", 0, false
 	}
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(parts[0] + "." + parts[1]))
 	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil || !hmac.Equal(mac.Sum(nil), sig) {
-		return "", false
+		return "", 0, false
 	}
 	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return "", false
+		return "", 0, false
 	}
 	var payload struct {
 		Sub string `json:"sub"`
 		Exp int64  `json:"exp"`
+		Pca int64  `json:"pca"`
 	}
 	if json.Unmarshal(payloadBytes, &payload) != nil {
-		return "", false
+		return "", 0, false
 	}
 	if payload.Exp < time.Now().Unix() {
-		return "", false
+		return "", 0, false
 	}
-	return payload.Sub, true
+	return payload.Sub, payload.Pca, true
 }
 
 func sign(secret, data string) string {

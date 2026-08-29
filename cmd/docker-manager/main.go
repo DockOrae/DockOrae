@@ -16,6 +16,7 @@ import (
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/logger"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/notify"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
@@ -55,6 +56,9 @@ func main() {
 		}
 	}()
 
+	// Telegram 周期报告调度(版本取 ldflags 注入的 DisplayVersion,不硬编码)
+	notify.StartReporter(st.Settings, cfg.DataDir, service.DisplayVersion())
+
 	s := st.Settings.Get()
 	basePath := s.WebBasePath
 	listenAddr := s.WebListen
@@ -66,9 +70,13 @@ func main() {
 	engine := api.Router(st, basePath, serveStatic(basePath))
 
 	srv := &http.Server{
-		Addr:              addr,
-		Handler:           engine,
+		Addr:    addr,
+		Handler: engine,
+		// GO-006:请求体读取超时(防慢速连接占用;restore/头像等大上传 60s 内足够)。
+		// 不设 WriteTimeout:备份下载/日志流/WebSocket 是长连接,写超时会误伤。
 		ReadHeaderTimeout: 30 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		IdleTimeout:       90 * time.Second,
 		ErrorLog:          log.New(tlsErrFilter{}, "", 0),
 	}
 

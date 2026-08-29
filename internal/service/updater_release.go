@@ -2,12 +2,14 @@ package service
 
 import (
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
+	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
 )
 
 // ---------- Release Notes 分类解析 ----------
@@ -127,10 +129,33 @@ func findAsset(assets []model.ReleaseAsset, name string) *model.ReleaseAsset {
 // defaultDockerRepo 默认镜像仓库(fallback:compose 文件未找到 image 时)
 const defaultDockerRepo = "zhaoweiwen123/docker-manager-go"
 
-// dockerImageAvailable 检查 Docker Hub 上是否存在指定 tag 的镜像(明确版本,不依赖 latest)
-func dockerImageAvailable(tag string) bool {
+// dockerImageAvailable 检查镜像仓库是否存在指定 tag 的镜像(明确版本,不依赖 latest)。
+// 修复 UPD-006:优先读取实际 compose 文件的 image(自建 registry 不误判"未发布");
+// 非 Docker Hub 的自建仓库不远程探测,视为可用(更新时 helper 实际 pull 失败会如实回传)。
+func dockerImageAvailable(st *state.AppState, tag string) bool {
+	repo := defaultDockerRepo
+	if dir, err := FindComposeDir(st); err == nil {
+		if b, err := readHostFile(filepath.Join(dir, "docker-compose.yml")); err == nil {
+			if val, ok := findManagerImage(string(b)); ok {
+				name := val
+				if i := strings.IndexAny(name, "@:"); i >= 0 {
+					name = name[:i]
+				}
+				if strings.Contains(name, "/") {
+					repo = name
+				}
+			}
+		}
+	}
+	// 自建 registry(域名或带端口):不误判,直接视为可用
+	if i := strings.Index(repo, "/"); i >= 0 {
+		host := repo[:i]
+		if strings.Contains(host, ".") || strings.Contains(host, ":") || host == "localhost" {
+			return true
+		}
+	}
 	client := &http.Client{Timeout: 10 * time.Second}
-	url := "https://hub.docker.com/v2/repositories/" + defaultDockerRepo + "/tags/" + strings.TrimPrefix(tag, "v")
+	url := "https://hub.docker.com/v2/repositories/" + repo + "/tags/" + strings.TrimPrefix(tag, "v")
 	resp, err := client.Get(url)
 	if err != nil {
 		return false
@@ -149,10 +174,10 @@ func installType() string {
 
 // checkInstallable 判断当前安装方式是否有可用的更新包:
 //   - binary:release assets 中是否存在当前平台二进制
-//   - docker:目标版本镜像是否已发布到 Docker Hub
-func checkInstallable(assets []model.ReleaseAsset, tag string) (bool, string) {
+//   - docker:目标版本镜像是否已发布到镜像仓库(优先读取实际 compose image,UPD-006)
+func checkInstallable(st *state.AppState, assets []model.ReleaseAsset, tag string) (bool, string) {
 	if installType() == "docker" {
-		if dockerImageAvailable(tag) {
+		if dockerImageAvailable(st, tag) {
 			return true, ""
 		}
 		return false, "Docker 镜像尚未发布"

@@ -59,6 +59,12 @@ func licenseDeactivate(c *gin.Context, d *Deps) error {
 }
 
 func licenseDemoKey(c *gin.Context, d *Deps) error {
-	c.JSON(200, gin.H{"key": service.DemoKey()})
-	return nil
+	// SEC-001:demo key 仅限开发构建(版本未注入 → unknown,即本地 go run / 未打 tag 构建)。
+	// 正式 release 由 CI 经 ldflags 注入版本号,此接口返回 403——
+	// 杜绝"登录 → /license/demo → 永久 Pro key"的生产环境授权绕过。
+	if service.DisplayVersion() == "unknown" {
+		c.JSON(200, gin.H{"key": service.DemoKey()})
+		return nil
+	}
+	return service.NewApiError(403, "license.demoUnavailable")
 }

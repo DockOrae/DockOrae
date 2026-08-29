@@ -54,13 +54,13 @@ func TestCompareVersions(t *testing.T) {
 
 func TestNormalizeSemVer(t *testing.T) {
 	cases := map[string]string{
-		"":             "v0.0.0",
-		"v1.2.3":       "v1.2.3",
-		"1.2.3":        "v1.2.3",
-		"  v1.2.3  ":   "v1.2.3",
-		"v1.2.3-rc.1":  "v1.2.3-rc.1",
-		"not-a-ver":    "v0.0.0", // 无效 → 最老
-		"dev":          "v0.0.0",
+		"":            "v0.0.0",
+		"v1.2.3":      "v1.2.3",
+		"1.2.3":       "v1.2.3",
+		"  v1.2.3  ":  "v1.2.3",
+		"v1.2.3-rc.1": "v1.2.3-rc.1",
+		"not-a-ver":   "v0.0.0", // 无效 → 最老
+		"dev":         "v0.0.0",
 	}
 	for in, want := range cases {
 		if got := normalizeSemVer(in); got != want {
@@ -231,5 +231,146 @@ func TestChecksumAssetName(t *testing.T) {
 	got := checksumAssetName()
 	if !strings.HasSuffix(got, ".tar.gz.sha256") {
 		t.Errorf("checksumAssetName() = %q, want *.tar.gz.sha256", got)
+	}
+}
+
+// ---------- Compose image tag 精确替换(UPD-002) ----------
+
+func TestFindManagerImage(t *testing.T) {
+	yaml := `services:
+  nginx:
+    image: nginx:latest
+  redis:
+    image: redis:7-alpine
+  docker-manager:
+    image: zhaoweiwen123/docker-manager-go:latest
+  db:
+    image: postgres:16
+`
+	got, ok := findManagerImage(yaml)
+	if !ok || got != "zhaoweiwen123/docker-manager-go:latest" {
+		t.Fatalf("findManagerImage = %q, %v; want zhaoweiwen123/docker-manager-go:latest, true", got, ok)
+	}
+
+	// 写死版本 tag 也能识别
+	yaml2 := strings.ReplaceAll(yaml, "zhaoweiwen123/docker-manager-go:latest", "zhaoweiwen123/docker-manager-go:v1.0.2")
+	if got, ok = findManagerImage(yaml2); !ok || got != "zhaoweiwen123/docker-manager-go:v1.0.2" {
+		t.Fatalf("pinned tag: findManagerImage = %q, %v", got, ok)
+	}
+
+	// 自定义 registry + 无 tag
+	yaml3 := `services:
+  app:
+    image: registry.example.com/team/docker-manager-go
+`
+	if got, ok = findManagerImage(yaml3); !ok || got != "registry.example.com/team/docker-manager-go" {
+		t.Fatalf("custom registry: findManagerImage = %q, %v", got, ok)
+	}
+
+	// digest 形式
+	yaml4 := `services:
+  app:
+    image: zhaoweiwen123/docker-manager-go@sha256:abcdef1234567890
+`
+	if got, ok = findManagerImage(yaml4); !ok || got != "zhaoweiwen123/docker-manager-go@sha256:abcdef1234567890" {
+		t.Fatalf("digest: findManagerImage = %q, %v", got, ok)
+	}
+
+	// 没有 docker-manager-go → false
+	noManager := `services:
+  web:
+    image: nginx:latest
+  cache:
+    image: redis:7-alpine
+`
+	if got, ok := findManagerImage(noManager); ok {
+		t.Fatalf("no manager image: got %q, want false", got)
+	}
+
+	// 空 yaml / 无 image 字段
+	if _, ok := findManagerImage("services:\n  web:\n    build: .\n"); ok {
+		t.Fatal("build-only compose should not match")
+	}
+}
+
+func TestRetagImageValue(t *testing.T) {
+	cases := []struct{ val, tag, want string }{
+		{"zhaoweiwen123/docker-manager-go:latest", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
+		{"zhaoweiwen123/docker-manager-go:v1.0.2", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
+		{"zhaoweiwen123/docker-manager-go:v1.2.3", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
+		{"zhaoweiwen123/docker-manager-go:v1.10.20", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
+		{"registry.example.com/docker-manager-go:v1.0.2", "v1.3.0", "registry.example.com/docker-manager-go:v1.3.0"},
+		{"docker-manager-go", "v1.3.0", "docker-manager-go:v1.3.0"},
+		{"zhaoweiwen123/docker-manager-go@sha256:abc", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
+	}
+	for _, c := range cases {
+		if got := retagImageValue(c.val, c.tag); got != c.want {
+			t.Errorf("retagImageValue(%q, %q) = %q, want %q", c.val, c.tag, got, c.want)
+		}
+	}
+}
+
+func TestSafeImageValue(t *testing.T) {
+	valid := []string{"docker-manager-go:latest", "zhaoweiwen123/docker-manager-go:v1.0.2", "registry.example.com/a/docker-manager-go@sha256:abc", "docker-manager-go"}
+	for _, v := range valid {
+		if !safeImageValue(v) {
+			t.Errorf("safeImageValue(%q) = false, want true", v)
+		}
+	}
+	invalid := []string{"", "nginx:latest;rm -rf /", "a b", "a\"b", "a$(id)", "a`id`"}
+	for _, v := range invalid {
+		if safeImageValue(v) {
+			t.Errorf("safeImageValue(%q) = true, want false", v)
+		}
+	}
+}
+
+func TestBuildHelperCmd(t *testing.T) {
+	cmd := buildHelperCmd("zhaoweiwen123/docker-manager-go:latest", "zhaoweiwen123/docker-manager-go:v1.3.0")
+	// 包含精确替换(整行 image: 值)而不是脆弱的 :latest 全局替换
+	if !strings.Contains(cmd, "zhaoweiwen123/docker-manager-go:latest") {
+		t.Errorf("helper cmd 缺少旧值: %s", cmd)
+	}
+	if !strings.Contains(cmd, "zhaoweiwen123/docker-manager-go:v1.3.0") {
+		t.Errorf("helper cmd 缺少新值: %s", cmd)
+	}
+	// 新值只出现在替换目标中(不会再次匹配 image 行导致二次替换)
+	if strings.Count(cmd, "docker-manager-go:v1.3.0") != 1 {
+		t.Errorf("新值出现次数异常: %s", cmd)
+	}
+	if !strings.Contains(cmd, "docker compose -f /work/docker-compose.yml up -d --force-recreate --pull always") {
+		t.Errorf("helper cmd 缺少 compose up: %s", cmd)
+	}
+}
+
+// ---------- Binary 更新健康检查脚本(UPD-003) ----------
+
+func TestBuildHealthCheckScript(t *testing.T) {
+	script := buildHealthCheckScript(8080, "v1.3.0", "/usr/local/bin/docker-manager-go.old", "/usr/local/bin/docker-manager-go")
+	// 健康检查:curl health + 版本比较
+	if !strings.Contains(script, "curl -fsSL --max-time 5 http://127.0.0.1:8080/api/health") {
+		t.Errorf("缺少 health curl: %s", script)
+	}
+	if !strings.Contains(script, `"$ver" = "v1.3.0"`) {
+		t.Errorf("缺少版本比较: %s", script)
+	}
+	if !strings.Contains(script, `[ "$ver" != "unknown" ]`) {
+		t.Errorf("缺少 unknown 防护: %s", script)
+	}
+	// 回滚:cp 旧二进制回原位 + 重启
+	if !strings.Contains(script, "cp -f /usr/local/bin/docker-manager-go.old /usr/local/bin/docker-manager-go") {
+		t.Errorf("缺少回滚 cp: %s", script)
+	}
+	if !strings.Contains(script, "systemctl restart docker-manager") {
+		t.Errorf("缺少重启: %s", script)
+	}
+	// shell 变量引用正确(没有残留 Go 占位符)
+	if strings.Contains(script, "%s") || strings.Contains(script, "%d") {
+		t.Errorf("脚本残留格式占位符: %s", script)
+	}
+	// 期望版本含特殊字符时(validReleaseTag 已限制)不破坏脚本结构
+	script2 := buildHealthCheckScript(8080, "v1.3.0-rc.1", "/opt/dm/dm-go.old", "/opt/dm/dm-go")
+	if !strings.Contains(script2, `"$ver" = "v1.3.0-rc.1"`) {
+		t.Errorf("rc 版本比较缺失: %s", script2)
 	}
 }

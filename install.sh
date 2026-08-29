@@ -437,6 +437,28 @@ install_binary() {
   fi
   [ "$downloaded" -eq 0 ] && curl -fsSL --connect-timeout 15 "$url" -o "$DM_INSTALL_DIR/$pkg" || \
     { [ "$downloaded" -eq 1 ] || die "二进制下载失败: $url"; }
+
+  # SHA256 校验(与面板内置 updater 一致):校验失败立即中止,
+  # 绝不安装损坏或被篡改的包。校验文件同样走国内加速源。
+  local sum_url="$url.sha256" sum_file="$DM_INSTALL_DIR/$pkg.sha256"
+  if [ "$USE_MIRROR" -eq 1 ]; then
+    for proxy in "${CN_GH_PROXIES[@]}"; do
+      if curl -fsSL --connect-timeout 10 "${proxy}${sum_url}" -o "$sum_file" 2>/dev/null; then
+        break
+      fi
+    done
+  fi
+  [ -s "$sum_file" ] || curl -fsSL --connect-timeout 15 "$sum_url" -o "$sum_file" || die "校验文件下载失败: $sum_url"
+  local expected actual
+  expected=$(awk '{print $1}' "$sum_file")
+  actual=$(sha256sum "$DM_INSTALL_DIR/$pkg" | awk '{print $1}')
+  rm -f "$sum_file"
+  if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+    rm -f "$DM_INSTALL_DIR/$pkg"
+    die "SHA256 校验失败(下载的二进制可能损坏或被篡改),已中止安装"
+  fi
+  log_info "SHA256 校验通过 ✓"
+
   tar xzf "$DM_INSTALL_DIR/$pkg" -C "$bin_dir" || die "解压失败"
   chmod +x "$bin_dir/docker-manager-go/docker-manager-go"
   ln -sf "$bin_dir/docker-manager-go/docker-manager-go" /usr/local/bin/docker-manager-go
@@ -814,16 +836,18 @@ reset_passwd() {
   is_installed || die "尚未安装"
   local mode
   mode=$(read_mode)
-  echo -e "${RED_COLOR}重置管理员密码:将删除用户数据恢复默认 admin / 123456${RES}"
-  echo -e "  (头像/2FA 等用户配置会一并重置,容器/镜像等数据不受影响)"
+  echo -e "${RED_COLOR}重置管理员密码:将恢复默认 admin / 123456${RES}"
+  echo -e "  (2FA/用户配置会一并重置,容器/镜像等数据不受影响)"
   confirm "确认重置?" || { log_info "已取消"; exit 0; }
+  # 用户数据已迁移 SQLite:旧方案删除 users.json 不再生效。
+  # 改用面板启动标记:面板启动时检测到 .reset-admin-password 会把 admin 密码
+  # 重置为 123456 并删除标记(与数据库模型兼容,compose/binary 通用)。
+  touch "$DM_DATA_DIR/.reset-admin-password"
+  chmod 600 "$DM_DATA_DIR/.reset-admin-password"
   if [ "$mode" = "compose" ]; then
-    docker exec "$CONTAINER_NAME" rm -f /data/users.json 2>/dev/null || rm -f "$DM_DATA_DIR/users.json"
-    docker restart "$CONTAINER_NAME" >/dev/null 2>&1
+    docker restart "$CONTAINER_NAME" >/dev/null 2>&1 || die "容器重启失败,请手动执行: docker restart $CONTAINER_NAME"
   else
-    systemctl stop docker-manager
-    rm -f "$DM_DATA_DIR/users.json"
-    systemctl start docker-manager
+    systemctl restart docker-manager || die "服务重启失败,请手动执行: systemctl restart docker-manager"
   fi
   log_info "密码已重置:admin / 123456,请尽快登录修改"
 }

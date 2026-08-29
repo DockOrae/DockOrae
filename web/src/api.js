@@ -107,7 +107,7 @@ export async function composeStream(path, payload, onLine) {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch('/api' + path, { method: 'POST', headers, body: JSON.stringify(payload) })
+  const res = await fetch(entrancePath('/api' + path), { method: 'POST', headers, body: JSON.stringify(payload) })
   if (!res.ok) {
     let msg
     try { msg = (await res.json()).error } catch { msg = res.statusText }

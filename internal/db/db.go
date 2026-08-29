@@ -39,7 +39,8 @@ func Open(dataDir string) (*DB, error) {
 			avatar              TEXT,
 			must_change_password INTEGER NOT NULL DEFAULT 0,
 			totp_secret         TEXT,
-			totp_enabled        INTEGER NOT NULL DEFAULT 0
+			totp_enabled        INTEGER NOT NULL DEFAULT 0,
+			password_changed_at INTEGER NOT NULL DEFAULT 0
 		)`,
 		`CREATE TABLE IF NOT EXISTS settings (
 			key   TEXT PRIMARY KEY,
@@ -60,7 +61,38 @@ func Open(dataDir string) (*DB, error) {
 			return nil, err
 		}
 	}
+	// 迁移:旧库 users 表无 password_changed_at 列时补充(ALTER TABLE ADD COLUMN 幂等)
+	if err := ensureColumn(d, "users", "password_changed_at", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		d.Close()
+		return nil, err
+	}
 	return &DB{DB: d, Path: path}, nil
+}
+
+// ensureColumn 检查表是否含指定列,缺失则 ALTER TABLE 添加(旧库平滑迁移)。
+func ensureColumn(d *sql.DB, table, col, def string) error {
+	rows, err := d.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notNull, pk int
+		var dflt any
+		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dflt, &pk); err != nil {
+			return err
+		}
+		if name == col {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_, err = d.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + col + ` ` + def)
+	return err
 }
 
 // ---------------- users ----------------
@@ -74,6 +106,7 @@ type User struct {
 	MustChangePassword bool
 	TotpSecret         *string
 	TotpEnabled        bool
+	PasswordChangedAt  int64
 }
 
 // ImportUsers 从旧 users.json 导入(仅当 users 表为空)
@@ -109,7 +142,7 @@ func (d *DB) ImportUsers(usersFile string) (int, error) {
 	defer tx.Rollback()
 	for _, u := range v.Users {
 		if _, err := tx.Exec(
-			`INSERT OR REPLACE INTO users (username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled) VALUES (?,?,?,?,?,?,0)`,
+			`INSERT OR REPLACE INTO users (username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled, password_changed_at) VALUES (?,?,?,?,?,?,?,0)`,
 			u.Username, u.PasswordHash, u.Nickname, u.Avatar, u.MustChangePassword, u.TotpSecret,
 		); err != nil {
 			return 0, err
@@ -124,7 +157,7 @@ func (d *DB) ImportUsers(usersFile string) (int, error) {
 
 // ListUsers 全部用户
 func (d *DB) ListUsers() ([]User, error) {
-	rows, err := d.Query(`SELECT username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled FROM users`)
+	rows, err := d.Query(`SELECT username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled, password_changed_at FROM users`)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +166,7 @@ func (d *DB) ListUsers() ([]User, error) {
 	for rows.Next() {
 		var u User
 		var mcp, te int
-		if err := rows.Scan(&u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &mcp, &u.TotpSecret, &te); err != nil {
+		if err := rows.Scan(&u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &mcp, &u.TotpSecret, &te, &u.PasswordChangedAt); err != nil {
 			return nil, err
 		}
 		u.MustChangePassword = mcp != 0
@@ -145,10 +178,10 @@ func (d *DB) ListUsers() ([]User, error) {
 
 // FindUser 按用户名查用户
 func (d *DB) FindUser(username string) (*User, error) {
-	row := d.QueryRow(`SELECT username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled FROM users WHERE username = ?`, username)
+	row := d.QueryRow(`SELECT username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled, password_changed_at FROM users WHERE username = ?`, username)
 	var u User
 	var mcp, te int
-	if err := row.Scan(&u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &mcp, &u.TotpSecret, &te); err != nil {
+	if err := row.Scan(&u.Username, &u.PasswordHash, &u.Nickname, &u.Avatar, &mcp, &u.TotpSecret, &te, &u.PasswordChangedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -162,16 +195,17 @@ func (d *DB) FindUser(username string) (*User, error) {
 // UpsertUser 插入或更新用户
 func (d *DB) UpsertUser(u User) error {
 	_, err := d.Exec(
-		`INSERT INTO users (username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled)
-		 VALUES (?,?,?,?,?,?,?)
+		`INSERT INTO users (username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled, password_changed_at)
+		 VALUES (?,?,?,?,?,?,?,?)
 		 ON CONFLICT(username) DO UPDATE SET
 		   password_hash = excluded.password_hash,
 		   nickname = excluded.nickname,
 		   avatar = excluded.avatar,
 		   must_change_password = excluded.must_change_password,
 		   totp_secret = excluded.totp_secret,
-		   totp_enabled = excluded.totp_enabled`,
-		u.Username, u.PasswordHash, u.Nickname, u.Avatar, u.MustChangePassword, u.TotpSecret, u.TotpEnabled,
+		   totp_enabled = excluded.totp_enabled,
+		   password_changed_at = excluded.password_changed_at`,
+		u.Username, u.PasswordHash, u.Nickname, u.Avatar, u.MustChangePassword, u.TotpSecret, u.TotpEnabled, u.PasswordChangedAt,
 	)
 	return err
 }
@@ -188,8 +222,8 @@ func (d *DB) ReplaceUsers(users []User) error {
 	}
 	for _, u := range users {
 		if _, err := tx.Exec(
-			`INSERT INTO users (username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled) VALUES (?,?,?,?,?,?,?)`,
-			u.Username, u.PasswordHash, u.Nickname, u.Avatar, u.MustChangePassword, u.TotpSecret, u.TotpEnabled,
+			`INSERT INTO users (username, password_hash, nickname, avatar, must_change_password, totp_secret, totp_enabled, password_changed_at) VALUES (?,?,?,?,?,?,?,?)`,
+			u.Username, u.PasswordHash, u.Nickname, u.Avatar, u.MustChangePassword, u.TotpSecret, u.TotpEnabled, u.PasswordChangedAt,
 		); err != nil {
 			return err
 		}

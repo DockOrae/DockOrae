@@ -79,6 +79,20 @@ func PruneContainers(cli *client.Client, ctx context.Context, opts client.Contai
 	return res.Report, nil
 }
 
+// WaitContainer 等待容器退出,返回退出码。
+// 容器运行中退出 → (code, nil);等待过程出错/ctx 取消 → (0, err)。
+func WaitContainer(cli *client.Client, ctx context.Context, id string) (int64, error) {
+	res := cli.ContainerWait(ctx, id, client.ContainerWaitOptions{Condition: container.WaitConditionNotRunning})
+	select {
+	case r := <-res.Result:
+		return r.StatusCode, nil
+	case err := <-res.Error:
+		return 0, err
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
 func ContainerStats(cli *client.Client, ctx context.Context, id string, opts client.ContainerStatsOptions) (*client.ContainerStatsResult, error) {
 	res, err := cli.ContainerStats(ctx, id, opts)
 	if err != nil {

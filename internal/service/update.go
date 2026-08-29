@@ -2,6 +2,7 @@ package service
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -13,11 +14,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"golang.org/x/mod/semver"
@@ -138,6 +142,8 @@ const (
 	updateCheckTTL   = 10 * time.Minute
 	composeHelperImg = "docker/compose:latest"
 	updateHelperName = "dm-update-helper"
+	// maxUpdateExtractBytes 更新包解压体积上限(防御性,防压缩包炸弹)
+	maxUpdateExtractBytes = 512 << 20
 )
 
 // UpdateCheckURL 检测接口地址;DM_UPDATE_API 环境变量可覆盖(本地演示/测试用,生产默认 GitHub 官方)
@@ -223,7 +229,7 @@ func UpdateCheck(st *state.AppState, ctx context.Context) (*model.UpdateInfo, er
 					info.NotesRaw = len(info.Notes) == 0 && strings.TrimSpace(rel.Body) != ""
 					// 当前安装方式的更新包可用性:不可用则前端禁用"立即更新"
 					if info.HasUpdate {
-						info.Installable, info.NotInstallableReason = checkInstallable(rel.Assets, latest)
+						info.Installable, info.NotInstallableReason = checkInstallable(st, rel.Assets, latest)
 					} else {
 						info.Installable = true
 					}
@@ -279,7 +285,7 @@ func UpdateApply(st *state.AppState, ctx context.Context) error {
 		log.Printf("update started: mode=%s version=%s current=%s", DeploymentMode(), tag, DisplayVersion())
 		var err error
 		if DeploymentMode() == "binary" {
-			err = applyBinaryUpdate(context.Background())
+			err = applyBinaryUpdate(st, context.Background(), tag)
 		} else {
 			err = applyComposeUpdate(st, context.Background(), tag)
 		}
@@ -313,8 +319,85 @@ func DeploymentMode() string {
 	return "binary"
 }
 
+// ---------- Compose 更新:image tag 精确替换(修复 UPD-002) ----------
+
+var imageLineRe = regexp.MustCompile(`^\s*image:\s*(\S+)\s*$`)
+
+// findManagerImage 在 compose yaml 中查找 docker-manager-go 的 image 值(第一个匹配)。
+// 返回 image 字段的完整值(如 zhaoweiwen123/docker-manager-go:latest);
+// 找不到(未使用该镜像 / 值带引号等)返回 false。
+// 只匹配镜像名(最后一段)为 docker-manager-go 的条目,绝不误改 nginx/redis 等其他镜像。
+func findManagerImage(yaml string) (string, bool) {
+	for _, line := range strings.Split(yaml, "\n") {
+		m := imageLineRe.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		val := m[1]
+		// 去掉 :tag / @digest 取镜像名
+		name := val
+		if i := strings.IndexAny(name, "@:"); i >= 0 {
+			name = name[:i]
+		}
+		if i := strings.LastIndex(name, "/"); i >= 0 {
+			name = name[i+1:]
+		}
+		if name == "docker-manager-go" {
+			return val, true
+		}
+	}
+	return "", false
+}
+
+// retagImageValue 把 image 值(可含 :tag 或 @digest)替换为指定 tag,保留 repository。
+//
+//	zhaoweiwen123/docker-manager-go:latest      → zhaoweiwen123/docker-manager-go:v1.3.0
+//	registry.example.com/docker-manager-go:v1.0.2 → registry.example.com/docker-manager-go:v1.3.0
+//	docker-manager-go@sha256:abc                 → docker-manager-go:v1.3.0
+func retagImageValue(val, tag string) string {
+	if i := strings.IndexAny(val, "@:"); i >= 0 {
+		return val[:i] + ":" + tag
+	}
+	return val + ":" + tag
+}
+
+// safeImageValue 校验 image 值仅含安全字符(字母数字 . _ : @ / -),可安全嵌入 sed 模式。
+func safeImageValue(v string) bool {
+	if v == "" {
+		return false
+	}
+	for _, r := range v {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '.' || r == '_' || r == ':' || r == '@' || r == '/' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// buildHelperCmd 构造 helper 执行命令:备份 compose → 精确替换 docker-manager-go 的
+// image 值(整行匹配,保留行内注释)→ compose up。
+// oldVal/newVal 均已通过 safeImageValue 校验,可安全嵌入 sed。
+func buildHelperCmd(oldVal, newVal string) string {
+	return fmt.Sprintf(
+		"cp /work/docker-compose.yml /work/docker-compose.yml.bak 2>/dev/null; "+
+			"sed -i 's|^\\( *image: *\\)%s\\(.*\\)$|\\1%s\\2|' /work/docker-compose.yml; "+
+			"docker compose -f /work/docker-compose.yml up -d --force-recreate --pull always",
+		oldVal, newVal)
+}
+
+// readHostFile 读取宿主路径文件:容器内宿主根经 /host 只读挂载,binary 模式直接宿主路径。
+func readHostFile(hostPath string) ([]byte, error) {
+	if b, err := os.ReadFile("/host" + hostPath); err == nil {
+		return b, nil
+	}
+	return os.ReadFile(hostPath)
+}
+
 // applyComposeUpdate compose 部署:独立 compose 容器代跑(面板容器重建期间执行者不受影响)。
 // 更新目标为明确版本 tag(禁止依赖 latest):helper 先备份并替换 compose 中的镜像 tag,再 pull+up。
+// 修复 UPD-001:等待 helper 退出并检查退出码,失败回传具体原因(不再"启动即成功")。
 func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) error {
 	dir, err := FindComposeDir(st)
 	if err != nil {
@@ -339,15 +422,27 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) err
 	_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
 
 	setUpdatePhase(PhaseHelper)
-	// 3. 创建并启动 helper:挂载 docker.sock + compose 目录(可写)。
+
+	// 3. 修复 UPD-002:读取宿主 compose 文件,精确识别 docker-manager-go 的 image 值并替换 tag。
+	//    旧实现 sed 只替换 :latest,用户写死版本 tag(如 v1.0.2)时更新不生效(更新假成功)。
+	yamlBytes, err := readHostFile(filepath.Join(dir, "docker-compose.yml"))
+	if err != nil {
+		return failUpdate("读取 docker-compose.yml 失败: %s", err.Error())
+	}
+	oldVal, ok := findManagerImage(string(yamlBytes))
+	if !ok {
+		return failUpdate("docker-compose.yml 中未找到 docker-manager-go 镜像(image 字段),已中止更新。请检查镜像名或手动修改 compose 后重试")
+	}
+	newVal := retagImageValue(oldVal, tag)
+	if !safeImageValue(oldVal) || !safeImageValue(newVal) {
+		return failUpdate("compose 镜像值包含非法字符,已中止更新: %q", oldVal)
+	}
+	helperCmd := buildHelperCmd(oldVal, newVal)
+
+	// 4. 创建并启动 helper:挂载 docker.sock + compose 目录(可写)。
 	//    面板容器对宿主 compose 目录只读(/:/host:ro),无法直接改文件,
-	//    由 helper(root) 先备份 compose 文件,再把镜像 tag 从 latest 替换为明确版本,然后 up。
-	//    tag 已经 validReleaseTag 校验(仅字母数字 . - +),可安全拼接进 shell。
-	helperCmd := fmt.Sprintf(
-		"cp /work/docker-compose.yml /work/docker-compose.yml.bak 2>/dev/null; "+
-			"sed -i 's|\\(docker-manager-go\\):latest|\\1:%s|g' /work/docker-compose.yml; "+
-			"docker compose -f /work/docker-compose.yml up -d --force-recreate --pull always",
-		tag)
+	//    由 helper(root) 先备份 compose 文件,再替换 image tag,然后 up。
+	//    不用 AutoRemove:失败后需要读取容器日志定位原因(见下方 WaitContainer 后取日志)。
 	_, err = docker.CreateContainer(st.Docker, opCtx, client.ContainerCreateOptions{
 		Config: &container.Config{
 			Image:      composeHelperImg,
@@ -359,7 +454,6 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) err
 				"/var/run/docker.sock:/var/run/docker.sock",
 				dir + ":/work",
 			},
-			AutoRemove: true,
 		},
 		Name: updateHelperName,
 	})
@@ -370,21 +464,70 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) err
 		return failUpdate("启动更新容器失败: %s", err.Error())
 	}
 
-	// helper 已接管更新(它会替换 tag、拉取新镜像并 recreate 面板容器),标记完成供前端转轮询版本接口
+	// 4. 修复 UPD-001:等待 helper 真正执行完成(内部 pull 新镜像 + recreate 面板容器),
+	//    检查退出码——启动成功 ≠ 更新成功(镜像不存在/拉取失败/权限不足等都会让 helper 失败)。
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer waitCancel()
+	code, waitErr := docker.WaitContainer(st.Docker, waitCtx, updateHelperName)
+	if waitErr != nil {
+		_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
+		return failUpdate("等待更新容器退出失败: %s", waitErr.Error())
+	}
+	if code != 0 {
+		detail := helperLogsTail(st, updateHelperName, 80)
+		_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
+		return failUpdate("Compose 更新失败(exit code %d): %s", code, detail)
+	}
+	// 成功:清理 helper 容器(保持环境干净)
+	_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
+
+	// helper 已确认执行成功(pull + up 完成,面板容器已重建),标记完成供前端转轮询版本接口
 	setUpdatePhase(PhaseDone)
 	return nil
+}
+
+// helperLogsTail 读取 helper 容器最近的日志行(尽力而为;容器已删除时返回空串)。
+// 供更新失败时定位原因(如 compose up 的具体报错)。
+func helperLogsTail(st *state.AppState, id string, lines int) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	res, err := docker.ContainerLogs(st.Docker, ctx, id, client.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       strconv.Itoa(lines),
+	})
+	if err != nil {
+		return ""
+	}
+	defer res.Close()
+	var buf bytes.Buffer
+	_, _ = stdcopy.StdCopy(&buf, &buf, res)
+	out := strings.TrimSpace(buf.String())
+	if out == "" {
+		return "(无日志输出)"
+	}
+	// 只保留最后几行,避免把整段日志塞进错误信息
+	all := strings.Split(out, "\n")
+	if len(all) > lines {
+		all = all[len(all)-lines:]
+	}
+	return strings.Join(all, "\n")
 }
 
 // applyBinaryUpdate binary(systemd)部署:下载 GitHub Release 二进制资产,
 // 校验后原子替换自身(/proc/self/exe),1.5 秒后 systemctl restart 服务。
 // 阶段进度经 setUpdatePhase 上报,错误经 failUpdate 记录。
-func applyBinaryUpdate(ctx context.Context) error {
+// 修复 UPD-003:替换后注册 systemd 一次性健康检查单元(独立于本进程),
+// 面板重启后自动验证新版本;失败自动回滚 exe.old 并重启服务。
+func applyBinaryUpdate(st *state.AppState, ctx context.Context, tag string) error {
 	arch := runtime.GOARCH
 	if arch != "amd64" && arch != "arm64" {
 		return failUpdate("不支持的架构: %s", arch)
 	}
 	pkg := fmt.Sprintf("docker-manager-go-linux-%s.tar.gz", arch)
-	url := "https://github.com/MinimaxFlora/Docker_Manager_Go/releases/latest/download/" + pkg
+	// 修复 UPD-005:下载"已确认的版本"资产(tag 精确),不用 latest——
+	// 避免检查后 GitHub 发布新版本导致下载错版本
+	url := fmt.Sprintf("https://github.com/MinimaxFlora/Docker_Manager_Go/releases/download/%s/%s", tag, pkg)
 
 	setUpdatePhase(PhaseDownloading)
 	// 1. 下载资产(120s 超时,避免挂死)
@@ -456,8 +599,11 @@ func applyBinaryUpdate(ctx context.Context) error {
 	// 保留 exe.old 作为备份(下次更新覆盖):新二进制若无法启动,可手动恢复
 	log.Printf("update: 二进制已替换 %s (备份 %s.old),即将重启服务", exe, exe)
 
-	// 5. 延迟重启服务(状态停在 restarting,进程退出后由前端轮询版本接口确认)
+	// 5. 延迟重启服务 + 外部健康检查(UPD-003):
+	//    systemd-run 注册一次性检查单元(独立进程,不依赖本进程存活),
+	//    面板重启后验证新版本健康;失败自动回滚 exe.old 并重启服务。
 	setUpdatePhase(PhaseRestarting)
+	scheduleBinaryHealthCheck(st, exe, exe+".old", tag)
 	go func() {
 		time.Sleep(1500 * time.Millisecond)
 		if err := exec.Command("systemctl", "restart", "docker-manager").Run(); err != nil {
@@ -465,6 +611,42 @@ func applyBinaryUpdate(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+// buildHealthCheckScript 构造 systemd 一次性检查单元的脚本:
+// 面板重启后 sleep 8s 等服务起来 → curl /api/health 取 version →
+//
+//	版本 == 期望值(且非 unknown)→ 健康,正常退出;
+//	否则(服务未起/版本不对)→ 回滚 exe.old → 重启服务 → 退出 1。
+//
+// port/expect/old/exe 均为内部值(expect 经 validReleaseTag 校验),嵌入安全。
+func buildHealthCheckScript(port int, expect, old, exe string) string {
+	return fmt.Sprintf(
+		`sleep 8; ver=$(curl -fsSL --max-time 5 http://127.0.0.1:%d/api/health 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4); `+
+			`if [ -n "$ver" ] && [ "$ver" != "unknown" ] && [ "$ver" = "%s" ]; then `+
+			`echo "update: new version %s healthy"; exit 0; fi; `+
+			`echo "update: health check failed (version=$ver), rolling back to %s"; `+
+			`cp -f %s %s; chmod +x %s; systemctl restart docker-manager; exit 1`,
+		port, expect, expect, old, old, exe, exe)
+}
+
+// scheduleBinaryHealthCheck 注册 systemd 一次性健康检查(UPD-003):
+// 面板进程替换二进制后即将重启,重启后的验证必须由独立机制完成(本进程已不在)。
+// 用 systemd-run --on-active 启动延迟的一次性单元,失败自动回滚。
+// 非 systemd 环境(systemd-run 缺失)降级:仅告警,exe.old 保留供手动恢复。
+func scheduleBinaryHealthCheck(st *state.AppState, exe, old, expect string) {
+	if _, err := exec.LookPath("systemd-run"); err != nil {
+		log.Printf("update: systemd-run 不可用,跳过自动健康检查/回滚(旧二进制保留于 %s,失败时可手动恢复)", old)
+		return
+	}
+	script := buildHealthCheckScript(int(st.Settings.Get().WebPort), expect, old, exe)
+	unit := fmt.Sprintf("dm-update-check-%d", time.Now().UnixNano()%1000000)
+	cmd := exec.Command("systemd-run", "--on-active=10", "--unit="+unit, "--collect", "/bin/sh", "-c", script)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Printf("update: 注册 systemd 健康检查失败(可手动恢复 %s): %v %s", old, err, strings.TrimSpace(string(out)))
+	} else {
+		log.Printf("update: 已注册 systemd 健康检查单元 %s(重启后验证新版本,失败自动回滚 %s)", unit, old)
+	}
 }
 
 // progressWriter 下载进度统计:每 256KB 更新一次状态 percent(节流,避免频繁加锁)
@@ -521,6 +703,7 @@ func extractBinary(tarGz string) (string, error) {
 	}
 	defer gz.Close()
 	tr := tar.NewReader(gz)
+	var total int64
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -531,6 +714,11 @@ func extractBinary(tarGz string) (string, error) {
 		}
 		if hdr.Typeflag != tar.TypeReg || !strings.HasSuffix(hdr.Name, "docker-manager-go") {
 			continue
+		}
+		// UPD-007:限制解压体积,防压缩包炸弹(源为官方 release,防御性限制)
+		total += hdr.Size
+		if total > maxUpdateExtractBytes {
+			return "", fmt.Errorf("更新包解压体积超过限制(%d bytes)", maxUpdateExtractBytes)
 		}
 		out, err := os.CreateTemp("", "dm-bin-*")
 		if err != nil {

@@ -22,8 +22,10 @@ import (
 // 周期报告 cron(仿 3x-ui tgRunTime):@every 1h / @daily / @monthly / 自定义 crontab(6 字段,秒启用)
 var reporter *cron.Cron
 
-// StartReporter 按设置启动/重启 Telegram 周期报告任务(设置保存后需重新调用)
-func StartReporter(st *settings.Store, dataDir string) {
+// StartReporter 按设置启动/重启 Telegram 周期报告任务(设置保存后需重新调用)。
+// version 为面板当前版本(service.DisplayVersion(),与 ldflags 注入同一来源),
+// 禁止在 notify 包内硬编码版本号。
+func StartReporter(st *settings.Store, dataDir, version string) {
 	stopReporter()
 	s := st.Get()
 	if !s.TgEnable || s.TgBotToken == "" || s.TgAdminChatId == "" || s.TgRunTime == "" {
@@ -31,7 +33,7 @@ func StartReporter(st *settings.Store, dataDir string) {
 	}
 	c := cron.New(cron.WithSeconds())
 	if _, err := c.AddFunc(s.TgRunTime, func() {
-		sendPeriodicReport(st, dataDir)
+		sendPeriodicReport(st, dataDir, version)
 	}); err != nil {
 		log.Printf("cron schedule %q invalid: %v", s.TgRunTime, err)
 		return
@@ -49,11 +51,11 @@ func stopReporter() {
 }
 
 // sendPeriodicReport 周期报告:面板状态摘要;开启数据库备份时附带 data 目录 tar.gz
-func sendPeriodicReport(st *settings.Store, dataDir string) {
+func sendPeriodicReport(st *settings.Store, dataDir, version string) {
 	s := st.Get()
 	title := "📊 Docker Manager 周期报告"
-	body := fmt.Sprintf("时间: %s\n版本: v1.0.0\n数据目录: %s",
-		time.Now().Format("2006-01-02 15:04:05"), dataDir)
+	body := fmt.Sprintf("时间: %s\n版本: %s\n数据目录: %s",
+		time.Now().Format("2006-01-02 15:04:05"), version, dataDir)
 	if s.TgBotBackup {
 		path, err := backupData(dataDir)
 		if err != nil {
@@ -104,8 +106,9 @@ func backupData(dataDir string) (string, error) {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		// GO-002:循环内显式 Close,避免 defer 堆积文件句柄
 		_, err = io.Copy(tw, f)
+		f.Close()
 		return err
 	})
 	if walkErr != nil {

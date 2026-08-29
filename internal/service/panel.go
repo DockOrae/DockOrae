@@ -76,7 +76,7 @@ func SettingsUpdate(st *state.AppState, patch map[string]any) error {
 		return BadRequest("保存失败: " + err.Error())
 	}
 	// 设置变更后重启 Telegram 周期报告调度
-	notify.StartReporter(st.Settings, st.Cfg.DataDir)
+	notify.StartReporter(st.Settings, st.Cfg.DataDir, DisplayVersion())
 	return nil
 }
 
@@ -106,12 +106,25 @@ func TestEmail(st *state.AppState) error {
 	return notify.SendTestEmail(st.Settings)
 }
 
-// ConfigRaw 面板配置 JSON(settings.json 内容;无则返回当前设置对象)
+// ConfigRaw 面板配置 JSON(设置查看用;token/pass 脱敏,与 SettingsGet 一致——SEC-005)
 func ConfigRaw(st *state.AppState) []byte {
-	if raw, err := os.ReadFile(filepath.Join(st.Cfg.DataDir, "settings.json")); err == nil {
-		return raw
+	raw, err := os.ReadFile(filepath.Join(st.Cfg.DataDir, "settings.json"))
+	if err != nil {
+		raw, _ = json.MarshalIndent(st.Settings.Get(), "", "  ")
 	}
-	raw, _ := json.MarshalIndent(st.Settings.Get(), "", "  ")
+	// settings.json 中存的是明文 token/pass,查看接口不返回明文
+	var v map[string]any
+	if json.Unmarshal(raw, &v) == nil {
+		if s, ok := v["tgBotToken"].(string); ok && s != "" {
+			v["tgBotToken"] = MaskSecret(s)
+		}
+		if s, ok := v["smtpPass"].(string); ok && s != "" {
+			v["smtpPass"] = MaskSecret(s)
+		}
+		if out, err := json.MarshalIndent(v, "", "  "); err == nil {
+			return out
+		}
+	}
 	return raw
 }
 
@@ -150,8 +163,9 @@ func BackupToTemp(st *state.AppState) (string, error) {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		// GO-002:循环内显式 Close,避免 defer 堆积文件句柄
 		_, err = io.Copy(tw, f)
+		f.Close()
 		return err
 	})
 	if walkErr != nil {
@@ -252,13 +266,15 @@ func copyDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		defer in.Close()
 		out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
 		if err != nil {
+			in.Close()
 			return err
 		}
+		// GO-002:循环内显式 Close,避免 defer 堆积文件句柄
 		_, err = io.Copy(out, in)
 		out.Close()
+		in.Close()
 		return err
 	})
 }

@@ -62,14 +62,22 @@ func runComposeStream(c *gin.Context, d *Deps, project string, args ...string) e
 
 	outOpen, errOpen := true, true
 	for outOpen || errOpen {
+		// GO-003:channel 关闭后置 nil,select 对其永远阻塞,避免空转 busy-wait
+		var outCh, errCh <-chan string
+		if outOpen {
+			outCh = outLines
+		}
+		if errOpen {
+			errCh = errLines
+		}
 		select {
-		case line, ok := <-outLines:
+		case line, ok := <-outCh:
 			if !ok {
 				outOpen = false
 				continue
 			}
 			write(ndjsonLine(line))
-		case line, ok := <-errLines:
+		case line, ok := <-errCh:
 			if !ok {
 				errOpen = false
 				continue

@@ -38,7 +38,7 @@ services:
       - ./data:/data
       # HTTPS 证书目录(域名绑定后把 fullchain.pem / privkey.pem 放这里)
       - ./cert:/data/cert:ro
-      # 宿主机根文件系统:终端页 chroot /host 进宿主机 shell;在线更新也经它定位宿主 docker-compose.yml
+      # 宿主机根文件系统(只读):在线更新经它定位宿主 docker-compose.yml,镜像加速读写宿主 daemon.json
       - /:/host:ro
       # 宿主机 Docker 配置:面板「镜像加速」读写此文件(daemon.json)
       - /etc/docker:/host/etc/docker:ro

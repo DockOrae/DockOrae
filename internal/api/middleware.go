@@ -17,8 +17,16 @@ func AuthMiddleware(st *state.AppState) gin.HandlerFunc {
 		if token == "" {
 			token = auth.QueryToken(c.Request.URL.Query())
 		}
-		username, ok := auth.VerifyToken(st.Cfg.JWTSecret, token)
+		username, pca, ok := auth.VerifyToken(st.Cfg.JWTSecret, token)
 		if !ok {
+			noAuthRespond(c, st)
+			return
+		}
+		// SEC-003:安全凭据(密码/2FA/用户名)变更后,token 携带的 pca 落后于用户当前值 → 立即失效。
+		// 用户名不存在(被改名/删除)同样拒绝——否则旧用户名的 token 仍可操作全部 API。
+		// 兼容旧 token(无 pca 字段 = 0):用户从未变更过凭据(pca=0)时仍然有效。
+		u := st.FindUser(username)
+		if u == nil || u.PasswordChangedAt != pca {
 			noAuthRespond(c, st)
 			return
 		}

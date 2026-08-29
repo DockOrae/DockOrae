@@ -30,6 +30,7 @@ type StoredUser struct {
 	Avatar             *string `json:"avatar"`
 	MustChangePassword bool    `json:"must_change_password"`
 	TotpSecret         *string `json:"totp_secret"`
+	PasswordChangedAt  int64   `json:"password_changed_at"` // 安全凭据变更时间戳(SEC-003:旧 JWT 失效依据)
 }
 
 // TotpPending 2FA 绑定过程中的临时 secret(启用成功前不落盘)
@@ -146,8 +147,8 @@ func New(cfg *config.Config) (*AppState, error) {
 	if err := as.initUsers(); err != nil {
 		return nil, err
 	}
+	as.ResetAdminPasswordIfMarked()
 	as.SpawnEventWatcher()
-	notify.StartReporter(as.Settings, cfg.DataDir)
 	return as, nil
 }
 
@@ -169,6 +170,7 @@ func (s *AppState) initUsers() error {
 					Avatar:             u.Avatar,
 					MustChangePassword: u.MustChangePassword,
 					TotpSecret:         u.TotpSecret,
+					PasswordChangedAt:  u.PasswordChangedAt,
 				})
 			}
 			if len(s.Users) > 0 {
@@ -237,6 +239,7 @@ func (s *AppState) SaveUsers() error {
 				MustChangePassword: u.MustChangePassword,
 				TotpSecret:         u.TotpSecret,
 				TotpEnabled:        u.TotpSecret != nil,
+				PasswordChangedAt:  u.PasswordChangedAt,
 			})
 		}
 		return s.DB.ReplaceUsers(list)
@@ -286,6 +289,49 @@ func (s *AppState) FindUser(username string) *StoredUser {
 	return nil
 }
 
+// ResetAdminPasswordIfMarked 处理安装脚本的密码重置标记(install.sh reset-passwd 配套):
+// 数据目录存在 .reset-admin-password 文件时,将 admin 密码重置为 123456 并强制下次修改,
+// 然后删除标记。返回是否执行了重置。
+// 背景:用户数据已迁移 SQLite,install.sh 旧方案删除 users.json 不再生效,
+// 改用"启动标记"由面板自身完成重置(与 initUsers 创建默认 admin 同源逻辑)。
+func (s *AppState) ResetAdminPasswordIfMarked() bool {
+	marker := filepath.Join(s.Cfg.DataDir, ".reset-admin-password")
+	if _, err := os.Stat(marker); err != nil {
+		return false
+	}
+	hash, err := auth.HashPassword("123456")
+	if err != nil {
+		log.Printf("reset password: hash failed: %v", err)
+		return false
+	}
+	now := time.Now().Unix()
+	s.UsersMu.Lock()
+	found := false
+	for i := range s.Users {
+		if s.Users[i].Username == "admin" {
+			s.Users[i].PasswordHash = hash
+			s.Users[i].MustChangePassword = true
+			// 安全凭据变更:已签发 token 全部失效
+			s.Users[i].PasswordChangedAt = now
+			found = true
+			break
+		}
+	}
+	if !found {
+		s.Users = append(s.Users, StoredUser{
+			Username: "admin", PasswordHash: hash, MustChangePassword: true, PasswordChangedAt: now,
+		})
+	}
+	s.UsersMu.Unlock()
+	if err := s.SaveUsers(); err != nil {
+		log.Printf("reset password: save failed: %v", err)
+		return false
+	}
+	_ = os.Remove(marker)
+	log.Println("admin password has been reset to 123456 (change it after login)")
+	return true
+}
+
 // SpawnEventWatcher 轮询 Docker 事件流,断线 3s 后重连(无 Docker 时静默重试)
 func (s *AppState) SpawnEventWatcher() {
 	go func() {
@@ -303,14 +349,12 @@ func (s *AppState) SpawnEventWatcher() {
 						goto reconnect
 					}
 					s.Events.Publish(m)
-					// 通知:Docker 事件 → TG/邮件(按配置过滤)
-					go func(ev events.Message) {
-						body := fmt.Sprintf("Action: %s\nTarget: %s", string(ev.Action), ev.Actor.ID)
-						if name := ev.Actor.Attributes["name"]; name != "" {
-							body += "\nName: " + name
-						}
-						notify.Notify(s.Settings, notify.EventActionToType(string(ev.Action)), "Docker Event: "+string(ev.Action), body)
-					}(m)
+					// 通知:Docker 事件 → TG/邮件(按配置过滤;Notify 内部有界队列,风暴自动丢弃)
+					body := fmt.Sprintf("Action: %s\nTarget: %s", string(m.Action), m.Actor.ID)
+					if name := m.Actor.Attributes["name"]; name != "" {
+						body += "\nName: " + name
+					}
+					notify.Notify(s.Settings, notify.EventActionToType(string(m.Action)), "Docker Event: "+string(m.Action), body)
 				case err, ok := <-res.Err:
 					_ = err
 					if !ok || err != nil {

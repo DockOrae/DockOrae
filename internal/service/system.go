@@ -31,10 +31,24 @@ func PublicUser(u *state.StoredUser) map[string]any {
 	}
 }
 
+// dummyPasswordHash 用户不存在时用于时序均衡的固定哈希(SEC-006):
+// 无论用户名是否存在,登录都执行一次 argon2 验证,避免响应时间差异暴露用户枚举。
+const dummyPasswordHash = "$argon2id$v=19$m=19456,t=2,p=1$TyNVjXVv6mWEdJGCLbnmcg$E0+MeCEqmKG6W9Z27XcV1j2loJcHAuNn/pb2PIevH8w"
+
 // Login 密码登录:成功返回登录响应;已启用 2FA 返回 totp_required
 func Login(st *state.AppState, username, password, clientIP string) (map[string]any, error) {
 	u := st.FindUser(username)
-	if u == nil || !auth.VerifyPassword(password, u.PasswordHash) {
+	if u == nil {
+		// 时序均衡:用户不存在也执行哈希验证(SEC-006)
+		auth.VerifyPassword(password, dummyPasswordHash)
+		if st.DB != nil {
+			_ = st.DB.AddEvent("login_fail", username, "invalid credentials", clientIP)
+		}
+		notify.Notify(st.Settings, notify.EvLoginFail, "面板登录失败",
+			"用户: "+username+"\nIP: "+clientIP+"\n时间: "+time.Now().Format("2006-01-02 15:04:05"))
+		return nil, NewApiError(401, "login.errPwd")
+	}
+	if !auth.VerifyPassword(password, u.PasswordHash) {
 		if st.DB != nil {
 			_ = st.DB.AddEvent("login_fail", username, "invalid credentials", clientIP)
 		}
@@ -46,7 +60,7 @@ func Login(st *state.AppState, username, password, clientIP string) (map[string]
 	if u.TotpSecret != nil {
 		return map[string]any{"totp_required": true, "username": u.Username}, nil
 	}
-	token := auth.MakeToken(st.Cfg.JWTSecret, u.Username, st.Settings.SessionTTLSeconds())
+	token := auth.MakeToken(st.Cfg.JWTSecret, u.Username, st.Settings.SessionTTLSeconds(), u.PasswordChangedAt)
 	if st.DB != nil {
 		_ = st.DB.AddEvent("login", u.Username, "password", clientIP)
 	}
@@ -71,7 +85,7 @@ func LoginTotp(st *state.AppState, username, code, clientIP string) (map[string]
 		}
 		return nil, NewApiError(401, "login.errTotpCode")
 	}
-	token := auth.MakeToken(st.Cfg.JWTSecret, u.Username, st.Settings.SessionTTLSeconds())
+	token := auth.MakeToken(st.Cfg.JWTSecret, u.Username, st.Settings.SessionTTLSeconds(), u.PasswordChangedAt)
 	if st.DB != nil {
 		_ = st.DB.AddEvent("login", u.Username, "totp", clientIP)
 	}
@@ -149,7 +163,9 @@ func UpdateProfile(st *state.AppState, username string, nickname, newUsername *s
 	var newToken string
 	if newUsernameOut != nil {
 		u.Username = *newUsernameOut
-		newToken = auth.MakeToken(st.Cfg.JWTSecret, *newUsernameOut, st.Settings.SessionTTLSeconds())
+		// 用户名变更属安全凭据变更:更新 pca,使旧用户名的 token 立即失效
+		u.PasswordChangedAt = time.Now().Unix()
+		newToken = auth.MakeToken(st.Cfg.JWTSecret, *newUsernameOut, st.Settings.SessionTTLSeconds(), u.PasswordChangedAt)
 	}
 	snapshot := *u
 	st.UsersMu.Unlock()
@@ -305,7 +321,8 @@ func ChangePassword(st *state.AppState, username, oldPwd, newPwd string) error {
 		st.UsersMu.Unlock()
 		return BadRequest("user.oldPwdWrong")
 	}
-	if len(newPwd) < 6 {
+	// SEC-007:密码最小长度 8(过长的复杂度规则反而降低可用性,仅限长度)
+	if len(newPwd) < 8 {
 		st.UsersMu.Unlock()
 		return BadRequest("user.pwdTooShort")
 	}
@@ -320,6 +337,8 @@ func ChangePassword(st *state.AppState, username, oldPwd, newPwd string) error {
 	}
 	u.PasswordHash = hash
 	u.MustChangePassword = false
+	// SEC-003:密码变更即安全凭据变更,使该用户所有已签发 token 立即失效
+	u.PasswordChangedAt = time.Now().Unix()
 	st.UsersMu.Unlock()
 	return st.SaveUsers()
 }
@@ -371,6 +390,8 @@ func TotpEnable(st *state.AppState, username, code string) error {
 		return NewApiError(404, "user.notFound")
 	}
 	u.TotpSecret = &pending.Secret
+	// SEC-003:启用 2FA 属安全凭据变更,已签发 token 全部失效(需重新登录走 2FA)
+	u.PasswordChangedAt = time.Now().Unix()
 	st.UsersMu.Unlock()
 	if err := st.SaveUsers(); err != nil {
 		return err
@@ -408,6 +429,8 @@ func TotpDisable(st *state.AppState, username, password, code string) error {
 		return BadRequest("totp.codeWrong")
 	}
 	u.TotpSecret = nil
+	// SEC-003:关闭 2FA 属安全凭据变更,已签发 token 全部失效
+	u.PasswordChangedAt = time.Now().Unix()
 	st.UsersMu.Unlock()
 	return st.SaveUsers()
 }

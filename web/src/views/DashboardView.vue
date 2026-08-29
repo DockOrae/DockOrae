@@ -354,7 +354,7 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, 
 import { useI18n } from 'vue-i18n'
 import MiniChart from '../components/MiniChart.vue'
 import Icon from '../components/Icon.vue'
-import { api, getToken } from '../api'
+import { api, getToken, entrancePath } from '../api'
 import { formatBytes } from '../util'
 import { toastErr, toastOk } from '../toast'
 import { useConfirm } from '../confirm'
@@ -665,7 +665,7 @@ function openBackup() {
 }
 async function downloadBackup() {
   try {
-    const resp = await fetch('/api/system/backup', {
+    const resp = await fetch(entrancePath('/api/system/backup'), {
       headers: { Authorization: 'Bearer ' + (getToken() || '') },
     })
     if (!resp.ok) throw new Error(resp.statusText)

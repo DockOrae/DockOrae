@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
@@ -59,17 +60,41 @@ func Notify(st *settings.Store, eventType, title, body string) {
 	}
 }
 
+// ---------- 通知发送:有界 worker 池(GO-005) ----------
+// 事件风暴(Docker 容器大量启停)时,旧的"每个通知一个 goroutine"会无限膨胀。
+// 改为:固定 2 个 worker + 容量 64 的队列,队列满时直接丢弃(低优先级通知可丢)。
+
 type syncWait struct{}
 
-func (syncWait) add(fn func()) {
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("notify error: %v", r)
-			}
+var (
+	notifyCh   = make(chan func(), 64)
+	notifyOnce sync.Once
+)
+
+func notifyWorker() {
+	for fn := range notifyCh {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("notify error: %v", r)
+				}
+			}()
+			fn()
 		}()
-		fn()
-	}()
+	}
+}
+
+// add 提交发送任务;队列满时丢弃(风暴保护),不阻塞调用方
+func (syncWait) add(fn func()) {
+	notifyOnce.Do(func() {
+		for i := 0; i < 2; i++ {
+			go notifyWorker()
+		}
+	})
+	select {
+	case notifyCh <- fn:
+	default: // 队列满:丢弃
+	}
 }
 
 func contains(list []string, v string) bool {

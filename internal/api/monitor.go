@@ -63,6 +63,9 @@ func systemEventsWS(c *gin.Context, d *Deps) error {
 	ch := d.St.Events.Subscribe()
 	defer d.St.Events.Unsubscribe(ch)
 	_ = conn.WriteMessage(1, []byte(`{"type":"connected"}`))
+	// GO-004:复用 ticker 而非每循环新建 time.After(事件频繁时避免 timer 堆积)
+	pingTicker := time.NewTicker(30 * time.Second)
+	defer pingTicker.Stop()
 	for {
 		select {
 		case m, ok := <-ch:
@@ -73,7 +76,7 @@ func systemEventsWS(c *gin.Context, d *Deps) error {
 			if conn.WriteMessage(1, payload) != nil {
 				return nil
 			}
-		case <-time.After(30 * time.Second):
+		case <-pingTicker.C:
 			if conn.WriteMessage(8, nil) != nil { // PingMessage
 				return nil
 			}

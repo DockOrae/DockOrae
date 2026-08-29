@@ -188,6 +188,10 @@ func containersLogsWS(c *gin.Context, d *Deps) error {
 		}
 		return true
 	})
+	// 修复 GO-001:必须先取消 ctx 并关闭日志流,writer goroutine 的阻塞读才会退出;
+	// 否则客户端断开 + 容器无新日志时,wg.Wait() 会永久等待(goroutine + docker 连接泄漏)
+	cancel()
+	logs.Close()
 	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
@@ -232,6 +236,8 @@ func containersStatsWS(c *gin.Context, d *Deps) error {
 	wsPump(ctx, conn, func(mt int, data []byte) bool {
 		return mt != websocket.CloseMessage
 	})
+	// 修复 GO-001:先取消 ctx(关闭 stats 流)再等待 writer 退出,避免断开后死锁
+	cancel()
 	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
@@ -306,6 +312,10 @@ func containersTerminalWS(c *gin.Context, d *Deps) error {
 		}
 		return true
 	})
+	// 修复 GO-001:先取消 ctx 并关闭 exec 会话(解除 writer 的阻塞读),再等待退出;
+	// 否则客户端断开 + exec 进程静默时,wg.Wait() 会永久等待
+	cancel()
+	session.Close()
 	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
