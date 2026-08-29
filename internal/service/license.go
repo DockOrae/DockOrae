@@ -32,8 +32,10 @@ const licenseSecret = "docker-manager-go-license-v1"
 // 替换公钥:在 Docker_Manager_License 日志(首次启动 PUBLIC KEY)或
 // `license-server pubkey` 命令获取当前公钥,替换下方对应 key_id 的值。
 var licensePublicKeys = map[string]string{
+	// 固定公钥(与 Docker_Manager_License 部署端私钥配对,永久不变)。
+	// 私钥由授权方保管(部署端 private/license.key),此公钥可安全公开。
 	"2026-01": `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEA0gASXcBKIbfTGN8mqpChSHkNmn+K6Zb2jBeSpuv68ZU=
+MCowBQYDK2VwAyEAai6bOp+bgHTgU2bD6vDTbCZ5FIFVQNtVRLCqNYHGiAQ=
 -----END PUBLIC KEY-----`,
 }
 
