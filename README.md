@@ -106,6 +106,36 @@ sudo bash install.sh ssl
 
 The certificate paths are written into the panel settings automatically and HTTPS takes effect after restart.
 
+## Online Licensing (Pro)
+
+Pro features (Compose stacks, container creation, App Store installs) are gated by an online license:
+the panel verifies a signed Ed25519 license key against a License Server, with device binding,
+24h periodic verification, a 7-day grace period, and instant revocation.
+
+### 1. Deploy the License Server
+
+Deploy [Docker_Manager_License](https://github.com/MinimaxFlora/Docker_Manager_License) on any
+server — single container, port 80, zero config. Step-by-step guides for both **direct IP** and
+**domain + Cloudflare HTTPS** setups: **[docs/DEPLOY.md](https://github.com/MinimaxFlora/Docker_Manager_License/blob/master/docs/DEPLOY.md)**.
+
+> ⚠️ Use the private key paired with this panel's built-in public key (`private/license.key` in the
+> License repo) — otherwise the panel's signature verification will fail. See deploy guide step 3.
+
+### 2. Point the panel at your License Server
+
+By default the panel uses the official server `https://manager.kejizero.xyz/license-api`
+(nothing to configure). For a self-hosted License Server, set the environment variable:
+
+| Variable | Default | Description |
+|---|---|---|
+| `DM_LICENSE_SERVER_URL` | `https://manager.kejizero.xyz/license-api` | License Server base URL, e.g. `http://<ip>/license-api` or `https://license.example.com/license-api`. Empty string = offline mode (legacy keys only). |
+
+### 3. Activate
+
+Panel → **Settings → Licensing** → **Add** → paste the License Key issued by the License admin
+panel → **Activate**. The status badge shows the online verification state; click **Verify now**
+to pick up a revocation instantly (otherwise within 24h).
+
 ## Environment Variables
 
 | Variable | Default | Description |
