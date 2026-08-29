@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // Router 构建 gin 路由:public 组(登录)+ protected 组(全部业务)+ SPA 回退

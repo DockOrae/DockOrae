@@ -3,10 +3,10 @@ package service
 import (
 	"testing"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
+	"github.com/DockerManger/Docker_Manager_Go/internal/config"
+	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // TestPasswordChangeInvalidatesOldToken SEC-003 回归测试:

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
+	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
+	"github.com/DockerManger/Docker_Manager_Go/internal/config"
 )
 
 // TestResetAdminPasswordIfMarked install.sh reset-passwd 配套机制(SQLite 迁移后):

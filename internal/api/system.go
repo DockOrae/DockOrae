@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
+	"github.com/DockerManger/Docker_Manager_Go/internal/service"
 )
 
 func systemHealth(c *gin.Context, d *Deps) error {

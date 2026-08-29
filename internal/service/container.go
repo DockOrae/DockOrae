@@ -17,9 +17,9 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/docker"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
+	"github.com/DockerManger/Docker_Manager_Go/internal/model"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // ContainerService 容器业务:依赖显式注入(docker client + license 检查 + compose 数据目录),

@@ -29,12 +29,12 @@ docker run -d --name docker-manager-go \
 **一键安装脚本**(自动检测国内/海外网络、自动安装 Docker、可选域名 HTTPS):
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/MinimaxFlora/Docker_Manager_Go/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/DockerManger/Docker_Manager_Go/master/install.sh)
 ```
 
 ## 📖 更多
 
-- GitHub 源码: <https://github.com/MinimaxFlora/Docker_Manager_Go>
+- GitHub 源码: <https://github.com/DockerManger/Docker_Manager_Go>
 - 发布与更新: `bash install.sh update`
 - 个人使用免费;Pro 许可证支持离线激活
 <!-- 触发描述更新 -->

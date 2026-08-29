@@ -27,7 +27,7 @@ services:
       # 远程 Docker 主机:面板直接操作远程 daemon(同时注释掉 docker.sock 挂载)
       # - DOCKER_HOST=tcp://<host>:2375
       # 应用商店数据仓库/下载地址覆盖(内网镜像、离线环境):
-      # - DM_APPSTORE_REPO=MinimaxFlora/docker-manager-apps
+      # - DM_APPSTORE_REPO=DockerManger/Docker_Manager_Apps
       # - DM_APPSTORE_URL=https://<内网镜像>/docker-manager-apps.tar.gz
 
     # ---- 数据卷 ----

@@ -26,14 +26,14 @@ import (
 	"github.com/moby/moby/client"
 	"golang.org/x/mod/semver"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/docker"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
+	"github.com/DockerManger/Docker_Manager_Go/internal/model"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // AppVersion 面板当前版本,构建时由 ldflags 注入(与 main.Version 同步,发版打 tag 即可):
 //
-//	-X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=v1.0.3
+//	-X github.com/DockerManger/Docker_Manager_Go/internal/service.AppVersion=v1.0.3
 //
 // 未注入(本地开发)时为空字符串,运行时按 unknown 处理。使用 Makefile 构建时自动注入。
 var AppVersion string
@@ -138,7 +138,7 @@ func GetUpdateStatus() UpdateStatus {
 }
 
 const (
-	updateGitHubURL  = "https://api.github.com/repos/MinimaxFlora/Docker_Manager_Go/releases/latest"
+	updateGitHubURL  = "https://api.github.com/repos/DockerManger/Docker_Manager_Go/releases/latest"
 	updateCheckTTL   = 10 * time.Minute
 	composeHelperImg = "docker/compose:latest"
 	updateHelperName = "dm-update-helper"
@@ -527,7 +527,7 @@ func applyBinaryUpdate(st *state.AppState, ctx context.Context, tag string) erro
 	pkg := fmt.Sprintf("docker-manager-go-linux-%s.tar.gz", arch)
 	// 修复 UPD-005:下载"已确认的版本"资产(tag 精确),不用 latest——
 	// 避免检查后 GitHub 发布新版本导致下载错版本
-	url := fmt.Sprintf("https://github.com/MinimaxFlora/Docker_Manager_Go/releases/download/%s/%s", tag, pkg)
+	url := fmt.Sprintf("https://github.com/DockerManger/Docker_Manager_Go/releases/download/%s/%s", tag, pkg)
 
 	setUpdatePhase(PhaseDownloading)
 	// 1. 下载资产(120s 超时,避免挂死)

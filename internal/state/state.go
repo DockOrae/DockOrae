@@ -14,12 +14,12 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/client"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/db"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/docker"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/notify"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
+	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
+	"github.com/DockerManger/Docker_Manager_Go/internal/config"
+	"github.com/DockerManger/Docker_Manager_Go/internal/db"
+	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
+	"github.com/DockerManger/Docker_Manager_Go/internal/notify"
+	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
 )
 
 // StoredUser users.json 中存储的用户(扩展字段需兼容旧文件缺失的情况)

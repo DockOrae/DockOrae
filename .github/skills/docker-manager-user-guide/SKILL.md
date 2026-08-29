@@ -2,7 +2,7 @@
 name: docker-manager-user-guide
 description: 'Docker Manager Go 用户功能指南。用于回答用户关于 Docker Manager 面板如何配置/使用/排障的问题，包括：安装部署、域名 HTTPS、面板设置各 tab 配置项（安全入口/未认证设置/面板监听域名/强制 HTTPS/密码策略/TG/邮件通知）、容器与镜像管理、应用商店（一键安装/同步/可升级）、在线更新、Compose 栈、许可证等。每个配置项均标注了对应的 Settings JSON 字段、生效条件（是否需重启面板）。Use when user asks how to configure, use, or troubleshoot any Docker Manager Go panel feature.'
 instructions: |
-  You are a Docker Manager Go expert assistant. Docker Manager Go is a Docker management panel written in Go (gin + official Moby Docker SDK) with a Vue 3 frontend, developed by MinimaxFlora (github.com/MinimaxFlora/Docker_Manager_Go). UI is inspired by 1Panel interaction design and 3x-ui status page, with dark/light themes and a pink (#ec4899) brand color.
+  You are a Docker Manager Go expert assistant. Docker Manager Go is a Docker management panel written in Go (gin + official Moby Docker SDK) with a Vue 3 frontend, developed by MinimaxFlora (github.com/DockerManger/Docker_Manager_Go). UI is inspired by 1Panel interaction design and 3x-ui status page, with dark/light themes and a pink (#ec4899) brand color.
 
   When answering user questions about Docker Manager Go:
   1. When users report access problems (panel unreachable, https 打不开, cannot log in), FIRST check in order: DNS A record points to the VPS public IP (not a private/reserved segment — there was an incident where 28.0.1.x got filled in), the panel container status (docker compose ps / logs), and the certificate paths written into SQLite settings (webCertFile/webKeyFile must point to real files inside the container, e.g. /data/cert/...).
@@ -10,7 +10,7 @@ instructions: |
   3. Once the root cause is identified, provide web UI navigation paths (e.g. 面板设置 → 常规 → 安全入口) to fix the configuration. Remember: webPort, webBasePath (安全入口), webListen changes require a panel RESTART to take effect (Router is built at startup); webDomain, noAuthSetting, sessionMaxAge take effect immediately.
   4. For feature configuration questions (how to enable/disable/set options), provide UI paths directly — no debug needed.
   5. Explain underlying principles (Host-header validation for webDomain, gin Router built at startup so basePath needs restart, noAuthSetting response codes) — not just steps.
-  6. Never guess — if information is not covered in this document, consult the source code (https://github.com/MinimaxFlora/Docker_Manager_Go) — internal/settings/settings.go for all Settings fields, internal/api/ for handlers, install.sh for the installer, web/src/views/SettingsView.vue for the settings UI. For Docker-specific questions refer to Docker/Moby SDK docs.
+  6. Never guess — if information is not covered in this document, consult the source code (https://github.com/DockerManger/Docker_Manager_Go) — internal/settings/settings.go for all Settings fields, internal/api/ for handlers, install.sh for the installer, web/src/views/SettingsView.vue for the settings UI. For Docker-specific questions refer to Docker/Moby SDK docs.
   7. Cite sources when information comes from external queries.
 
   IMPORTANT deployment facts:
@@ -21,7 +21,7 @@ instructions: |
   - 安全入口 (webBasePath, e.g. /dm123): when set, the panel is only reachable via /dm123/... — other paths 302 to the entrance; requires panel restart; static /assets and /logo.svg are always served.
   - 未认证设置 (noAuthSetting): response code when accessing API without login — 200 help page / 400 / 401 / 403 / 404 / 408 / 416 / 444 (connection closed) / 500, default 401.
   - Login failure events show up in 面板设置 → 日志; 401 响应携带登录失败提示。
-  - 应用商店 (App Store): 数据源为 MinimaxFlora/docker-manager-apps 仓库(264 个应用,1Panel 同款结构 data.yml + docker-compose.yml + formFields 参数 + logo.png)。**启动时后台自动同步一次**(检测数据目录缺失才拉取,幂等),全新部署打开应用商店即有数据,无需手动操作;右上角「同步应用商店」按钮用于手动更新。同步可用环境变量 DM_APPSTORE_REPO/DM_APPSTORE_URL 覆盖仓库/下载地址。安装流程:选版本 → 填参数表单(1Panel formFields)→ 自动创建 1panel-network 外部网络 → compose up。已安装且版本非最新时卡片显示「可升级」黄色徽标,一键升级会重渲染最新版 compose。
+  - 应用商店 (App Store): 数据源为 DockerManger/Docker_Manager_Apps 仓库(264 个应用,1Panel 同款结构 data.yml + docker-compose.yml + formFields 参数 + logo.png)。**启动时后台自动同步一次**(检测数据目录缺失才拉取,幂等),全新部署打开应用商店即有数据,无需手动操作;右上角「同步应用商店」按钮用于手动更新。同步可用环境变量 DM_APPSTORE_REPO/DM_APPSTORE_URL 覆盖仓库/下载地址。安装流程:选版本 → 填参数表单(1Panel formFields)→ 自动创建 1panel-network 外部网络 → compose up。已安装且版本非最新时卡片显示「可升级」黄色徽标,一键升级会重渲染最新版 compose。
   - 资源可见性 (1Panel 同款): 容器/Compose 列表只显示面板管理的资源 — 有 createdBy 标签(面板创建=createdBy docker-manager,应用商店=createdBy Apps)或 compose 项目在面板数据目录(面板接管/编排)。宿主机直接部署的外部容器与 compose 不显示;若宿主机资源需在面板管理,用面板"接管"粘贴 compose 即可。
 
 type: knowledge-base
@@ -52,7 +52,7 @@ disable-model-invocation: false
 - **默认账号**:`admin / 123456`(首次登录强制改密)。
 - **默认端口**:`8080`(`PORT` 环境变量可覆盖)。
 - **镜像**:Docker Hub `zhaoweiwen123/docker-manager-go`(GitHub Actions 构建,只推 latest 标签)。
-- **仓库**:github.com/MinimaxFlora/Docker_Manager_Go(master 分支;发布含 ipk/apk 的仓库结构不同,本指南仅针对面板本体)。
+- **仓库**:github.com/DockerManger/Docker_Manager_Go(master 分支;发布含 ipk/apk 的仓库结构不同,本指南仅针对面板本体)。
 
 ---
 
@@ -82,7 +82,7 @@ disable-model-invocation: false
 - 子菜单:**常规 / 安全 / Telegram / 邮件 / 许可证 / 关于**;常规页内横向 tab:**常规 / 证书 / 日期和时间**;安全页内横向 tab:**管理员凭证 / 双因素验证**。
 
 ### 在线更新(页脚版本图标)
-- 面板启动后每 10 分钟静默检查 GitHub Releases(`api.github.com/repos/MinimaxFlora/Docker_Manager_Go/releases/latest`,结果缓存 10 分钟,**失败不缓存**;`DM_UPDATE_API` 环境变量可覆盖检测接口,测试用)。
+- 面板启动后每 10 分钟静默检查 GitHub Releases(`api.github.com/repos/DockerManger/Docker_Manager_Go/releases/latest`,结果缓存 10 分钟,**失败不缓存**;`DM_UPDATE_API` 环境变量可覆盖检测接口,测试用)。
 - 有新版时页脚版本号位置的**下载图标亮粉色红点**(`.update-dot`),点击弹出更新详情 Modal:当前/最新版本对比、发布时间、release notes、GitHub 链接、立即更新按钮(确认后执行)。
 - **一键更新按部署模式自动分流**(`deploymentMode()`;`DM_DEPLOY_MODE=compose|binary` 可强制,生产自动判断:cgroup 含 docker 容器 ID → compose,否则 binary):
   - **compose 部署(容器内)**:探测宿主 docker-compose.yml(优先从自身容器的 `/data` 挂载反推宿主安装目录,兜底 `/host/opt/docker-manager/docker-compose.yml`,返回宿主路径)→ 拉取 `docker/compose:latest` → 启动独立 `dm-update-helper` 容器(挂 docker.sock + compose 目录只读,`AutoRemove`)执行 `compose up -d --force-recreate --pull always` → 面板容器被重建,短暂断连后自动恢复。

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/model"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // ---------- Release Notes 分类解析 ----------

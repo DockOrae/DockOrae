@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
+	"github.com/DockerManger/Docker_Manager_Go/internal/service"
 )
 
 // ---------- 登录限速(SEC-002) ----------

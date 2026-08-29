@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/api"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/logger"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/notify"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/api"
+	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
+	"github.com/DockerManger/Docker_Manager_Go/internal/config"
+	"github.com/DockerManger/Docker_Manager_Go/internal/logger"
+	"github.com/DockerManger/Docker_Manager_Go/internal/notify"
+	"github.com/DockerManger/Docker_Manager_Go/internal/service"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // 构建信息,均由 ldflags 在构建时注入(发版只需打 Git tag,无需改源码):
@@ -27,7 +27,7 @@ import (
 //	  -X main.Version=v1.0.3 \
 //	  -X main.Commit=abc1234 \
 //	  -X main.BuildTime=2026-08-29T01:20:00Z \
-//	  -X github.com/MinimaxFlora/Docker_Manager_Go/internal/service.AppVersion=v1.0.3"
+//	  -X github.com/DockerManger/Docker_Manager_Go/internal/service.AppVersion=v1.0.3"
 //
 // 未注入(本地开发/CI 检查)时为空字符串,运行时显示 unknown。
 // 使用 Makefile 构建时自动从 git tag / commit 注入。

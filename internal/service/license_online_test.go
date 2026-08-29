@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/config"
+	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // ---------- 在线授权闭环测试(客户端侧) ----------

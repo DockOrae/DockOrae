@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
+	"github.com/DockerManger/Docker_Manager_Go/internal/service"
 )
 
 // updateCheck 检测 GitHub 最新 Release(结果缓存 10 分钟,防 GitHub API 限流;失败不缓存)

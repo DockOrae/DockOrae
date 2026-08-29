@@ -1,4 +1,4 @@
-module github.com/MinimaxFlora/Docker_Manager_Go
+module github.com/DockerManger/Docker_Manager_Go
 
 go 1.27.0
 

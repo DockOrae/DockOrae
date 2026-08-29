@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-// AppStoreRepo 应用商店数据仓库(MinimaxFlora/docker-manager-apps,1Panel 同款结构)。
+// AppStoreRepo 应用商店数据仓库(DockerManger/Docker_Manager_Apps,1Panel 同款结构)。
 // 可用环境变量覆盖:DM_APPSTORE_REPO=user/repo
 var AppStoreRepo = func() string {
 	if r := os.Getenv("DM_APPSTORE_REPO"); r != "" {
 		return r
 	}
-	return "MinimaxFlora/docker-manager-apps"
+	return "DockerManger/Docker_Manager_Apps"
 }()
 
 // SyncURL 仓库 tarball 地址(可用 DM_APPSTORE_URL 覆盖,如内网镜像)

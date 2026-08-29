@@ -8,10 +8,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/releases"><img src="https://img.shields.io/github/v/release/MinimaxFlora/Docker_Manager_Go" alt="Release"></a>
-  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/actions"><img src="https://img.shields.io/github/actions/workflow/status/MinimaxFlora/Docker_Manager_Go/release.yml.svg" alt="Build"></a>
-  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/MinimaxFlora/Docker_Manager_Go.svg" alt="Go Version"></a>
-  <a href="https://github.com/MinimaxFlora/Docker_Manager_Go/releases/latest"><img src="https://img.shields.io/github/downloads/MinimaxFlora/Docker_Manager_Go/total.svg" alt="Downloads"></a>
+  <a href="https://github.com/DockerManger/Docker_Manager_Go/releases"><img src="https://img.shields.io/github/v/release/DockerManger/Docker_Manager_Go" alt="Release"></a>
+  <a href="https://github.com/DockerManger/Docker_Manager_Go/actions"><img src="https://img.shields.io/github/actions/workflow/status/DockerManger/Docker_Manager_Go/release.yml.svg" alt="Build"></a>
+  <a href="https://github.com/DockerManger/Docker_Manager_Go/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DockerManger/Docker_Manager_Go.svg" alt="Go Version"></a>
+  <a href="https://github.com/DockerManger/Docker_Manager_Go/releases/latest"><img src="https://img.shields.io/github/downloads/DockerManger/Docker_Manager_Go/total.svg" alt="Downloads"></a>
   <a href="https://hub.docker.com/r/zhaoweiwen123/docker-manager-go"><img src="https://img.shields.io/docker/pulls/zhaoweiwen123/docker-manager-go.svg" alt="Docker Pulls"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
 </p>
@@ -48,7 +48,7 @@ This repository ships a built-in [GitHub Agent Skill](.github/skills/docker-mana
 ### One-line install (recommended)
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/MinimaxFlora/Docker_Manager_Go/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/DockerManger/Docker_Manager_Go/master/install.sh)
 ```
 
 The installer:
@@ -88,7 +88,7 @@ Or use the bundled `docker-compose.yml`. For remote Docker hosts, set `DOCKER_HO
 
 ### Binary (manual)
 
-Download `docker-manager-go-linux-<arch>.tar.gz` from the [Releases page](https://github.com/MinimaxFlora/Docker_Manager_Go/releases/latest), extract it, and run:
+Download `docker-manager-go-linux-<arch>.tar.gz` from the [Releases page](https://github.com/DockerManger/Docker_Manager_Go/releases/latest), extract it, and run:
 
 ```bash
 tar xzf docker-manager-go-linux-amd64.tar.gz
@@ -114,9 +114,9 @@ the panel verifies a signed Ed25519 license key against a License Server, with d
 
 ### 1. Deploy the License Server
 
-Deploy [Docker_Manager_License](https://github.com/MinimaxFlora/Docker_Manager_License) on any
+Deploy [Docker_Manager_License](https://github.com/DockerManger/Docker_Manager_License) on any
 server — single container, port 80, zero config. Step-by-step guides for both **direct IP** and
-**domain + Cloudflare HTTPS** setups: **[docs/DEPLOY.md](https://github.com/MinimaxFlora/Docker_Manager_License/blob/master/docs/DEPLOY.md)**.
+**domain + Cloudflare HTTPS** setups: **[docs/DEPLOY.md](https://github.com/DockerManger/Docker_Manager_License/blob/master/docs/DEPLOY.md)**.
 
 > ⚠️ Use the private key paired with this panel's built-in public key (`private/license.key` in the
 > License repo) — otherwise the panel's signature verification will fail. See deploy guide step 3.

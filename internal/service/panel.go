@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/logger"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/notify"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/logger"
+	"github.com/DockerManger/Docker_Manager_Go/internal/notify"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // RestartPanel 重启面板进程(新进程替换自身;docker restart:unless-stopped 自动拉起)

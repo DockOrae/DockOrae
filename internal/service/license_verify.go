@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // ---------- 在线授权闭环(客户端侧) ----------

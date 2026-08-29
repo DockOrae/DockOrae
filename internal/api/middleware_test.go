@@ -7,10 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/auth"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/config"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/settings"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
+	"github.com/DockerManger/Docker_Manager_Go/internal/config"
+	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // TestAuthMiddlewarePCA SEC-003 中间件回归:

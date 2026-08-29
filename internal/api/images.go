@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/service"
+	"github.com/DockerManger/Docker_Manager_Go/internal/model"
+	"github.com/DockerManger/Docker_Manager_Go/internal/service"
 )
 
 func imagesList(c *gin.Context, d *Deps) error {

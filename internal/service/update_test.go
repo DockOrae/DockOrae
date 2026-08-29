@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
+	"github.com/DockerManger/Docker_Manager_Go/internal/model"
 )
 
 // ---------- CompareVersions(SemVer) ----------

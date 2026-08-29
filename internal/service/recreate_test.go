@@ -9,7 +9,7 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/appstore"
+	"github.com/DockerManger/Docker_Manager_Go/internal/appstore"
 )
 
 // ---- ContainerRecreate:正常流程(最小 ops fake) ----

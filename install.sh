@@ -7,7 +7,7 @@
 # Last Updated: 2026-08-28
 #
 # Description:
-#   面向 Docker Manager (https://github.com/MinimaxFlora/Docker_Manager_Go)
+#   面向 Docker Manager (https://github.com/DockerManger/Docker_Manager_Go)
 #   的一键脚本,提供:
 #     - 两种安装方式:Docker Compose 安装 / 本地二进制安装(systemd)
 #     - 未安装 Docker 时自动安装(Debian/Ubuntu amd64/arm64 最新稳定版)
@@ -61,7 +61,7 @@ BIN_NAME="docker-manager-go"
 COMPOSE_FILE="$DM_INSTALL_DIR/docker-compose.yml"
 SERVICE_FILE="$DM_INSTALL_DIR/docker-manager.service"
 BACKUP_DIR="$DM_INSTALL_DIR/backups"
-GITHUB_REPO="MinimaxFlora/Docker_Manager_Go"
+GITHUB_REPO="DockerManger/Docker_Manager_Go"
 
 # 国内镜像加速源(compose 拉镜像用,按顺序尝试)
 CN_MIRRORS=(

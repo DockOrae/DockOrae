@@ -9,9 +9,9 @@ import (
 
 	"github.com/moby/moby/client"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/docker"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
+	"github.com/DockerManger/Docker_Manager_Go/internal/model"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // ComposeBin compose 可执行文件(COMPOSE_BIN 环境变量可覆盖,默认 docker-compose)

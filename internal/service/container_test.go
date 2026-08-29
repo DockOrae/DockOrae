@@ -8,7 +8,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/model"
+	"github.com/DockerManger/Docker_Manager_Go/internal/model"
 )
 
 // portOf 解析端口字符串为 network.Port(测试辅助)

@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MinimaxFlora/Docker_Manager_Go/internal/state"
+	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
 // 内置签名密钥(离线校验;仅用于 V1 旧版 Key 兼容校验)
