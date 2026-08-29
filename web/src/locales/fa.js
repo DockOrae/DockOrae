@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'در حال کشیدن تصویر کمکی…',
     phase_helper: 'در حال شروع کانتینر بهروزرسانی…',
     phase_failed: 'بهروزرسانی ناموفق',
+    phase_verifying: 'در حال بررسی بسته بهروزرسانی…',
+    sec_features: 'ویژگیهای جدید',
+    sec_bug_fixes: 'رفع اشکالات',
+    sec_improvements: 'بهبودها',
+    sec_security: 'امنیت',
+    sec_breaking_changes: 'تغییرات اساسی',
+    installType: 'نوع نصب',
+    install_binary: 'باینری',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'نسخه فعلی همچنان در حال اجراست؛ بعداً دوباره تلاش کنید',
   },
 
   appStore: {

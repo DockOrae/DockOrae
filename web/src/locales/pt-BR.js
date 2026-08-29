@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'Obtendo imagem auxiliar…',
     phase_helper: 'Iniciando contêiner de atualização…',
     phase_failed: 'Falha na atualização',
+    phase_verifying: 'Verificando pacote de atualização…',
+    sec_features: 'Novos recursos',
+    sec_bug_fixes: 'Correções de bugs',
+    sec_improvements: 'Melhorias',
+    sec_security: 'Segurança',
+    sec_breaking_changes: 'Mudanças importantes',
+    installType: 'Tipo de instalação',
+    install_binary: 'Binário',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'A versão atual continua em execução; tente novamente mais tarde',
   },
 
   appStore: {

@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'Получение вспомогательного образа…',
     phase_helper: 'Запуск контейнера обновления…',
     phase_failed: 'Ошибка обновления',
+    phase_verifying: 'Проверка пакета обновления…',
+    sec_features: 'Новые функции',
+    sec_bug_fixes: 'Исправления',
+    sec_improvements: 'Улучшения',
+    sec_security: 'Безопасность',
+    sec_breaking_changes: 'Критические изменения',
+    installType: 'Тип установки',
+    install_binary: 'Бинарный',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'Текущая версия продолжает работать; повторите позже',
   },
 
   appStore: {

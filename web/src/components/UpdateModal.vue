@@ -19,23 +19,60 @@
           <div class="flex items-center gap-3 rounded-lg border border-line p-3">
             <div class="flex-1">
               <p class="text-xs text-muted">{{ t('update.current') }}</p>
-              <p class="text-lg font-semibold font-mono">v{{ info.current }}</p>
+              <p class="text-lg font-semibold font-mono">{{ info.current }}</p>
             </div>
             <Icon name="arrowRight" size="16" class="text-muted shrink-0" />
             <div class="flex-1">
               <p class="text-xs text-brand">{{ t('update.latest') }}</p>
-              <p class="text-lg font-semibold font-mono text-brand">v{{ info.latest }}</p>
+              <p class="text-lg font-semibold font-mono text-brand">{{ info.latest }}</p>
             </div>
           </div>
-          <p v-if="info.release?.published_at" class="text-xs text-muted">
-            {{ t('update.publishedAt') }}: {{ formatDate(info.release.published_at) }}
-          </p>
+          <div class="flex items-center justify-between gap-2">
+            <p v-if="info.release?.published_at" class="text-xs text-muted">
+              {{ t('update.publishedAt') }}: {{ formatDate(info.release.published_at) }}
+            </p>
+            <p v-if="info.install_type" class="text-xs text-muted ml-auto shrink-0">
+              {{ t('update.installType') }}: {{ t('update.install_' + info.install_type) }}
+            </p>
+          </div>
+
+          <!-- 不可安装提示(镜像未发布/平台无资产)→ 禁用更新按钮 -->
           <div
-            v-if="info.release?.body"
+            v-if="info.installable === false"
+            class="rounded-lg border border-warn/40 bg-warn/10 p-2.5 text-xs text-warn flex items-center gap-1.5"
+          >
+            <Icon name="alert" size="14" class="shrink-0" />
+            {{ info.not_installable_reason }}
+          </div>
+
+          <!-- 更新内容:分类解析结果 -->
+          <div v-if="info.notes?.length" class="space-y-2">
+            <div v-for="sec in info.notes" :key="sec.type" class="rounded-lg border border-line p-3">
+              <p class="text-xs font-semibold mb-1.5 flex items-center gap-1.5">
+                <span>{{ noteIcon(sec.type) }}</span> {{ t('update.sec_' + sec.type) }}
+              </p>
+              <ul class="space-y-1">
+                <li v-for="(item, i) in sec.items" :key="i" class="text-[12px] text-muted flex gap-1.5">
+                  <span class="shrink-0">•</span><span class="break-all leading-relaxed">{{ item }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <!-- 分类解析失败 → 回退原始 Release Notes -->
+          <div
+            v-else-if="info.notes_raw && info.release?.body"
             class="code-panel border border-line rounded-lg p-3 max-h-56 overflow-y-auto text-[12px] leading-relaxed whitespace-pre-wrap text-muted"
           >
             {{ info.release.body }}
           </div>
+          <!-- 无分类也无原始解析标记(老版本接口) → 直接显示 body -->
+          <div
+            v-else-if="info.release?.body"
+            class="code-panel border border-line rounded-lg p-3 max-h-56 overflow-y-auto text-[12px] leading-relaxed whitespace-pre-wrap text-muted"
+          >
+            {{ info.release.body }}
+          </div>
+
           <div class="flex items-center justify-between pt-1">
             <a
               v-if="info.release?.html_url"
@@ -47,7 +84,7 @@
               {{ t('update.viewOnGithub') }}
             </a>
             <span />
-            <button class="btn btn-brand btn-sm" :disabled="applying" @click="apply">
+            <button class="btn btn-brand btn-sm" :disabled="applying || info.installable === false" @click="apply">
               <span v-if="applying" class="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               {{ applying ? t('update.applying') : t('update.apply') }}
             </button>
@@ -57,7 +94,7 @@
         <!-- 无更新 -->
         <div v-else class="text-center py-8">
           <Icon name="check" size="30" class="text-ok mx-auto mb-2" />
-          <p class="text-sm font-medium">{{ t('update.upToDate') }} <span class="font-mono">v{{ info.current }}</span></p>
+          <p class="text-sm font-medium">{{ t('update.upToDate') }} <span class="font-mono">{{ info.current }}</span></p>
           <button class="btn btn-ghost btn-sm mt-3" @click="refresh">{{ t('common.refresh') }}</button>
         </div>
       </template>
@@ -76,7 +113,7 @@
         v-if="phaseError"
         class="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger leading-relaxed"
       >
-        <p class="font-medium mb-1">{{ t('update.phase_failed') }}</p>
+        <p class="font-medium mb-1">{{ t('update.phase_failed') }} — {{ t('update.failedKeepOld') }}</p>
         <p class="text-[12px] break-all">{{ phaseError }}</p>
       </div>
 
@@ -112,8 +149,18 @@ const loading = ref(false)
 const error = ref('')
 const applying = ref(false)
 const applied = ref(false)
-const phase = ref('') // 当前更新阶段(downloading/extracting/replacing/restarting/pulling/helper/done)
+const phase = ref('') // 当前更新阶段
 const phaseError = ref('')
+
+// Release Notes 分类图标(与后端 note section type 对应)
+const NOTE_ICONS = {
+  features: '✨',
+  bug_fixes: '🐛',
+  improvements: '🔧',
+  security: '🔒',
+  breaking_changes: '⚠️',
+}
+const noteIcon = (type) => NOTE_ICONS[type] || '📋'
 
 async function refresh() {
   loading.value = true
@@ -151,14 +198,15 @@ async function pollStatus() {
   return null
 }
 
-// 更新后面板重启/容器重建,轮询 check 直到新版本上线(最多 60 秒)
+// 更新后面板重启/容器重建,轮询 check 直到新版本上线(最多 60 秒)。
+// Health Check + Version Verify:无错误 && 确认无更新 && 当前版本已非 unknown(真实版本已上线)。
 async function waitDone() {
   for (let i = 0; i < 12; i++) {
     await new Promise((r) => setTimeout(r, 5000))
     try {
       const r = await api('/update/check')
-      // 必须无错误且确认无更新(新版已上线)才算完成;检查失败不算
-      if (!r.error && r.has_update === false) return true
+      // 新版已上线:检查成功、无更新提示、当前版本是真实版本(非 unknown)
+      if (!r.error && r.has_update === false && r.current && r.current !== 'unknown') return true
     } catch { /* 面板重启中,忽略 */ }
   }
   return false
@@ -166,11 +214,14 @@ async function waitDone() {
 
 async function apply() {
   if (!info.value) return
-  const ok = await confirm(t('update.applyConfirm', { version: 'v' + info.value.latest }), {
-    title: t('update.applyTitle'),
-    danger: true,
-    confirmText: t('update.apply'),
-  })
+  const ok = await confirm(
+    `${t('update.applyConfirm', { version: info.value.latest })}\n${t('update.installType')}: ${t('update.install_' + info.value.install_type)}`,
+    {
+      title: t('update.applyTitle'),
+      danger: true,
+      confirmText: t('update.apply'),
+    }
+  )
   if (!ok) return
   applying.value = true
   applied.value = false

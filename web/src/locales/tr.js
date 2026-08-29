@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'Yardımcı imaj çekiliyor…',
     phase_helper: 'Güncelleme kapsayıcısı başlatılıyor…',
     phase_failed: 'Güncelleme başarısız',
+    phase_verifying: 'Güncelleme paketi doğrulanıyor…',
+    sec_features: 'Yeni Özellikler',
+    sec_bug_fixes: 'Hata Düzeltmeleri',
+    sec_improvements: 'İyileştirmeler',
+    sec_security: 'Güvenlik',
+    sec_breaking_changes: 'Önemli Değişiklikler',
+    installType: 'Kurulum türü',
+    install_binary: 'İkili',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'Mevcut sürüm hâlâ çalışıyor; daha sonra tekrar deneyin',
   },
 
   appStore: {

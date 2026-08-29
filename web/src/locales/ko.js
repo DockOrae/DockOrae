@@ -898,6 +898,16 @@ export default {
     phase_pulling: '업데이트 헬퍼 이미지 가져오는 중…',
     phase_helper: '업데이트 컨테이너 시작 중…',
     phase_failed: '업데이트 실패',
+    phase_verifying: '업데이트 패키지 검증 중…',
+    sec_features: '새 기능',
+    sec_bug_fixes: '버그 수정',
+    sec_improvements: '개선',
+    sec_security: '보안',
+    sec_breaking_changes: '주요 변경',
+    installType: '설치 방식',
+    install_binary: '바이너리',
+    install_docker: 'Docker Compose',
+    failedKeepOld: '현재 버전이 그대로 유지됩니다. 나중에 다시 시도하세요',
   },
 
   appStore: {

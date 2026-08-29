@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'Menarik image bantuan…',
     phase_helper: 'Memulai kontainer pembaruan…',
     phase_failed: 'Pembaruan gagal',
+    phase_verifying: 'Memverifikasi paket pembaruan…',
+    sec_features: 'Fitur Baru',
+    sec_bug_fixes: 'Perbaikan Bug',
+    sec_improvements: 'Peningkatan',
+    sec_security: 'Keamanan',
+    sec_breaking_changes: 'Perubahan Penting',
+    installType: 'Jenis instalasi',
+    install_binary: 'Binary',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'Versi saat ini masih berjalan; coba lagi nanti',
   },
 
   appStore: {

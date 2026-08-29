@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'Отримання допоміжного образу…',
     phase_helper: 'Запуск контейнера оновлення…',
     phase_failed: 'Помилка оновлення',
+    phase_verifying: 'Перевірка пакета оновлення…',
+    sec_features: 'Нові функції',
+    sec_bug_fixes: 'Виправлення',
+    sec_improvements: 'Покращення',
+    sec_security: 'Безпека',
+    sec_breaking_changes: 'Критичні зміни',
+    installType: 'Тип встановлення',
+    install_binary: 'Бінарний',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'Поточна версія продовжує працювати; повторіть пізніше',
   },
 
   appStore: {

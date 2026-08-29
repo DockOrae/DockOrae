@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'جارٍ سحب صورة المساعدة…',
     phase_helper: 'جارٍ تشغيل حاوية التحديث…',
     phase_failed: 'فشل التحديث',
+    phase_verifying: 'جارٍ التحقق من حزمة التحديث…',
+    sec_features: 'ميزات جديدة',
+    sec_bug_fixes: 'إصلاحات الأخطاء',
+    sec_improvements: 'تحسينات',
+    sec_security: 'الأمان',
+    sec_breaking_changes: 'تغييرات جوهرية',
+    installType: 'نوع التثبيت',
+    install_binary: 'ثنائي',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'النسخة الحالية ما تزال تعمل، يمكنك إعادة المحاولة لاحقًا',
   },
 
   appStore: {

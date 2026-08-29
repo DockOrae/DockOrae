@@ -898,6 +898,16 @@ export default {
     phase_pulling: '更新ヘルパーイメージを取得中…',
     phase_helper: '更新コンテナを起動中…',
     phase_failed: '更新に失敗しました',
+    phase_verifying: '更新パッケージを検証中…',
+    sec_features: '新機能',
+    sec_bug_fixes: 'バグ修正',
+    sec_improvements: '改善',
+    sec_security: 'セキュリティ',
+    sec_breaking_changes: '破壊的変更',
+    installType: 'インストール方法',
+    install_binary: 'バイナリ',
+    install_docker: 'Docker Compose',
+    failedKeepOld: '現在のバージョンはそのままです。後で再試行できます',
   },
 
   appStore: {

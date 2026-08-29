@@ -899,6 +899,16 @@ export default {
     phase_pulling: '正在拉取更新輔助映像…',
     phase_helper: '正在啟動更新容器…',
     phase_failed: '更新失敗',
+    phase_verifying: '正在校驗更新包…',
+    sec_features: '新增',
+    sec_bug_fixes: '修復',
+    sec_improvements: '優化',
+    sec_security: '安全',
+    sec_breaking_changes: '重要變更',
+    installType: '目前安裝方式',
+    install_binary: '二進位安裝',
+    install_docker: 'Docker Compose 安裝',
+    failedKeepOld: '目前版本仍為舊版,可稍後重試',
   },
 
   appStore: {

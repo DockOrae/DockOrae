@@ -898,6 +898,16 @@ export default {
     phase_pulling: 'Đang kéo ảnh trợ giúp…',
     phase_helper: 'Đang khởi động container cập nhật…',
     phase_failed: 'Cập nhật thất bại',
+    phase_verifying: 'Đang xác minh gói cập nhật…',
+    sec_features: 'Tính năng mới',
+    sec_bug_fixes: 'Sửa lỗi',
+    sec_improvements: 'Cải thiện',
+    sec_security: 'Bảo mật',
+    sec_breaking_changes: 'Thay đổi quan trọng',
+    installType: 'Kiểu cài đặt',
+    install_binary: 'Binary',
+    install_docker: 'Docker Compose',
+    failedKeepOld: 'Phiên bản hiện tại vẫn đang chạy; có thể thử lại sau',
   },
 
   appStore: {
