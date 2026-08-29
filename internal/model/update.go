@@ -28,14 +28,14 @@ type ReleaseNoteSection struct {
 
 // UpdateInfo 更新检查结果(前端弹框展示 + 可用性判断)
 type UpdateInfo struct {
-	Current              string               `json:"current"`                 // 展示用(v1.0.3 / unknown)
-	Latest               string               `json:"latest"`                  // 展示用(v1.0.3)
+	Current              string               `json:"current"` // 展示用(v1.0.3 / unknown)
+	Latest               string               `json:"latest"`  // 展示用(v1.0.3)
 	HasUpdate            bool                 `json:"has_update"`
 	Release              *UpdateRelease       `json:"release,omitempty"`
-	InstallType          string               `json:"install_type"`                       // binary / docker
-	Installable          bool                 `json:"installable"`                        // 当前安装方式是否有可用更新包
-	NotInstallableReason string               `json:"not_installable_reason,omitempty"`   // 不可用原因(镜像未发布/无对应 asset)
-	Notes                []ReleaseNoteSection `json:"notes,omitempty"`                    // 分类解析结果
-	NotesRaw             bool                 `json:"notes_raw"`                          // true=分类解析失败,前端显示 release.body 原文
+	InstallType          string               `json:"install_type"`                     // binary / docker
+	Installable          bool                 `json:"installable"`                      // 当前安装方式是否有可用更新包
+	NotInstallableReason string               `json:"not_installable_reason,omitempty"` // 不可用原因(镜像未发布/无对应 asset)
+	Notes                []ReleaseNoteSection `json:"notes,omitempty"`                  // 分类解析结果
+	NotesRaw             bool                 `json:"notes_raw"`                        // true=分类解析失败,前端显示 release.body 原文
 	Error                string               `json:"error,omitempty"`
 }
