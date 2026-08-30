@@ -53,4 +53,4 @@ jobs:
         run: make test
 
       - name: go build
-        run: go build ./cmd/docker-manager
+        run: go build ./cmd

@@ -18,7 +18,7 @@ COPY internal/ ./internal/
 COPY public/ ./public/
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
     -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X github.com/DockOrae/DockOrae/internal/service.AppVersion=${VERSION}" \
-    -o docker-manager ./cmd/docker-manager
+    -o docker-manager ./cmd
 
 # ================= Stage 3: 运行镜像(目标平台) =================
 FROM alpine:3.20

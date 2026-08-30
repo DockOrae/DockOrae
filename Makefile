@@ -64,7 +64,7 @@ web:
 backend:
 	@test -d $(PUBLIC_DIR)/dist || { echo "❌ public/dist 不存在,请先执行 make web(前端未构建,go:embed 无法编译)"; exit 1; }
 	@echo "==> 编译后端 $(BIN) (v$(VERSION), linux/$$(go env GOARCH))"
-	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN) ./cmd/docker-manager
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN) ./cmd
 
 # ---------- 运行 / 开发 ----------
 .PHONY: run
@@ -94,7 +94,7 @@ cross: web
 	  mkdir -p $(DIST_DIR)/dockorae; \
 	  CGO_ENABLED=0 GOOS=linux GOARCH=$$goarch GOARM=$$goarm \
 	    $(GO) build -trimpath -ldflags="$(LDFLAGS)" \
-	    -o $(DIST_DIR)/dockorae/$(BIN) ./cmd/docker-manager || exit 1; \
+	    -o $(DIST_DIR)/dockorae/$(BIN) ./cmd || exit 1; \
 	  cp README.md $(DIST_DIR)/dockorae/ 2>/dev/null || true; \
 	  tar -czf $(DIST_DIR)/dockorae-linux-$$suffix.tar.gz -C $(DIST_DIR) dockorae || exit 1; \
 	  (cd $(DIST_DIR) && sha256sum dockorae-linux-$$suffix.tar.gz > dockorae-linux-$$suffix.tar.gz.sha256) || exit 1; \

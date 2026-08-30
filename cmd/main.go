@@ -1,8 +1,12 @@
 package main
 
 import (
+	"flag"
 	"log"
+	"os"
+	"strconv"
 
+	"github.com/DockOrae/DockOrae/cmd/flags"
 	"github.com/DockOrae/DockOrae/internal/config"
 	"github.com/DockOrae/DockOrae/internal/logger"
 	"github.com/DockOrae/DockOrae/internal/notify"
@@ -11,6 +15,17 @@ import (
 )
 
 func main() {
+	// 命令行 flag(参考 OpenList):显式传参时覆盖对应环境变量
+	flag.StringVar(&flags.DataDir, "data", "", "data directory (default $DATA_DIR or /data)")
+	flag.IntVar(&flags.Port, "port", 0, "listen port (default $PORT or 8080)")
+	flag.Parse()
+	if flags.DataDir != "" {
+		_ = os.Setenv("DATA_DIR", flags.DataDir)
+	}
+	if flags.Port > 0 {
+		_ = os.Setenv("PORT", strconv.Itoa(flags.Port))
+	}
+
 	cfg := config.Load()
 
 	// 日志同时写 stdout + 环形缓冲(供面板日志弹窗)
