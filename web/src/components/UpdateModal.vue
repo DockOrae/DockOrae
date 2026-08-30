@@ -10,7 +10,7 @@
       <!-- 检查失败 -->
       <div v-else-if="error" class="text-center py-10">
         <p class="text-sm text-danger mb-3">{{ t('update.checkFailed') }}: {{ error }}</p>
-        <button class="btn btn-ghost btn-sm" @click="refresh">{{ t('update.retry') }}</button>
+        <Button variant="ghost" size="sm" @click="refresh">{{ t('update.retry') }}</Button>
       </div>
 
       <template v-else-if="info">
@@ -94,11 +94,11 @@
               {{ t('update.viewOnGithub') }} <Icon name="external" size="12" />
             </a>
             <span />
-            <button class="btn btn-brand btn-sm px-5" :disabled="applying || info.installable === false" @click="apply">
+            <Button variant="brand" size="sm" class="px-5" :disabled="applying || info.installable === false" @click="apply">
               <Icon v-if="!applying" name="download" size="13" />
               <span v-if="applying" class="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               {{ applying ? t('update.applying') : t('update.apply') }}
-            </button>
+            </Button>
           </div>
         </template>
 
@@ -109,7 +109,7 @@
           </span>
           <p class="text-sm font-medium mb-1">{{ t('update.upToDate') }}</p>
           <p class="text-xs text-muted">当前版本 <span class="font-mono">{{ info.current }}</span></p>
-          <button class="btn btn-ghost btn-sm mt-4" @click="refresh">{{ t('common.refresh') }}</button>
+          <Button variant="ghost" size="sm" class="mt-4" @click="refresh">{{ t('common.refresh') }}</Button>
         </div>
       </template>
 
@@ -173,6 +173,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import Modal from './Modal.vue'
+import { Button } from '@/components/ui/button'
 import { api } from '../api'
 import { useConfirm } from '../confirm'
 import { formatDate } from '../util'

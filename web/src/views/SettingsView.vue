@@ -1,26 +1,24 @@
 <template>
   <div class="settings-page">
-    <!-- 右侧内容区(导航由侧边栏"面板设置"子菜单承担) -->
+                                     
     <main class="settings-content">
-      <!-- ============ 常规(个人资料/镜像加速在常规 tab 内 + 横向 tab:常规|证书|日期和时间) ============ -->
+                                                                                    
       <section v-if="active === 'general' || active === 'cert' || active === 'datetime'" class="space-y-4 fade-up">
-        <!-- 操作栏:保存 + 重启面板(仿 3x-ui:有修改保存才亮,保存后长条提示重启) -->
-        <div class="card p-4">
+                                                         
+        <Card class="p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button
-              class="btn btn-brand"
-              :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
+            <Button variant="brand" :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
               :disabled="!settingsDirty || panelLoading"
               @click="savePanel"
             >
               <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
             </button>
-            <!-- 重启面板:任何时候都可点击(不随保存状态禁用) -->
-            <button class="btn btn-primary" @click="panelRestart">
+                                            
+            <Button variant="brand"  @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
-            </button>
-            <!-- 警告(仿 3x-ui Alert type=warning:跟在重启面板后面同一行) -->
+            </Button>
+                                                               
             <div class="restart-hint-bar">
               <Icon name="alert" size="14" class="shrink-0" />
               <span>{{ t('settings.allChangesNeedRestart') }}</span>
@@ -28,9 +26,9 @@
             <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
-        </div>
+        </Card>
 
-        <!-- 横向 tab(仿 3x-ui GeneralTab) -->
+                                           
         <div class="h-tabs">
           <button
             v-for="tab in generalTabs"
@@ -44,44 +42,47 @@
           </button>
         </div>
 
-        <!-- 常规:web 设置(镜像加速已合并进本卡) -->
-        <div v-if="active === 'general'" class="card p-5">
+                                      
+        <Card v-if="active === 'general'" class="p-5">
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webListen') }}</div>
               <div class="sr-desc">{{ t('settings.webListenDesc') }}</div>
             </div>
-            <input v-model="form.webListen" class="input sr-input" :placeholder="t('settings.webListenPh')" />
+            <Input v-model="form.webListen" class="sr-input" :placeholder="t('settings.webListenPh')" />
           </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webDomain') }}</div>
               <div class="sr-desc">{{ t('settings.webDomainDesc') }}</div>
             </div>
-            <input v-model="form.webDomain" class="input sr-input" :placeholder="t('settings.webDomainPh')" />
+            <Input v-model="form.webDomain" class="sr-input" :placeholder="t('settings.webDomainPh')" />
           </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webPort') }}</div>
               <div class="sr-desc">{{ t('settings.webPortDesc') }}</div>
             </div>
-            <input v-model.number="form.webPort" type="number" class="input sr-input w-40" min="1" max="65535" />
+            <Input v-model.number="form.webPort" type="number" class="sr-input w-40" min="1" max="65535" />
           </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webBasePath') }}</div>
               <div class="sr-desc">{{ t('settings.webBasePathDesc') }}</div>
             </div>
-            <input v-model="form.webBasePath" class="input sr-input" :placeholder="t('settings.webBasePathPh')" />
+            <Input v-model="form.webBasePath" class="sr-input" :placeholder="t('settings.webBasePathPh')" />
           </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.noAuthSetting') }}</div>
               <div class="sr-desc">{{ t('settings.noAuthSettingDesc') }}</div>
             </div>
-            <select v-model="form.noAuthSetting" class="input sr-input">
-              <option v-for="opt in NOAUTH_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-            </select>
+            <Select v-model="form.noAuthSetting">
+              <SelectTrigger class="sr-input"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in NOAUTH_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="setting-row">
             <div class="sr-info">
@@ -89,7 +90,7 @@
               <div class="sr-desc">{{ t('settings.sessionMaxAgeDesc') }}</div>
             </div>
             <div class="sr-input flex items-center gap-2 w-48">
-              <input v-model.number="form.sessionMaxAge" type="number" class="input" min="1" />
+              <Input v-model.number="form.sessionMaxAge" type="number" min="1" />
               <span class="text-[12px] text-muted">{{ t('settings.minutes') }}</span>
             </div>
           </div>
@@ -98,10 +99,10 @@
               <div class="sr-label">{{ t('settings.ipLimitAllowlist') }}</div>
               <div class="sr-desc">{{ t('settings.ipLimitAllowlistDesc') }}</div>
             </div>
-            <input v-model="allowlistText" class="input sr-input" :placeholder="t('settings.ipLimitAllowlistPh')" />
+            <Input v-model="allowlistText" class="sr-input" :placeholder="t('settings.ipLimitAllowlistPh')" />
           </div>
 
-          <!-- 镜像加速(合并进 web 设置卡,与其他栏目一致的样式,无独立保存) -->
+                                                     
           <div class="setting-row items-start">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.mirrors') }}</div>
@@ -109,83 +110,87 @@
               <span v-if="mirrorPath" class="block text-[11px] text-muted truncate max-w-[240px] mt-1" :title="mirrorPath">{{ mirrorPath }}</span>
             </div>
             <div class="sr-input !w-[420px]">
-              <textarea
+              <Textarea
                 v-model="mirrorsText"
                 rows="1"
-                class="input text-[12px] leading-relaxed w-full"
+                class="text-[12px] leading-relaxed w-full"
                 style="resize: vertical; min-height: 36px; max-height: 320px"
                 :placeholder="t('settings.mirrorPlaceholder')"
                 spellcheck="false"
               />
             </div>
           </div>
-        </div>
+        </Card>
 
-        <!-- 证书 -->
-        <div v-if="active === 'cert'" class="card p-5">
+                   
+        <Card v-if="active === 'cert'" class="p-5">
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webCertFile') }}</div>
               <div class="sr-desc">{{ t('settings.webCertFileDesc') }}</div>
             </div>
-            <input v-model="form.webCertFile" class="input sr-input" :placeholder="t('settings.pathPh')" />
+            <Input v-model="form.webCertFile" class="sr-input" :placeholder="t('settings.pathPh')" />
           </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.webKeyFile') }}</div>
               <div class="sr-desc">{{ t('settings.webKeyFileDesc') }}</div>
             </div>
-            <input v-model="form.webKeyFile" class="input sr-input" :placeholder="t('settings.pathPh')" />
+            <Input v-model="form.webKeyFile" class="sr-input" :placeholder="t('settings.pathPh')" />
           </div>
-        </div>
+        </Card>
 
-        <!-- 日期和时间 -->
-        <div v-if="active === 'datetime'" class="card p-5">
+                      
+        <Card v-if="active === 'datetime'" class="p-5">
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.timeZone') }}</div>
               <div class="sr-desc">{{ t('settings.timeZoneDesc') }}</div>
             </div>
-            <select v-model="form.timeZone" class="input sr-input">
-              <option v-for="z in TIMEZONES" :key="z" :value="z">{{ z }}</option>
-            </select>
+            <Select v-model="form.timeZone">
+              <SelectTrigger class="sr-input"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="z in TIMEZONES" :key="z" :value="z">{{ z }}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.ntpServer') }}</div>
               <div class="sr-desc">{{ t('settings.ntpServerDesc') }}</div>
             </div>
-            <select v-model="form.ntpServer" class="input sr-input">
-              <option v-for="n in NTPSERVERS" :key="n" :value="n">{{ n }}</option>
-            </select>
+            <Select v-model="form.ntpServer">
+              <SelectTrigger class="sr-input"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="n in NTPSERVERS" :key="n" :value="n">{{ n }}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
+        </Card>
       </section>
 
-      <!-- ============ 安全设定(横向 tab:管理员凭证|双重认证 + 重启按钮) ============ -->
+                                                                       
       <section v-if="active === 'security'" class="space-y-4 fade-up">
-        <div class="card p-4">
+        <Card class="p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button
-              class="btn btn-brand"
-              :class="{ 'opacity-40 pointer-events-none': !securityDirty }"
+            <Button variant="brand" :class="{ 'opacity-40 pointer-events-none': !securityDirty }"
               :disabled="!securityDirty || accountLoading"
               @click="saveAccount"
             >
               <span v-if="accountLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.saveAccount') }}
             </button>
-            <button class="btn btn-primary" @click="panelRestart">
+            <Button variant="brand"  @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
-            </button>
-            <!-- 警告(仿 3x-ui:所有更改需保存并重启面板才能生效) -->
+            </Button>
+                                                 
             <div class="restart-hint-bar">
               <Icon name="alert" size="14" class="shrink-0" />
               <span>{{ t('settings.allChangesNeedRestart') }}</span>
             </div>
             <span v-if="credErr" class="text-xs text-danger">{{ credErr }}</span>
           </div>
-        </div>
+        </Card>
 
         <div class="h-tabs">
           <button
@@ -200,9 +205,9 @@
           </button>
         </div>
 
-        <!-- 管理员凭证(壁纸 + 账号凭证,仿 3x-ui admin) -->
-        <div v-if="secTab === 'credentials'" class="card p-5">
-          <!-- 登录页壁纸 -->
+                                               
+        <Card v-if="secTab === 'credentials'" class="p-5">
+                        
           <div class="flex items-center gap-4 mb-6">
             <img
               :src="wallpaperFailed ? '/bg.jpg' : wallpaperPreview"
@@ -211,54 +216,54 @@
               @error="onWallpaperError"
             />
             <div class="flex-1">
-              <button class="btn btn-ghost btn-sm" @click="wallpaperInput?.click()">
+              <Button variant="ghost" size="sm"  @click="wallpaperInput?.click()">
                 <Icon name="image" size="13" /> {{ t('settings.changeWallpaper') }}
-              </button>
+              </Button>
               <input ref="wallpaperInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="selectWallpaper" />
               <p class="text-[11px] text-muted mt-1.5">{{ t('settings.wallpaperNote') }}</p>
             </div>
           </div>
 
-          <!-- 账号凭证(四字段:原用户名/原密码/新用户名/新密码;原用户名预填当前账号) -->
+                                                         
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="label">{{ t('settings.oldUsername') }}</label>
-              <input v-model="cred.oldUsername" class="input" autocomplete="username" />
+              <Label>{{ t('settings.oldUsername') }}</label>
+              <Input v-model="cred.oldUsername" autocomplete="username" />
             </div>
             <div>
-              <label class="label">{{ t('settings.oldPassword') }}</label>
-              <input v-model="cred.oldPassword" type="password" class="input" autocomplete="current-password" />
+              <Label>{{ t('settings.oldPassword') }}</label>
+              <Input v-model="cred.oldPassword" type="password" autocomplete="current-password" />
             </div>
             <div>
-              <label class="label">{{ t('settings.newUsername') }}</label>
-              <input v-model="cred.newUsername" class="input" :placeholder="t('settings.newUsernamePh')" autocomplete="username" />
+              <Label>{{ t('settings.newUsername') }}</label>
+              <Input v-model="cred.newUsername" :placeholder="t('settings.newUsernamePh')" autocomplete="username" />
             </div>
             <div>
-              <label class="label">{{ t('settings.newPassword') }}</label>
-              <input v-model="cred.newPassword" type="password" class="input" :placeholder="t('settings.newPasswordPh')" autocomplete="new-password" />
+              <Label>{{ t('settings.newPassword') }}</label>
+              <Input v-model="cred.newPassword" type="password" :placeholder="t('settings.newPasswordPh')" autocomplete="new-password" />
             </div>
           </div>
 
           <div v-if="credErr" class="text-xs text-danger mt-3">{{ credErr }}</div>
           <p class="text-[11px] text-muted mt-4">{{ t('settings.saveNeedRestart') }}</p>
-        </div>
+        </Card>
 
-        <!-- 双重认证 -->
-        <div v-if="secTab === 'twofactor'" class="card p-5">
+                     
+        <Card v-if="secTab === 'twofactor'" class="p-5">
           <div class="flex items-center gap-2 mb-4">
             <Icon name="lock" size="16" class="text-brand" />
-            <span class="badge" :style="user.totpEnabled ? okStyle : mutedStyle">
+            <Badge :style="user.totpEnabled ? okStyle : mutedStyle">
               {{ t('settings.' + (user.totpEnabled ? 'totpEnabled' : 'totpDisabled')) }}
-            </span>
+            </Badge>
           </div>
           <p class="text-[13px] text-muted mb-3">{{ t('settings.totpEnableDesc') }}</p>
           <div v-if="!user.totpEnabled">
             <div v-if="!totpSetup.uri" class="flex gap-2">
-              <input v-model="totpSetup.password" type="password" class="input flex-1" :placeholder="t('settings.oldPwd')" />
-              <button class="btn btn-brand" :disabled="totpBusy" @click="totpGetKey">
+              <Input v-model="totpSetup.password" type="password" class="flex-1" :placeholder="t('settings.oldPwd')" />
+              <Button variant="brand"  :disabled="totpBusy" @click="totpGetKey">
                 <span v-if="totpBusy" class="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 {{ t('settings.totpSetupBtn') }}
-              </button>
+              </Button>
             </div>
             <div v-else class="space-y-4">
               <div class="flex flex-col sm:flex-row items-center gap-5 bg-surface2/60 border border-line rounded-xl p-4">
@@ -270,52 +275,50 @@
                 </div>
               </div>
               <div class="flex gap-2">
-                <input v-model="totpSetup.code" class="input flex-1 text-center !text-base tracking-[0.4em] font-mono" maxlength="6" inputmode="numeric" :placeholder="t('settings.totpCodePh')" />
-                <button class="btn btn-brand" :disabled="totpBusy" @click="totpEnable">
+                <Input v-model="totpSetup.code" class="flex-1 text-center !text-base tracking-[0.4em] font-mono" maxlength="6" inputmode="numeric" :placeholder="t('settings.totpCodePh')" />
+                <Button variant="brand"  :disabled="totpBusy" @click="totpEnable">
                   <span v-if="totpBusy" class="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   {{ t('settings.totpEnableBtn') }}
-                </button>
+                </Button>
               </div>
               <button class="text-[12px] text-muted hover:text-text" @click="totpReset">{{ t('common.cancel') }}</button>
             </div>
           </div>
           <div v-else>
             <div v-if="!disableOpen" class="flex gap-2">
-              <button class="btn btn-danger" @click="disableOpen = true">{{ t('settings.totpDisableBtn') }}</button>
+              <Button variant="destructive"  @click="disableOpen = true">{{ t('settings.totpDisableBtn') }}</Button>
             </div>
             <div v-else class="space-y-3">
-              <input v-model="disableForm.password" type="password" class="input" :placeholder="t('settings.oldPwd')" />
+              <Input v-model="disableForm.password" type="password" :placeholder="t('settings.oldPwd')" />
               <div class="flex gap-2">
-                <input v-model="disableForm.code" class="input flex-1 text-center !text-base tracking-[0.4em] font-mono" maxlength="6" inputmode="numeric" :placeholder="t('settings.totpCodePh')" />
-                <button class="btn btn-danger" :disabled="totpBusy" @click="totpDisable">
+                <Input v-model="disableForm.code" class="flex-1 text-center !text-base tracking-[0.4em] font-mono" maxlength="6" inputmode="numeric" :placeholder="t('settings.totpCodePh')" />
+                <Button variant="destructive"  :disabled="totpBusy" @click="totpDisable">
                   <span v-if="totpBusy" class="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   {{ t('settings.totpDisableBtn') }}
-                </button>
+                </Button>
               </div>
               <button class="text-[12px] text-muted hover:text-text" @click="disableOpen = false">{{ t('common.cancel') }}</button>
             </div>
           </div>
           <div v-if="totpErr" class="text-xs text-danger mt-2">{{ totpErr }}</div>
-        </div>
+        </Card>
       </section>
 
-      <!-- ============ Telegram 机器人(仿 3x-ui:面板设置 | 通知 两个子 tab) ============ -->
+                                                                                
       <section v-if="active === 'telegram'" class="space-y-4 fade-up">
-        <div class="card p-4">
+        <Card class="p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button
-              class="btn btn-brand"
-              :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
+            <Button variant="brand" :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
               :disabled="!settingsDirty || panelLoading"
               @click="savePanel"
             >
               <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
             </button>
-            <button class="btn btn-primary" @click="panelRestart">
+            <Button variant="brand"  @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
-            </button>
-            <!-- 警告(仿 3x-ui:所有更改需保存并重启面板才能生效) -->
+            </Button>
+                                                 
             <div class="restart-hint-bar">
               <Icon name="alert" size="14" class="shrink-0" />
               <span>{{ t('settings.allChangesNeedRestart') }}</span>
@@ -323,9 +326,9 @@
             <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
-        </div>
+        </Card>
 
-        <!-- 子 tab(仿 3x-ui TelegramTab) -->
+                                           
         <div class="h-tabs">
           <button type="button" class="h-tab" :class="{ active: tgTab === 'panel' }" @click="tgTab = 'panel'">
             <Icon name="settings" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.general') }}
@@ -335,8 +338,8 @@
           </button>
         </div>
 
-        <!-- 面板设置 -->
-        <div v-if="tgTab === 'panel'" class="card p-5">
+                     
+        <Card v-if="tgTab === 'panel'" class="p-5">
           <p class="text-[12px] text-muted mb-4">{{ t('settings.telegramDesc') }}</p>
 
           <div class="setting-row">
@@ -354,7 +357,7 @@
               <div class="sr-label">{{ t('settings.tgBotToken') }}</div>
               <div class="sr-desc">{{ tgTokenConfigured && !form.tgBotToken ? t('settings.telegramTokenConfigured') : t('settings.tgBotTokenDesc', { at: '@' }) }}</div>
             </div>
-            <input v-model="form.tgBotToken" type="password" class="input sr-input" :placeholder="tgTokenConfigured && !form.tgBotToken ? t('settings.telegramTokenPlaceholder') : t('settings.tgBotTokenPh')" />
+            <Input v-model="form.tgBotToken" type="password" class="sr-input" :placeholder="tgTokenConfigured && !form.tgBotToken ? t('settings.telegramTokenPlaceholder') : t('settings.tgBotTokenPh')" />
           </div>
 
           <div class="setting-row">
@@ -362,61 +365,68 @@
               <div class="sr-label">{{ t('settings.tgAdminChatId') }}</div>
               <div class="sr-desc">{{ t('settings.tgAdminChatIdDesc', { at: '@' }) }}</div>
             </div>
-            <input v-model="form.tgAdminChatId" class="input sr-input" :placeholder="t('settings.tgAdminChatIdPh')" />
+            <Input v-model="form.tgAdminChatId" class="sr-input" :placeholder="t('settings.tgAdminChatIdPh')" />
           </div>
 
-          <!-- 机器人语言(仿 3x-ui telegramBotLanguage:下拉 = 面板语言列表) -->
+                                                                 
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.telegramBotLanguage') }}</div>
             </div>
-            <select v-model="form.tgLang" class="input sr-input w-48">
-              <option v-for="l in LANGS" :key="l.code" :value="l.code">{{ l.flag }} {{ l.label }}</option>
-            </select>
+            <Select v-model="form.tgLang">
+              <SelectTrigger class="sr-input w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="l in LANGS" :key="l.code" :value="l.code">{{ l.flag }} {{ l.label }}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <!-- API 服务器(仿 3x-ui telegramAPIServer) -->
+                                                     
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.telegramAPIServer') }}</div>
               <div class="sr-desc">{{ t('settings.telegramAPIServerDesc') }}</div>
             </div>
-            <input v-model="form.tgBotAPIServer" class="input sr-input" placeholder="https://api.example.com" />
+            <Input v-model="form.tgBotAPIServer" class="sr-input" placeholder="https://api.example.com" />
           </div>
 
           <div class="mt-4">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</button>
+            <Button variant="brand"  :disabled="panelLoading" @click="tgTest">{{ t('settings.tgTest') }}</Button>
           </div>
-        </div>
+        </Card>
 
-        <!-- 通知(仿 3x-ui TelegramTab notifications) -->
-        <div v-if="tgTab === 'notify'" class="card p-5">
+                                                      
+        <Card v-if="tgTab === 'notify'" class="p-5">
           <div class="setting-row items-start">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.telegramNotifyTime') }}</div>
               <div class="sr-desc">{{ t('settings.telegramNotifyTimeDesc') }}</div>
             </div>
             <div class="sr-input !w-[340px]">
-              <select v-model="notifyMode" class="input w-full mb-2" @change="onNotifyModeChange">
-                <option value="every">{{ t('settings.notifyEvery') }}</option>
-                <option value="@hourly">{{ t('settings.notifyHourly') }}</option>
-                <option value="@daily">{{ t('settings.notifyDaily') }}</option>
-                <option value="@weekly">{{ t('settings.notifyWeekly') }}</option>
-                <option value="@monthly">{{ t('settings.notifyMonthly') }}</option>
-                <option value="custom">{{ t('settings.notifyCustom') }}</option>
-              </select>
+              <Select v-model="notifyMode" class="w-full mb-2" @update:model-value="onNotifyModeChange">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="every">{{ t('settings.notifyEvery') }}</SelectItem>
+                  <SelectItem value="@hourly">{{ t('settings.notifyHourly') }}</SelectItem>
+                  <SelectItem value="@daily">{{ t('settings.notifyDaily') }}</SelectItem>
+                  <SelectItem value="@weekly">{{ t('settings.notifyWeekly') }}</SelectItem>
+                  <SelectItem value="@monthly">{{ t('settings.notifyMonthly') }}</SelectItem>
+                  <SelectItem value="custom">{{ t('settings.notifyCustom') }}</SelectItem>
+                </SelectContent>
+              </Select>
               <div v-if="notifyMode === 'every'" class="flex gap-2">
-                <input v-model.number="notifyNum" type="number" min="1" class="input flex-1" :placeholder="t('settings.notifyInterval')" @input="onNotifyEveryChange" />
-                <select v-model="notifyUnit" class="input flex-1" @change="onNotifyEveryChange">
-                  <option value="s">{{ t('settings.notifySeconds') }}</option>
-                  <option value="m">{{ t('settings.notifyMinutes') }}</option>
-                  <option value="h">{{ t('settings.notifyHours') }}</option>
-                </select>
+                <Input v-model.number="notifyNum" type="number" min="1" class="flex-1" :placeholder="t('settings.notifyInterval')" @input="onNotifyEveryChange" />
+                <Select v-model="notifyUnit" class="flex-1" @update:model-value="onNotifyEveryChange">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minutes">{{ t('settings.unitMinutes') }}</SelectItem>
+                  <SelectItem value="hours">{{ t('settings.unitHours') }}</SelectItem>
+                  <SelectItem value="days">{{ t('settings.unitDays') }}</SelectItem>
+                </SelectContent>
+              </Select>
               </div>
-              <input
-                v-if="notifyMode === 'custom'"
+              <Input v-if="notifyMode === 'custom'"
                 v-model="notifyCustom"
-                class="input w-full font-mono"
                 placeholder="0 30 8 * * *"
                 @input="onNotifyCustomChange"
               />
@@ -452,26 +462,24 @@
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       </section>
 
-      <!-- ============ 邮件(仿 3x-ui:SMTP 设置 | 通知 两个子 tab) ============ -->
+                                                                         
       <section v-if="active === 'email'" class="space-y-4 fade-up">
-        <div class="card p-4">
+        <Card class="p-4">
           <div class="flex items-center gap-3 flex-wrap">
-            <button
-              class="btn btn-brand"
-              :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
+            <Button variant="brand" :class="{ 'opacity-40 pointer-events-none': !settingsDirty }"
               :disabled="!settingsDirty || panelLoading"
               @click="savePanel"
             >
               <span v-if="panelLoading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
               <Icon v-else name="check" size="14" /> {{ t('settings.savePanel') }}
             </button>
-            <button class="btn btn-primary" @click="panelRestart">
+            <Button variant="brand"  @click="panelRestart">
               <Icon name="restart" size="14" /> {{ t('settings.restartPanel') }}
-            </button>
-            <!-- 警告(仿 3x-ui:所有更改需保存并重启面板才能生效) -->
+            </Button>
+                                                 
             <div class="restart-hint-bar">
               <Icon name="alert" size="14" class="shrink-0" />
               <span>{{ t('settings.allChangesNeedRestart') }}</span>
@@ -479,9 +487,9 @@
             <span v-if="panelSaved" class="text-[12px] text-ok">{{ t('settings.saveOk') }}</span>
             <span v-if="panelErr" class="text-xs text-danger">{{ panelErr }}</span>
           </div>
-        </div>
+        </Card>
 
-        <!-- 子 tab(仿 3x-ui EmailTab) -->
+                                        
         <div class="h-tabs">
           <button type="button" class="h-tab" :class="{ active: emailTab === 'smtp' }" @click="emailTab = 'smtp'">
             <Icon name="mail" size="13" class="inline mr-1 align-[-2px]" /> {{ t('settings.smtpSettings') }}
@@ -491,8 +499,8 @@
           </button>
         </div>
 
-        <!-- SMTP 设置 -->
-        <div v-if="emailTab === 'smtp'" class="card p-5">
+                        
+        <Card v-if="emailTab === 'smtp'" class="p-5">
           <div class="setting-row">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.emailEnable') }}</div>
@@ -508,7 +516,7 @@
               <div class="sr-label">{{ t('settings.smtpHost') }}</div>
               <div class="sr-desc">{{ t('settings.smtpHostDesc') }}</div>
             </div>
-            <input v-model="form.smtpHost" class="input sr-input" placeholder="smtp.example.com" />
+            <Input v-model="form.smtpHost" class="sr-input" placeholder="smtp.example.com" />
           </div>
 
           <div class="setting-row">
@@ -516,7 +524,7 @@
               <div class="sr-label">{{ t('settings.smtpPort') }}</div>
               <div class="sr-desc">{{ t('settings.smtpPortDesc') }}</div>
             </div>
-            <input v-model.number="form.smtpPort" type="number" class="input sr-input w-40" min="1" max="65535" />
+            <Input v-model.number="form.smtpPort" type="number" class="sr-input w-40" min="1" max="65535" />
           </div>
 
           <div class="setting-row">
@@ -524,7 +532,7 @@
               <div class="sr-label">{{ t('settings.smtpUser') }}</div>
               <div class="sr-desc">{{ t('settings.smtpUserDesc') }}</div>
             </div>
-            <input v-model="form.smtpUser" class="input sr-input" placeholder="user@example.com" />
+            <Input v-model="form.smtpUser" class="sr-input" placeholder="user@example.com" />
           </div>
 
           <div class="setting-row">
@@ -532,7 +540,7 @@
               <div class="sr-label">{{ t('settings.smtpPass') }}</div>
               <div class="sr-desc">{{ smtpPassConfigured && !form.smtpPass ? t('settings.smtpPassConfigured') : t('settings.smtpPassDesc') }}</div>
             </div>
-            <input v-model="form.smtpPass" type="password" class="input sr-input" :placeholder="smtpPassConfigured && !form.smtpPass ? t('settings.smtpPassPlaceholder') : t('settings.smtpPassPh')" />
+            <Input v-model="form.smtpPass" type="password" class="sr-input" :placeholder="smtpPassConfigured && !form.smtpPass ? t('settings.smtpPassPlaceholder') : t('settings.smtpPassPh')" />
           </div>
 
           <div class="setting-row">
@@ -540,7 +548,7 @@
               <div class="sr-label">{{ t('settings.smtpFrom') }}</div>
               <div class="sr-desc">{{ t('settings.smtpFromDesc') }}</div>
             </div>
-            <input v-model="form.smtpFrom" class="input sr-input" placeholder="noreply@example.com" />
+            <Input v-model="form.smtpFrom" class="sr-input" placeholder="noreply@example.com" />
           </div>
 
           <div class="setting-row">
@@ -548,7 +556,7 @@
               <div class="sr-label">{{ t('settings.smtpFromName') }}</div>
               <div class="sr-desc">{{ t('settings.smtpFromNameDesc') }}</div>
             </div>
-            <input v-model="form.smtpFromName" class="input sr-input" :placeholder="t('settings.smtpFromNamePh')" />
+            <Input v-model="form.smtpFromName" class="sr-input" :placeholder="t('settings.smtpFromNamePh')" />
           </div>
 
           <div class="setting-row">
@@ -556,7 +564,7 @@
               <div class="sr-label">{{ t('settings.smtpTo') }}</div>
               <div class="sr-desc">{{ t('settings.smtpToDesc') }}</div>
             </div>
-            <input v-model="form.smtpTo" class="input sr-input" :placeholder="t('settings.smtpToPh', { at: '@' })" />
+            <Input v-model="form.smtpTo" class="sr-input" :placeholder="t('settings.smtpToPh', { at: '@' })" />
           </div>
 
           <div class="setting-row">
@@ -564,20 +572,23 @@
               <div class="sr-label">{{ t('settings.smtpEncryption') }}</div>
               <div class="sr-desc">{{ t('settings.smtpEncryptionDesc') }}</div>
             </div>
-            <select v-model="form.smtpEncryption" class="input sr-input w-44">
-              <option value="none">{{ t('settings.encNone') }}</option>
-              <option value="ssl">SSL/TLS</option>
-              <option value="starttls">STARTTLS</option>
-            </select>
+            <Select v-model="form.smtpEncryption">
+              <SelectTrigger class="sr-input w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{{ t('settings.encNone') }}</SelectItem>
+                <SelectItem value="ssl">SSL/TLS</SelectItem>
+                <SelectItem value="starttls">STARTTLS</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div class="mt-4">
-            <button class="btn btn-brand" :disabled="panelLoading" @click="emailTest">{{ t('settings.testSmtp') }}</button>
+            <Button variant="brand"  :disabled="panelLoading" @click="emailTest">{{ t('settings.testSmtp') }}</Button>
           </div>
-        </div>
+        </Card>
 
-        <!-- 通知 -->
-        <div v-if="emailTab === 'notify'" class="card p-5">
+                   
+        <Card v-if="emailTab === 'notify'" class="p-5">
           <div class="setting-row items-start">
             <div class="sr-info">
               <div class="sr-label">{{ t('settings.smtpEventBusNotify') }}</div>
@@ -597,34 +608,32 @@
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       </section>
 
-      <!-- ============ 许可证 ============ -->
+                                            
       <section v-if="active === 'license'" class="fade-up">
-        <div class="card p-5">
+        <Card class="p-5">
           <div class="flex items-center gap-2 mb-4">
             <Icon name="key" size="16" class="text-brand" />
             <h2 class="text-sm font-semibold">{{ t('license.title') }}</h2>
-            <button class="btn btn-primary btn-sm ml-auto" @click="openLicForm">
+            <Button variant="brand" size="sm" class="ml-auto" @click="openLicForm">
               <Icon name="plus" size="13" /> {{ t('license.add') }}
-            </button>
+            </Button>
           </div>
 
-          <!-- 在线授权状态(固定官方授权服务器,自动周期验证) -->
+                                           
           <div class="rounded-xl border border-line p-4 mb-4">
             <div class="flex items-center gap-2 mb-1">
               <Icon name="link" size="14" class="text-brand" />
               <span class="text-[12px] font-medium">{{ t('license.onlineTitle') }}</span>
-              <span class="badge ml-auto" :style="onlineStyle">{{ onlineStateLabel }}</span>
+              <Badge :style="onlineStyle" ml-auto>>{{ onlineStateLabel }}</Badge>
             </div>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
               <span v-if="licOnline.last_verify">{{ t('license.lastVerify') }}: {{ fmtDateTime(licOnline.last_verify) }}</span>
               <span v-if="licOnline.grace_deadline">{{ t('license.graceDeadline') }}: {{ fmtDateTime(licOnline.grace_deadline) }}</span>
               <span v-if="licOnline.verify_state" class="text-danger">{{ t('license.verifyState' + (licOnline.verify_state === 'revoked' ? 'Revoked' : 'Invalid')) }}</span>
-              <button
-                v-if="licActive || licInfo"
-                class="btn btn-ghost btn-sm ml-auto"
+              <Button variant="ghost" size="sm" class="ml-auto" v-if="licActive || licInfo"
                 :disabled="licBusy"
                 @click="verifyNow"
               >
@@ -635,55 +644,55 @@
           </div>
 
           <div class="rounded-xl border border-line overflow-x-auto">
-            <table class="table !m-0">
-              <thead>
-                <tr>
-                  <th class="th">{{ t('license.licenseId') }}</th>
-                  <th class="th">{{ t('license.authorizedUser') }}</th>
-                  <th class="th">{{ t('license.edition') }}</th>
-                  <th class="th">{{ t('license.features') }}</th>
-                  <th class="th">{{ t('license.maxDevices') }}</th>
-                  <th class="th">{{ t('license.status') }}</th>
-                  <th class="th">{{ t('license.boundTo') }}</th>
-                  <th class="th">{{ t('license.expires') }}</th>
-                  <th class="th w-36">{{ t('common.actions') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="licActive && licInfo">
-                  <td class="td font-mono text-[11px]">{{ licInfo.license_id || licKey.slice(0, 14) }}…</td>
-                  <td class="td">{{ licInfo.customer || licInfo.user || '-' }}</td>
-                  <td class="td"><span class="badge" :style="okStyle">{{ t('license.' + (licInfo.plan || licInfo.type || 'pro')) }}</span></td>
-                  <td class="td text-[12px]">{{ fmtFeatures(licInfo.features) }}</td>
-                  <td class="td">{{ licInfo.max_devices ?? '-' }}</td>
-                  <td class="td">
-                    <span class="badge" :style="licInfo.status === 'expired' ? dangerStyle : okStyle">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{{ t('license.licenseId') }}</TableHead>
+                  <TableHead>{{ t('license.authorizedUser') }}</TableHead>
+                  <TableHead>{{ t('license.edition') }}</TableHead>
+                  <TableHead>{{ t('license.features') }}</TableHead>
+                  <TableHead>{{ t('license.maxDevices') }}</TableHead>
+                  <TableHead>{{ t('license.status') }}</TableHead>
+                  <TableHead>{{ t('license.boundTo') }}</TableHead>
+                  <TableHead>{{ t('license.expires') }}</TableHead>
+                  <TableHead class="w-36">{{ t('common.actions') }}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-if="licActive && licInfo">
+                  <TableCell class="font-mono text-[11px]">{{ licInfo.license_id || licKey.slice(0, 14) }}…</TableCell>
+                  <TableCell>{{ licInfo.customer || licInfo.user || '-' }}</TableCell>
+                  <TableCell><Badge :style="okStyle">{{ t('license.' + (licInfo.plan || licInfo.type || 'pro')) }}</Badge></TableCell>
+                  <TableCell class="text-[12px]">{{ fmtFeatures(licInfo.features) }}</TableCell>
+                  <TableCell>{{ licInfo.max_devices ?? '-' }}</TableCell>
+                  <TableCell>
+                    <Badge :style="licInfo.status === 'expired' ? dangerStyle : okStyle">
                       {{ t('license.' + (licInfo.status === 'expired' ? 'expired' : 'active')) }}
-                    </span>
-                  </td>
-                  <td class="td font-mono text-[11px]">{{ licDeviceId }}</td>
-                  <td class="td">{{ fmtDate(licInfo.expires_at || licInfo.exp) }}</td>
-                  <td class="td">
+                    </Badge>
+                  </TableCell>
+                  <TableCell class="font-mono text-[11px]">{{ licDeviceId }}</TableCell>
+                  <TableCell>{{ fmtDate(licInfo.expires_at || licInfo.exp) }}</TableCell>
+                  <TableCell>
                     <div class="flex items-center gap-1">
-                      <button class="btn btn-icon btn-sm" :title="t('license.unbind')" :disabled="licBusy" @click="deactivate">
+                      <Button variant="icon" size="sm"  :title="t('license.unbind')" :disabled="licBusy" @click="deactivate">
                         <Icon name="link" size="13" />
-                      </button>
-                      <button class="btn btn-icon btn-sm text-danger" :title="t('license.unbindDelete')" :disabled="licBusy" @click="deactivate">
+                      </Button>
+                      <Button variant="icon" size="sm" class="text-danger" :title="t('license.unbindDelete')" :disabled="licBusy" @click="deactivate">
                         <Icon name="trash" size="13" />
-                      </button>
+                      </Button>
                     </div>
-                  </td>
-                </tr>
-                <tr v-else>
-                  <td colspan="9" class="td text-center text-muted py-8">{{ t('license.empty') }}</td>
-                </tr>
-              </tbody>
-            </table>
+                  </TableCell>
+                </TableRow>
+                <TableRow v-else>
+                  <TableCell colspan="9" class="text-center text-muted py-8">{{ t('license.empty') }}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
           <div v-if="licErr" class="text-xs text-danger mt-3">{{ licErr }}</div>
 
           <div v-if="licFormOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="licFormOpen = false">
-            <div class="card p-6 w-full max-w-lg shadow-2xl fade-up" style="border-width: 2px; border-color: var(--dm-line);">
+            <Card class="p-6 w-full max-w-lg shadow-2xl fade-up" style="border-width: 2px; border-color: var(--dm-line);">
               <h3 class="text-base font-semibold mb-1">{{ t('license.add') }}</h3>
               <p class="text-[12px] text-muted mb-4">{{ t('license.addHint') }}</p>
               <div
@@ -701,10 +710,8 @@
                 <input ref="licFileInput" type="file" class="hidden" accept=".lic,.key,.txt" @change="onLicFile" />
               </div>
               <div class="flex justify-end gap-2 mt-5">
-                <button class="btn btn-ghost btn-sm" @click="licFormOpen = false; resetLicForm()">{{ t('common.cancel') }}</button>
-                <button
-                  class="btn btn-primary btn-sm transition-all duration-200"
-                  :class="licFile ? 'opacity-100 shadow-lg shadow-brand/25 ring-1 ring-brand/50' : 'opacity-35 grayscale'"
+                <Button variant="ghost" size="sm"  @click="licFormOpen = false; resetLicForm()">{{ t('common.cancel') }}</Button>
+                <Button variant="brand" size="sm" class="transition-all duration-200" :class="licFile ? 'opacity-100 shadow-lg shadow-brand/25 ring-1 ring-brand/50' : 'opacity-35 grayscale'"
                   :disabled="licBusy || !licFile"
                   @click="authorizeFile"
                 >
@@ -713,14 +720,14 @@
                   {{ licFile ? t('license.authorize') : t('license.selectFileFirst') }}
                 </button>
               </div>
-            </div>
+            </Card>
           </div>
-        </div>
+        </Card>
       </section>
 
-      <!-- ============ 关于(侧边栏"面板设置"子菜单,位于许可证下面) ============ -->
+                                                                 
       <section v-if="active === 'about'" class="fade-up">
-        <div class="card p-5">
+        <Card class="p-5">
           <h2 class="card-title">{{ t('settings.about') }}</h2>
           <dl class="text-[13px] space-y-2">
             <div class="flex"><dt class="text-muted w-28">{{ t('settings.panelName') }}</dt><dd class="font-medium">{{ t('app.name') }}</dd></div>
@@ -735,7 +742,7 @@
               </dd>
             </div>
           </dl>
-        </div>
+        </Card>
       </section>
     </main>
   </div>
@@ -752,6 +759,14 @@ import { api, setToken, getRegistryMirrors, saveRegistryMirrors, getLicense, act
 import { toastErr, toastOk } from '../toast'
 import { useConfirm } from '../confirm'
 import { applyUser, loadLicense as refreshLicense, user } from '../store'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 const { t } = useI18n()
 const confirmAction = useConfirm()

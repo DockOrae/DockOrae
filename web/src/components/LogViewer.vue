@@ -1,22 +1,25 @@
 <template>
   <div class="flex flex-col h-full">
     <div class="flex items-center gap-2 mb-2 flex-wrap">
-      <select v-model="tail" class="input !w-28 !py-1.5 !text-xs" :disabled="connected">
-        <option :value="200">{{ t('logViewer.lastLines', { n: 200 }) }}</option>
-        <option :value="500">{{ t('logViewer.lastLines', { n: 500 }) }}</option>
-        <option :value="1000">{{ t('logViewer.lastLines', { n: 1000 }) }}</option>
-        <option :value="5000">{{ t('logViewer.lastLines', { n: 5000 }) }}</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" @click="toggleFollow">
+      <Select v-model="tail" class="!w-28" :disabled="connected">
+        <SelectTrigger class="!h-8 !text-xs !py-1"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem :value="String(200)">{{ t('logViewer.lastLines', { n: 200 }) }}</SelectItem>
+          <SelectItem :value="String(500)">{{ t('logViewer.lastLines', { n: 500 }) }}</SelectItem>
+          <SelectItem :value="String(1000)">{{ t('logViewer.lastLines', { n: 1000 }) }}</SelectItem>
+          <SelectItem :value="String(5000)">{{ t('logViewer.lastLines', { n: 5000 }) }}</SelectItem>
+        </SelectContent>
+      </Select>
+      <Button variant="ghost" size="sm" @click="toggleFollow">
         <Icon :name="connected ? 'pause' : 'play'" size="13" />
         {{ connected ? t('logViewer.pause') : t('logViewer.resume') }}
-      </button>
-      <button class="btn btn-ghost btn-sm" @click="clear">
+      </Button>
+      <Button variant="ghost" size="sm" @click="clear">
         <Icon name="x" size="13" /> {{ t('logViewer.clear') }}
-      </button>
-      <button class="btn btn-ghost btn-sm" @click="download">
+      </Button>
+      <Button variant="ghost" size="sm" @click="download">
         <Icon name="download" size="13" /> {{ t('logViewer.download') }}
-      </button>
+      </Button>
       <label class="flex items-center gap-1.5 text-xs text-muted ml-auto cursor-pointer select-none">
         <input v-model="autoScroll" type="checkbox" class="accent-[#ec4899]" />
         {{ t('logViewer.autoScroll') }}
@@ -39,6 +42,8 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { wsUrl } from '../api'
 
 const { t } = useI18n()
@@ -52,7 +57,7 @@ const lines = ref([])
 const plain = ref([])
 const connected = ref(false)
 const autoScroll = ref(true)
-const tail = ref(500)
+const tail = ref('500')
 let ws = null
 let seq = 0
 

@@ -2,19 +2,19 @@
   <div class="space-y-4 fade-up">
     <div class="flex items-center justify-between">
       <p class="text-[13px] text-muted">{{ t('compose.count', { count: stacks.length }) }}</p>
-      <button v-if="!licenseActive" class="btn btn-ghost btn-sm !text-amber-400 border border-amber-400/40" :title="t('license.requiredHint')" @click="$router.push('/settings#license')">
+      <Button v-if="!licenseActive" variant="ghost" size="sm" class="!text-amber-400 border-amber-400/40" :title="t('license.requiredHint')" @click="$router.push('/settings#license')">
         <Icon name="lock" size="14" /> {{ t('license.required') }}
-      </button>
-      <button v-else class="btn btn-brand btn-sm" @click="createOpen = true"><Icon name="plus" size="14" /> {{ t('compose.newStack') }}</button>
+      </Button>
+      <Button v-else variant="brand" size="sm" @click="createOpen = true"><Icon name="plus" size="14" /> {{ t('compose.newStack') }}</Button>
     </div>
 
-    <div v-if="!stacks.length" class="card p-12 text-center text-muted text-sm">
+    <Card v-if="!stacks.length" class="p-12 text-center text-muted text-sm">
       <Icon name="compose" size="32" class="mx-auto mb-3 opacity-40" />
       {{ t('compose.noStacks') }}
-    </div>
+    </Card>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      <div v-for="s in stacks" :key="s.project" class="card p-5 hover:border-brand/40 transition-colors">
+      <Card v-for="s in stacks" :key="s.project" class="p-5 hover:border-brand/40 transition-colors">
         <div class="flex items-center gap-3">
           <span class="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-sm">
             {{ s.project[0].toUpperCase() }}
@@ -28,30 +28,29 @@
           <span class="ml-auto"><StatusBadge :state="s.status" /></span>
         </div>
         <div class="mt-4 flex items-center gap-1.5 flex-wrap">
-          <button v-if="s.status !== 'running'" class="btn btn-ok btn-sm" @click="stackAct(s, 'start')"><Icon name="play" size="12" /> {{ t('common.start') }}</button>
-          <button v-if="s.status === 'running'" class="btn btn-ghost btn-sm" @click="stackAct(s, 'stop')"><Icon name="stop" size="12" /> {{ t('common.stop') }}</button>
-          <button class="btn btn-ghost btn-sm" @click="stackAct(s, 'restart')"><Icon name="restart" size="12" /> {{ t('common.restart') }}</button>
-          <router-link :to="'/compose/' + s.project" class="btn btn-ghost btn-sm"><Icon name="edit" size="12" /> {{ t('common.manage') }}</router-link>
-          <button class="btn btn-icon btn-sm text-danger ml-auto" :title="t('compose.confirmDeleteTitle')" @click="remove(s)">
+          <Button v-if="s.status !== 'running'" variant="ok" size="sm" @click="stackAct(s, 'start')"><Icon name="play" size="12" /> {{ t('common.start') }}</Button>
+          <Button v-if="s.status === 'running'" variant="ghost" size="sm" @click="stackAct(s, 'stop')"><Icon name="stop" size="12" /> {{ t('common.stop') }}</Button>
+          <Button variant="ghost" size="sm" @click="stackAct(s, 'restart')"><Icon name="restart" size="12" /> {{ t('common.restart') }}</Button>
+          <router-link :class="buttonVariants({ variant: 'ghost', size: 'sm' })" :to="'/compose/' + s.project"><Icon name="edit" size="12" /> {{ t('common.manage') }}</router-link>
+          <Button variant="icon" class="text-danger ml-auto" :title="t('compose.confirmDeleteTitle')" @click="remove(s)">
             <Icon name="trash" size="13" />
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
 
     <!-- 新建栈 -->
     <Modal :model-value="createOpen" :title="t('compose.createTitle')" @close="createOpen = false">
       <div class="space-y-3">
         <div>
-          <label class="label">{{ t('compose.projectName') }}</label>
-          <input v-model="form.project" class="input" :placeholder="t('compose.projectPh')" />
+          <Label>{{ t('compose.projectName') }}</Label>
+          <Input v-model="form.project" :placeholder="t('compose.projectPh')" />
         </div>
         <div>
-          <label class="label">{{ t('compose.yamlLabel') }}</label>
-          <textarea
+          <Label>{{ t('compose.yamlLabel') }}</Label>
+          <Textarea
             v-model="form.yaml"
             rows="12"
-            class="input"
             spellcheck="false"
             :placeholder="t('compose.yamlPh')"
           />
@@ -69,11 +68,11 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-ghost btn-sm" :disabled="deploying" @click="createOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-brand btn-sm" :disabled="!form.project || !form.yaml.trim() || deploying" @click="deploy">
+        <Button variant="ghost" size="sm" :disabled="deploying" @click="createOpen = false">{{ t('common.cancel') }}</Button>
+        <Button variant="brand" size="sm" :disabled="!form.project || !form.yaml.trim() || deploying" @click="deploy">
           <span v-if="deploying" class="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           {{ deploying ? t('compose.deploying') : t('compose.deploy') }}
-        </button>
+        </Button>
       </template>
     </Modal>
   </div>
@@ -85,6 +84,11 @@ import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Card } from '@/components/ui/card'
 import { api, composeStream } from '../api'
 import { licenseActive } from '../store'
 import { useConfirm } from '../confirm'

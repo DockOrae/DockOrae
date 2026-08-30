@@ -4,11 +4,11 @@
     <div class="flex flex-wrap items-center gap-3">
       <div class="relative">
         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted"><Icon name="search" size="14" /></span>
-        <input v-model="keyword" class="input !w-64 !pl-9" :placeholder="t('appStore.searchPh')" />
+        <Input v-model="keyword" class="!w-64 !pl-9" :placeholder="t('appStore.searchPh')" />
       </div>
-      <button class="btn btn-ghost btn-sm ml-auto" :disabled="syncing" @click="syncApps">
+      <Button variant="ghost" size="sm" class="ml-auto" :disabled="syncing" @click="syncApps">
         <Icon name="refresh" size="13" :class="syncing ? 'animate-spin' : ''" /> {{ t('appStore.sync') }}
-      </button>
+      </Button>
       <div class="text-[12px] text-muted">{{ t('appStore.count', { count: filtered.length }) }}</div>
     </div>
 
@@ -51,9 +51,9 @@
               </div>
               <div class="content-bottom">
                 <span class="cat-tag">{{ a.category }}</span>
-                <button v-if="!a.installed" class="btn btn-brand btn-xs" @click.stop="openDetail(a)"><Icon name="download" size="11" /> {{ t('appStore.install') }}</button>
+                <Button v-if="!a.installed" variant="brand" @click.stop="openDetail(a)"><Icon name="download" size="11" /> {{ t('appStore.install') }}</Button>
                 <span v-else class="flex items-center gap-1.5">
-                  <button :class="a.update_available ? 'btn btn-warn btn-xs' : 'btn btn-ghost btn-xs'" @click.stop="quickUpgrade(a)"><Icon name="refresh" size="11" /> {{ t('appStore.upgrade') }}</button>
+                  <Button :variant="a.update_available ? 'warning' : 'ghost'" @click.stop="quickUpgrade(a)"><Icon name="refresh" size="11" /> {{ t('appStore.upgrade') }}</Button>
                   <span class="text-[11px] text-ok">✓</span>
                 </span>
               </div>
@@ -73,30 +73,33 @@
           <p class="text-xs" style="color:#22c55e">✓ {{ t('appStore.installedMsg') }}</p>
           <p v-if="detail.update_available" class="text-xs text-warn"><Icon name="refresh" size="12" /> {{ t('appStore.updateAvailableMsg') }}</p>
           <div class="flex gap-2 flex-wrap">
-            <button class="btn btn-ghost btn-sm" @click="goCompose"><Icon name="container" size="13" /> {{ t('appStore.openStack') }}</button>
-            <button :class="detail.update_available ? 'btn btn-warn btn-sm' : 'btn btn-ghost btn-sm'" :disabled="busy" @click="upgrade"><Icon name="refresh" size="13" /> {{ t('appStore.upgrade') }}</button>
-            <button class="btn btn-danger btn-sm" :disabled="busy" @click="uninstall"><Icon name="trash" size="13" /> {{ t('appStore.uninstall') }}</button>
+            <Button variant="ghost" size="sm" @click="goCompose"><Icon name="container" size="13" /> {{ t('appStore.openStack') }}</Button>
+            <Button :variant="detail.update_available ? 'warning' : 'ghost'" size="sm" :disabled="busy" @click="upgrade"><Icon name="refresh" size="13" /> {{ t('appStore.upgrade') }}</Button>
+            <Button variant="destructive" size="sm" :disabled="busy" @click="uninstall"><Icon name="trash" size="13" /> {{ t('appStore.uninstall') }}</Button>
           </div>
         </div>
 
         <!-- 未安装:参数表单 -->
         <template v-else>
           <div v-for="p in detail.params" :key="p.key" class="space-y-1">
-            <label class="label">{{ paramLabel(p) }} <span v-if="p.required" class="text-danger">*</span></label>
-            <input v-if="p.type === 'text' || p.type === 'number'" v-model="params[p.key]" :type="p.type === 'number' ? 'number' : 'text'" class="input" />
+            <Label>{{ paramLabel(p) }} <span v-if="p.required" class="text-danger">*</span></Label>
+            <Input v-if="p.type === 'text' || p.type === 'number'" v-model="params[p.key]" :type="p.type === 'number' ? 'number' : 'text'" />
             <div v-else-if="p.type === 'password'" class="flex gap-2 items-center">
-              <input v-model="params[p.key]" :type="showPwd[p.key] ? 'text' : 'password'" class="input flex-1" :placeholder="p.random ? t('appStore.autoGenerate') : ''" />
-              <button class="btn btn-icon btn-xs shrink-0" :title="t('appStore.togglePwd')" @click="showPwd[p.key] = !showPwd[p.key]"><Icon :name="showPwd[p.key] ? 'eyeOff' : 'eye'" size="13" /></button>
-              <button v-if="p.random" class="btn btn-ghost btn-xs shrink-0" @click="params[p.key] = genRandom()">{{ t('appStore.generate') }}</button>
+              <Input v-model="params[p.key]" :type="showPwd[p.key] ? 'text' : 'password'" class="flex-1" :placeholder="p.random ? t('appStore.autoGenerate') : ''" />
+              <Button variant="icon" class="shrink-0" :title="t('appStore.togglePwd')" @click="showPwd[p.key] = !showPwd[p.key]"><Icon :name="showPwd[p.key] ? 'eyeOff' : 'eye'" size="13" /></Button>
+              <Button v-if="p.random" variant="ghost" class="shrink-0" @click="params[p.key] = genRandom()">{{ t('appStore.generate') }}</Button>
             </div>
-            <select v-else-if="p.type === 'select'" v-model="params[p.key]" class="input">
-              <option v-for="o in p.options" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
+            <Select v-else-if="p.type === 'select'" v-model="params[p.key]">
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="o in p.options" :key="o.value" :value="o.value">{{ o.label }}</SelectItem>
+              </SelectContent>
+            </Select>
             <label v-else-if="p.type === 'checkbox'" class="flex items-center gap-2 text-xs cursor-pointer select-none w-fit">
               <input type="checkbox" class="accent-brand w-4 h-4" :checked="params[p.key] === 'true'" @change="params[p.key] = $event.target.checked ? 'true' : 'false'" />
               <span>{{ paramLabel(p) }}</span>
             </label>
-            <textarea v-else-if="p.type === 'textarea'" v-model="params[p.key]" rows="3" class="input font-mono text-[12px]" spellcheck="false" />
+            <Textarea v-else-if="p.type === 'textarea'" v-model="params[p.key]" rows="3" class="text-[12px]" spellcheck="false" />
             <p v-if="p.hint" class="text-[11px] text-muted">{{ t('appStore.hint_' + p.hint) }}</p>
           </div>
 
@@ -107,10 +110,10 @@
           </label>
           <div v-if="editCompose" class="space-y-1">
             <div class="flex items-center justify-between">
-              <label class="label">{{ t('appStore.composePreview') }}</label>
-              <button v-if="composeDirty" class="btn btn-ghost btn-xs" @click="refreshPreview"><Icon name="refresh" size="11" /> {{ t('appStore.refreshPreview') }}</button>
+              <Label>{{ t('appStore.composePreview') }}</Label>
+              <Button v-if="composeDirty" variant="ghost" @click="refreshPreview"><Icon name="refresh" size="11" /> {{ t('appStore.refreshPreview') }}</Button>
             </div>
-            <textarea v-model="composeText" rows="16" class="input font-mono text-[12px]" spellcheck="false" />
+            <Textarea v-model="composeText" rows="16" class="text-[12px]" spellcheck="false" />
             <p class="text-[11px] text-warn">{{ t('appStore.composeWarn') }}</p>
           </div>
 
@@ -123,12 +126,12 @@
       </div>
       <template #footer>
         <template v-if="detail && !detail.installed">
-          <button class="btn btn-ghost btn-sm" @click="detail = null">{{ t('common.cancel') }}</button>
-          <button class="btn btn-brand btn-sm" :disabled="installing || !validParams" @click="install">
+          <Button variant="ghost" size="sm" @click="detail = null">{{ t('common.cancel') }}</Button>
+          <Button variant="brand" size="sm" :disabled="installing || !validParams" @click="install">
             <Icon name="download" size="13" /> {{ t('appStore.install') }}
-          </button>
+          </Button>
         </template>
-        <button v-else class="btn btn-ghost btn-sm" @click="detail = null">{{ t('common.close') }}</button>
+        <Button v-else variant="ghost" size="sm" @click="detail = null">{{ t('common.close') }}</Button>
       </template>
     </Modal>
   </div>
@@ -140,6 +143,11 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { api } from '../api'
 import { useConfirm } from '../confirm'
 import { toastErr, toastOk } from '../toast'

@@ -1,9 +1,9 @@
 <template>
   <div class="space-y-4 fade-up">
     <!-- 头部 -->
-    <div class="card px-5 py-4">
+    <Card class="px-5 py-4">
       <div class="flex items-center gap-3 flex-wrap">
-        <button class="btn btn-ghost btn-sm" @click="$router.back()"><Icon name="x" size="13" /> {{ t('common.back') }}</button>
+        <Button variant="ghost" size="sm" @click="$router.back()"><Icon name="x" size="13" /> {{ t('common.back') }}</Button>
         <div class="min-w-0">
           <div class="flex items-center gap-2.5">
             <h2 class="text-base font-semibold truncate">{{ name }}</h2>
@@ -12,22 +12,22 @@
           <div class="text-[11px] text-muted font-mono mt-0.5">{{ name }} · {{ inspect?.Config?.Image || '' }}</div>
         </div>
         <div class="ml-auto flex items-center gap-1.5 flex-wrap">
-          <button v-if="status !== 'running'" class="btn btn-ok btn-sm" @click="act('start')"><Icon name="play" size="13" /> {{ t('common.start') }}</button>
-          <button class="btn btn-ghost btn-sm" @click="rebuild"><Icon name="refresh" size="13" /> {{ t('common.rebuild') }}</button>
-          <button class="btn btn-ghost btn-sm" @click="act('restart')"><Icon name="restart" size="13" /> {{ t('common.restart') }}</button>
-          <button v-if="status === 'running'" class="btn btn-ghost btn-sm" @click="act('pause')"><Icon name="pause" size="13" /> {{ t('common.pause') }}</button>
-          <button v-if="status === 'paused'" class="btn btn-ok btn-sm" @click="act('unpause')"><Icon name="play" size="13" /> {{ t('common.unpause') }}</button>
-          <button class="btn btn-danger btn-sm" @click="remove"><Icon name="trash" size="13" /> {{ t('common.delete') }}</button>
+          <Button v-if="status !== 'running'" variant="ok" size="sm" @click="act('start')"><Icon name="play" size="13" /> {{ t('common.start') }}</Button>
+          <Button variant="ghost" size="sm" @click="rebuild"><Icon name="refresh" size="13" /> {{ t('common.rebuild') }}</Button>
+          <Button variant="ghost" size="sm" @click="act('restart')"><Icon name="restart" size="13" /> {{ t('common.restart') }}</Button>
+          <Button v-if="status === 'running'" variant="ghost" size="sm" @click="act('pause')"><Icon name="pause" size="13" /> {{ t('common.pause') }}</Button>
+          <Button v-if="status === 'paused'" variant="ok" size="sm" @click="act('unpause')"><Icon name="play" size="13" /> {{ t('common.unpause') }}</Button>
+          <Button variant="destructive" size="sm" @click="remove"><Icon name="trash" size="13" /> {{ t('common.delete') }}</Button>
         </div>
       </div>
-    </div>
+    </Card>
 
     <!-- 标签页 -->
     <div class="flex gap-1 border-b border-line">
       <button
         v-for="tabItem in tabs"
         :key="tabItem.key"
-        class="px-4 py-2.5 text-[13px] font-medium rounded-t-lg transition-colors -mb-px border-b-2"
+        class="px-4 py-2.5 text-[13px] font-medium rounded-t-lg transition-colors -mb-px border-b-2 cursor-pointer"
         :class="tab === tabItem.key ? 'text-brand border-brand' : 'text-muted hover:text-text border-transparent'"
         @click="tab = tabItem.key"
       >
@@ -48,6 +48,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import DetailOverview from './container/DetailOverview.vue'
 import DetailLogs from './container/DetailLogs.vue'
 import DetailStats from './container/DetailStats.vue'

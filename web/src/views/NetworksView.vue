@@ -2,80 +2,81 @@
   <div class="space-y-4 fade-up">
     <div class="flex items-center justify-between">
       <p class="text-[13px] text-muted">{{ t('networks.count', { count: networks.length }) }}</p>
-      <button class="btn btn-brand btn-sm" @click="createOpen = true"><Icon name="plus" size="14" /> {{ t('networks.newNetwork') }}</button>
+      <Button variant="brand" size="sm" @click="createOpen = true"><Icon name="plus" size="14" /> {{ t('networks.newNetwork') }}</Button>
     </div>
 
-    <div class="card overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="th">{{ t('networks.thName') }}</th>
-              <th class="th">{{ t('networks.thDriver') }}</th>
-              <th class="th">{{ t('networks.thScope') }}</th>
-              <th class="th">{{ t('networks.thSubnet') }}</th>
-              <th class="th">{{ t('networks.thGateway') }}</th>
-              <th class="th">{{ t('networks.thContainers') }}</th>
-              <th class="th w-20">{{ t('networks.thActions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="n in networks" :key="n.Id">
-              <td class="td font-medium">{{ n.Name }}</td>
-              <td class="td text-muted">{{ n.Driver }}</td>
-              <td class="td text-muted">{{ n.Scope }}</td>
-              <td class="td font-mono text-[12px] text-muted">{{ subnet(n) }}</td>
-              <td class="td font-mono text-[12px] text-muted">{{ gateway(n) }}</td>
-              <td class="td">{{ n.Containers ? Object.keys(n.Containers).length : 0 }}</td>
-              <td class="td">
-                <button class="btn btn-icon btn-sm text-danger" :title="t('common.delete')" @click="remove(n)">
-                  <Icon name="trash" size="13" />
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!networks.length">
-              <td colspan="7" class="td text-center text-muted py-10">{{ t('networks.noNetworks') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Card class="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{{ t('networks.thName') }}</TableHead>
+            <TableHead>{{ t('networks.thDriver') }}</TableHead>
+            <TableHead>{{ t('networks.thScope') }}</TableHead>
+            <TableHead>{{ t('networks.thSubnet') }}</TableHead>
+            <TableHead>{{ t('networks.thGateway') }}</TableHead>
+            <TableHead>{{ t('networks.thContainers') }}</TableHead>
+            <TableHead class="w-20">{{ t('networks.thActions') }}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="n in networks" :key="n.Id">
+            <TableCell class="font-medium">{{ n.Name }}</TableCell>
+            <TableCell class="text-muted">{{ n.Driver }}</TableCell>
+            <TableCell class="text-muted">{{ n.Scope }}</TableCell>
+            <TableCell class="font-mono text-[12px] text-muted">{{ subnet(n) }}</TableCell>
+            <TableCell class="font-mono text-[12px] text-muted">{{ gateway(n) }}</TableCell>
+            <TableCell>{{ n.Containers ? Object.keys(n.Containers).length : 0 }}</TableCell>
+            <TableCell>
+              <Button variant="icon" class="text-danger" :title="t('common.delete')" @click="remove(n)">
+                <Icon name="trash" size="13" />
+              </Button>
+            </TableCell>
+          </TableRow>
+          <TableRow v-if="!networks.length">
+            <TableCell colspan="7" class="text-center text-muted py-10">{{ t('networks.noNetworks') }}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Card>
 
     <Modal :model-value="createOpen" :title="t('networks.createTitle')" @close="createOpen = false">
       <div class="space-y-3">
         <div>
-          <label class="label">{{ t('networks.networkName') }}</label>
-          <input v-model="form.name" class="input" :placeholder="t('networks.networkNamePh')" />
+          <Label>{{ t('networks.networkName') }}</Label>
+          <Input v-model="form.name" :placeholder="t('networks.networkNamePh')" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="label">{{ t('networks.driver') }}</label>
-            <select v-model="form.driver" class="input">
-              <option value="bridge">bridge</option>
-              <option value="macvlan">macvlan</option>
-              <option value="ipvlan">ipvlan</option>
-              <option value="overlay">overlay</option>
-            </select>
+            <Label>{{ t('networks.driver') }}</Label>
+            <Select v-model="form.driver">
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bridge">bridge</SelectItem>
+                <SelectItem value="macvlan">macvlan</SelectItem>
+                <SelectItem value="ipvlan">ipvlan</SelectItem>
+                <SelectItem value="overlay">overlay</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="flex items-end pb-1">
             <label class="flex items-center gap-2 text-[13px] cursor-pointer select-none">
-              <input v-model="form.internal" type="checkbox" class="accent-[#ec4899]" /> {{ t('networks.internalOnly') }}
+              <Checkbox v-model="form.internal" /> {{ t('networks.internalOnly') }}
             </label>
           </div>
         </div>
         <div>
-          <label class="label">{{ t('networks.subnet') }}</label>
-          <input v-model="form.subnet" class="input" :placeholder="t('networks.subnetPh')" />
+          <Label>{{ t('networks.subnet') }}</Label>
+          <Input v-model="form.subnet" :placeholder="t('networks.subnetPh')" />
         </div>
         <div>
-          <label class="label">{{ t('networks.gateway') }}</label>
-          <input v-model="form.gateway" class="input" :placeholder="t('networks.gatewayPh')" />
+          <Label>{{ t('networks.gateway') }}</Label>
+          <Input v-model="form.gateway" :placeholder="t('networks.gatewayPh')" />
         </div>
         <p v-if="error" class="text-xs text-danger">{{ error }}</p>
       </div>
       <template #footer>
-        <button class="btn btn-ghost btn-sm" @click="createOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-brand btn-sm" :disabled="!form.name" @click="create">{{ t('common.create') }}</button>
+        <Button variant="ghost" size="sm" @click="createOpen = false">{{ t('common.cancel') }}</Button>
+        <Button variant="brand" size="sm" :disabled="!form.name" @click="create">{{ t('common.create') }}</Button>
       </template>
     </Modal>
   </div>
@@ -86,6 +87,13 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '../api'
 import { useConfirm } from '../confirm'
 import { toastErr, toastOk } from '../toast'

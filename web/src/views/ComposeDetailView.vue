@@ -1,33 +1,33 @@
 <template>
   <div class="space-y-4 fade-up" v-if="data">
     <!-- 头部 -->
-    <div class="card px-5 py-4">
+    <Card class="px-5 py-4">
       <div class="flex items-center gap-3 flex-wrap">
-        <button class="btn btn-ghost btn-sm" @click="$router.push('/compose')"><Icon name="x" size="13" /> {{ t('common.back') }}</button>
+        <Button variant="ghost" size="sm" @click="$router.push('/compose')"><Icon name="x" size="13" /> {{ t('common.back') }}</Button>
         <h2 class="text-base font-semibold font-mono">{{ project }}</h2>
         <StatusBadge :state="status" />
-        <span v-if="data.managed" class="badge" style="color:#22c55e;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3)">
+        <Badge v-if="data.managed" variant="success">
           {{ t('composeDetail.managedBadge') }}
-        </span>
-        <span v-else class="badge" style="color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3)">
+        </Badge>
+        <Badge v-else variant="warning">
           {{ t('composeDetail.notManagedBadge') }}
-        </span>
+        </Badge>
         <div class="ml-auto flex items-center gap-1.5 flex-wrap">
-          <button v-if="status !== 'running'" class="btn btn-ok btn-sm" @click="act('start')"><Icon name="play" size="13" /> {{ t('common.start') }}</button>
-          <button v-if="status === 'running'" class="btn btn-ghost btn-sm" @click="act('stop')"><Icon name="stop" size="13" /> {{ t('common.stop') }}</button>
-          <button class="btn btn-ghost btn-sm" @click="act('restart')"><Icon name="restart" size="13" /> {{ t('common.restart') }}</button>
-          <button class="btn btn-ghost btn-sm" @click="down(false)"><Icon name="x" size="13" /> {{ t('composeDetail.down') }}</button>
-          <button class="btn btn-danger btn-sm" @click="remove"><Icon name="trash" size="13" /> {{ t('common.delete') }}</button>
+          <Button v-if="status !== 'running'" variant="ok" size="sm" @click="act('start')"><Icon name="play" size="13" /> {{ t('common.start') }}</Button>
+          <Button v-if="status === 'running'" variant="ghost" size="sm" @click="act('stop')"><Icon name="stop" size="13" /> {{ t('common.stop') }}</Button>
+          <Button variant="ghost" size="sm" @click="act('restart')"><Icon name="restart" size="13" /> {{ t('common.restart') }}</Button>
+          <Button variant="ghost" size="sm" @click="down(false)"><Icon name="x" size="13" /> {{ t('composeDetail.down') }}</Button>
+          <Button variant="destructive" size="sm" @click="remove"><Icon name="trash" size="13" /> {{ t('common.delete') }}</Button>
         </div>
       </div>
-    </div>
+    </Card>
 
     <!-- 标签页 -->
     <div class="flex gap-1 border-b border-line">
       <button
         v-for="tabItem in tabs"
         :key="tabItem.key"
-        class="px-4 py-2.5 text-[13px] font-medium rounded-t-lg transition-colors -mb-px border-b-2"
+        class="px-4 py-2.5 text-[13px] font-medium rounded-t-lg transition-colors -mb-px border-b-2 cursor-pointer"
         :class="tab === tabItem.key ? 'text-brand border-brand' : 'text-muted hover:text-text border-transparent'"
         @click="tab = tabItem.key"
       >
@@ -36,20 +36,20 @@
     </div>
 
     <!-- 编排文件 -->
-    <div v-if="tab === 'file'" class="card p-5">
+    <Card v-if="tab === 'file'" class="p-5">
       <div class="flex items-center justify-between mb-3">
         <span class="text-sm font-semibold">docker-compose.yml</span>
         <div class="flex items-center gap-2">
-          <button class="btn btn-ghost btn-sm" @click="formatYaml"><Icon name="refresh" size="12" /> {{ t('composeDetail.reload') }}</button>
-          <button class="btn btn-brand btn-sm" :disabled="!editable || saving" @click="save">
+          <Button variant="ghost" size="sm" @click="formatYaml"><Icon name="refresh" size="12" /> {{ t('composeDetail.reload') }}</Button>
+          <Button variant="brand" size="sm" :disabled="!editable || saving" @click="save">
             <Icon name="check" size="13" /> {{ t('composeDetail.saveDeploy') }}
-          </button>
+          </Button>
         </div>
       </div>
-      <textarea v-model="yamlText" rows="20" class="input" spellcheck="false" :disabled="!editable" />
+      <Textarea v-model="yamlText" rows="20" spellcheck="false" :disabled="!editable" />
       <div v-if="!editable" class="mt-3 rounded-lg border border-line bg-surface2/50 p-3">
         <p class="text-xs text-muted mb-2">{{ t('composeDetail.adoptDesc') }}</p>
-        <button class="btn btn-brand btn-sm" @click="adoptOpen = true"><Icon name="download" size="12" /> {{ t('composeDetail.adopt') }}</button>
+        <Button variant="brand" size="sm" @click="adoptOpen = true"><Icon name="download" size="12" /> {{ t('composeDetail.adopt') }}</Button>
       </div>
       <p v-if="!editable" class="text-xs text-muted mt-2">{{ t('composeDetail.notEditable') }}</p>
       <!-- 保存部署过程实时输出 -->
@@ -63,41 +63,39 @@
         <div v-for="(l, i) in outputLines" :key="i" class="leading-relaxed break-all">{{ l }}</div>
         <div v-if="saveFailed" class="text-danger font-semibold pt-1">{{ t('compose.deployFailed') }}</div>
       </div>
-    </div>
+    </Card>
 
     <!-- 容器 -->
-    <div v-else-if="tab === 'containers'" class="card overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="th">{{ t('composeDetail.thService') }}</th>
-              <th class="th">{{ t('composeDetail.thContainer') }}</th>
-              <th class="th">{{ t('composeDetail.thImage') }}</th>
-              <th class="th">{{ t('composeDetail.thStatus') }}</th>
-              <th class="th">{{ t('composeDetail.thPorts') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in data.containers" :key="c.Id" class="cursor-pointer" @click="$router.push('/containers/' + c.Id)">
-              <td class="td font-medium">{{ c.Labels?.['com.docker.compose.service'] || '-' }}</td>
-              <td class="td">{{ name(c) }}</td>
-              <td class="td text-muted">{{ c.Image }}</td>
-              <td class="td"><StatusBadge :state="c.State" /></td>
-              <td class="td text-muted text-[12px]">{{ ports(c) }}</td>
-            </tr>
-            <tr v-if="!data.containers.length">
-              <td colspan="5" class="td text-center text-muted py-8">{{ t('composeDetail.noContainers') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Card v-else-if="tab === 'containers'" class="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{{ t('composeDetail.thService') }}</TableHead>
+            <TableHead>{{ t('composeDetail.thContainer') }}</TableHead>
+            <TableHead>{{ t('composeDetail.thImage') }}</TableHead>
+            <TableHead>{{ t('composeDetail.thStatus') }}</TableHead>
+            <TableHead>{{ t('composeDetail.thPorts') }}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="c in data.containers" :key="c.Id" class="cursor-pointer" @click="$router.push('/containers/' + c.Id)">
+            <TableCell class="font-medium">{{ c.Labels?.['com.docker.compose.service'] || '-' }}</TableCell>
+            <TableCell>{{ name(c) }}</TableCell>
+            <TableCell class="text-muted">{{ c.Image }}</TableCell>
+            <TableCell><StatusBadge :state="c.State" /></TableCell>
+            <TableCell class="text-muted text-[12px]">{{ ports(c) }}</TableCell>
+          </TableRow>
+          <TableRow v-if="!data.containers.length">
+            <TableCell colspan="5" class="text-center text-muted py-8">{{ t('composeDetail.noContainers') }}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Card>
 
     <!-- 日志 -->
-    <div v-else-if="tab === 'logs'" class="card p-4">
+    <Card v-else-if="tab === 'logs'" class="p-4">
       <LogViewer :stream="`/compose/${project}/logs`" follow />
-    </div>
+    </Card>
 
     <!-- 接管外部栈 -->
     <Modal :model-value="adoptOpen" :title="t('composeDetail.adoptTitle')" @close="adoptOpen = false">
@@ -106,15 +104,15 @@
         <div class="rounded-lg border border-warn/40 bg-warn/10 p-2.5 text-xs text-warn leading-relaxed">
           ⚠️ {{ t('composeDetail.adoptWarn') }}
         </div>
-        <textarea v-model="adoptText" rows="14" class="input font-mono text-[12px]" spellcheck="false" :placeholder="t('composeDetail.adoptYamlPh')" />
+        <Textarea v-model="adoptText" rows="14" class="text-[12px]" spellcheck="false" :placeholder="t('composeDetail.adoptYamlPh')" />
         <p v-if="adoptErr" class="text-xs text-danger">{{ adoptErr }}</p>
       </div>
       <template #footer>
-        <button class="btn btn-ghost btn-sm" @click="adoptOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-brand btn-sm" :disabled="adopting || !adoptText.trim()" @click="adopt">
+        <Button variant="ghost" size="sm" @click="adoptOpen = false">{{ t('common.cancel') }}</Button>
+        <Button variant="brand" size="sm" :disabled="adopting || !adoptText.trim()" @click="adopt">
           <span v-if="adopting" class="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin mr-1.5" />
           {{ t('composeDetail.adopt') }}
-        </button>
+        </Button>
       </template>
     </Modal>
   </div>
@@ -128,6 +126,11 @@ import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import LogViewer from '../components/LogViewer.vue'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card } from '@/components/ui/card'
 import { api, composeStream } from '../api'
 import { containerName, humanPorts } from '../util'
 import { useConfirm } from '../confirm'

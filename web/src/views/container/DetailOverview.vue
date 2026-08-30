@@ -1,5 +1,5 @@
 <template>
-  <div class="card p-5">
+  <Card class="p-5">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[13px]">
       <template v-for="item in rows" :key="item.label">
         <div v-if="item.value" class="flex items-start gap-2 min-w-0">
@@ -29,24 +29,24 @@
     <!-- 挂载 -->
     <div v-if="mounts.length" class="mt-5">
       <h4 class="text-xs text-muted font-semibold mb-2 uppercase tracking-wide">{{ t('overview.mounts') }}</h4>
-      <table class="table">
-        <thead>
-          <tr>
-            <th class="th">{{ t('overview.mountType') }}</th>
-            <th class="th">{{ t('overview.mountSource') }}</th>
-            <th class="th">{{ t('overview.mountDest') }}</th>
-            <th class="th">{{ t('overview.mountMode') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="m in mounts" :key="m.Name || m.Source">
-            <td class="td">{{ m.Type }}</td>
-            <td class="td font-mono text-[12px]">{{ m.Source || m.Name || '-' }}</td>
-            <td class="td font-mono text-[12px]">{{ m.Destination }}</td>
-            <td class="td">{{ m.RW === false ? 'ro' : 'rw' }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{{ t('overview.mountType') }}</TableHead>
+            <TableHead>{{ t('overview.mountSource') }}</TableHead>
+            <TableHead>{{ t('overview.mountDest') }}</TableHead>
+            <TableHead>{{ t('overview.mountMode') }}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="m in mounts" :key="m.Name || m.Source">
+            <TableCell>{{ m.Type }}</TableCell>
+            <TableCell class="font-mono text-[12px]">{{ m.Source || m.Name || '-' }}</TableCell>
+            <TableCell class="font-mono text-[12px]">{{ m.Destination }}</TableCell>
+            <TableCell>{{ m.RW === false ? 'ro' : 'rw' }}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </div>
 
     <!-- 网络 -->
@@ -56,13 +56,15 @@
         <span v-for="n in netList" :key="n" class="px-2.5 py-1 rounded-lg bg-surface2 border border-line font-mono text-[12px]">{{ n }}</span>
       </div>
     </div>
-  </div>
+  </Card>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '../../components/Icon.vue'
+import { Card } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDate } from '../../util'
 
 const { t } = useI18n()

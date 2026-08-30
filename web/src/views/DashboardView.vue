@@ -34,7 +34,7 @@
 
     <!-- ============ 四张状态卡(仿 3x-ui VitalTile:大数字 + detail + 均值/峰值 + 趋势) ============ -->
     <div class="ov-vitals">
-      <div v-for="v in vitals" :key="v.label" class="card ov-tile">
+      <Card v-for="v in vitals" :key="v.label" class="ov-tile">
         <div class="ov-tile-head">
           <span class="ov-tile-icon"><Icon :name="v.icon" size="15" /></span>
           <span class="ov-kicker">{{ v.label }}</span>
@@ -51,13 +51,13 @@
         <div class="ov-tile-chart">
           <MiniChart :s1="v.data" :color1="v.color" :height="62" :fill="0.3" :stroke-width="1.5" :value-max="100" :ref-lines="meanRef(v.data, v.color)" />
         </div>
-      </div>
+      </Card>
     </div>
 
     <!-- ============ 中部:网络吞吐(仿 3x-ui ThroughputCard)+ 容器卡(仿 ConnectionsCard) ============ -->
     <div class="ov-mid">
       <!-- 吞吐卡 -->
-      <div class="card ov-tile ov-wide">
+      <Card class="ov-tile ov-wide">
         <div class="ov-wide-head">
           <div>
             <div class="ov-kicker">{{ t('dashboard.overallSpeed') }}</div>
@@ -111,10 +111,10 @@
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       <!-- 磁盘 IO 卡(仿 3x-ui ConnectionsCard 风格) -->
-      <div class="card ov-tile ov-wide">
+      <Card class="ov-tile ov-wide">
         <div class="ov-wide-head">
           <div>
             <div class="ov-kicker">{{ t('dashboard.io') }}</div>
@@ -148,44 +148,44 @@
             :ref-lines="ioRefLines"
           />
         </div>
-      </div>
+      </Card>
     </div>
 
     <!-- ============ Docker 统计三卡:容器 / 镜像 / 卷(仿 3x-ui ConnectionsCard 风格) ============ -->
     <div class="ov-docker">
       <!-- 容器卡(数量 + 图标,点击跳转容器列表) -->
-      <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/containers')">
+      <Card class="ov-tile ov-wide clickable count-card" @click="$router.push('/containers')">
         <div class="count-card-head">
           <div class="ov-kicker">{{ t('nav.containers') }}</div>
           <span class="count-card-icon"><Icon name="container" size="28" /></span>
         </div>
         <div class="count-card-num">{{ counts.total }}</div>
         <div class="count-card-sub">{{ t('dashboard.running') }} {{ counts.running }} · {{ t('dashboard.stopped') }} {{ counts.total - counts.running }}</div>
-      </div>
+      </Card>
 
       <!-- 镜像卡(数量 + 图标,点击跳转镜像列表) -->
-      <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/images')">
+      <Card class="ov-tile ov-wide clickable count-card" @click="$router.push('/images')">
         <div class="count-card-head">
           <div class="ov-kicker">{{ t('nav.images') }}</div>
           <span class="count-card-icon"><Icon name="image" size="28" /></span>
         </div>
         <div class="count-card-num">{{ counts.images }}</div>
         <div class="count-card-sub">{{ t('dashboard.totalSize') }} {{ imageSizeText }}</div>
-      </div>
+      </Card>
 
       <!-- 卷卡(数量 + 图标,点击跳转卷列表) -->
-      <div class="card ov-tile ov-wide clickable count-card" @click="$router.push('/volumes')">
+      <Card class="ov-tile ov-wide clickable count-card" @click="$router.push('/volumes')">
         <div class="count-card-head">
           <div class="ov-kicker">{{ t('nav.volumes') }}</div>
           <span class="count-card-icon"><Icon name="volume" size="28" /></span>
         </div>
         <div class="count-card-num">{{ counts.volumes }}</div>
         <div class="count-card-sub">{{ t('dashboard.mounted') }} {{ mountedVolumes }} · {{ t('dashboard.unmounted') }} {{ counts.volumes - mountedVolumes }}</div>
-      </div>
+      </Card>
     </div>
 
     <!-- ============ 系统信息条(仿 3x-ui SystemStrip:3 列) ============ -->
-    <div class="card ov-strip">
+    <Card class="ov-strip">
       <div class="ov-strip-grid">
         <div class="ov-strip-cell">
           <div class="ov-kicker ov-kicker-icon">
@@ -237,115 +237,92 @@
           </div>
         </div>
       </div>
-    </div>
+    </Card>
 
     <!-- ============ 日志弹窗(仿 3x-ui LogModal:行数 + 自动更新 + 下载) ============ -->
-    <div v-if="logsOpen" class="modal-mask" @click.self="logsOpen = false">
-      <div class="modal-box w-full max-w-3xl">
-        <div class="modal-head">
-          <h3>{{ t('status.logs') }}</h3>
-          <div class="flex items-center gap-2">
-            <button class="btn btn-ghost btn-sm" :title="t('common.refresh')" @click="loadLogs">
-              <Icon name="refresh" size="12" :class="{ 'animate-spin': logLoading }" />
-            </button>
-            <button type="button" class="modal-close" @click="logsOpen = false"><Icon name="x" size="16" /></button>
-          </div>
-        </div>
-        <div class="log-toolbar">
-          <select v-model="logRows" class="input text-[12px] shrink-0" style="width: 110px" @change="loadLogs">
-            <option v-for="n in [20, 50, 100, 500, 1000]" :key="n" :value="n">{{ n }}</option>
-          </select>
-          <label class="log-check"><input type="checkbox" v-model="logAuto" /> {{ t('status.autoUpdate') }}</label>
-          <button class="btn btn-brand btn-sm ml-auto" @click="downloadLogs"><Icon name="download" size="12" /> {{ t('common.download') }}</button>
-        </div>
-        <pre class="logs-view">{{ logsText }}</pre>
+    <Modal :model-value="logsOpen" size="2xl" :title="t('status.logs')" @close="logsOpen = false">
+      <div class="log-toolbar">
+        <Button variant="ghost" size="sm" :title="t('common.refresh')" @click="loadLogs">
+          <Icon name="refresh" size="12" :class="{ 'animate-spin': logLoading }" />
+        </Button>
+        <Select v-model="logRows" style="width: 110px">
+          <SelectTrigger class="!h-8 !text-xs" style="width: 110px"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="n in [20, 50, 100, 500, 1000]" :key="n" :value="String(n)">{{ n }}</SelectItem>
+          </SelectContent>
+        </Select>
+        <label class="log-check"><input type="checkbox" v-model="logAuto" /> {{ t('status.autoUpdate') }}</label>
+        <Button variant="brand" size="sm" class="ml-auto" @click="downloadLogs"><Icon name="download" size="12" /> {{ t('common.download') }}</Button>
       </div>
-    </div>
+      <pre class="logs-view">{{ logsText }}</pre>
+    </Modal>
 
     <!-- ============ 配置弹窗(仿 3x-ui ConfigModal:下载 + 复制) ============ -->
-    <div v-if="configOpen" class="modal-mask" @click.self="configOpen = false">
-      <div class="modal-box w-full max-w-2xl">
-        <div class="modal-head">
-          <h3>{{ t('status.config') }}</h3>
-          <button type="button" class="modal-close" @click="configOpen = false"><Icon name="x" size="16" /></button>
-        </div>
-        <pre class="logs-view">{{ configText }}</pre>
-        <div class="modal-foot">
-          <button class="btn btn-ghost btn-sm" @click="downloadConfig"><Icon name="download" size="12" /> {{ t('common.download') }}</button>
-          <button class="btn btn-brand btn-sm" @click="copyConfig"><Icon name="copy" size="12" /> {{ t('common.copy') }}</button>
-        </div>
-      </div>
-    </div>
+    <Modal :model-value="configOpen" size="xl" :title="t('status.config')" @close="configOpen = false">
+      <pre class="logs-view">{{ configText }}</pre>
+      <template #footer>
+        <Button variant="ghost" size="sm" @click="downloadConfig"><Icon name="download" size="12" /> {{ t('common.download') }}</Button>
+        <Button variant="brand" size="sm" @click="copyConfig"><Icon name="copy" size="12" /> {{ t('common.copy') }}</Button>
+      </template>
+    </Modal>
 
     <!-- ============ 备份与恢复弹窗(仿 3x-ui BackupModal:导出/导入列表) ============ -->
-    <div v-if="backupOpen" class="modal-mask" @click.self="backupOpen = false">
-      <div class="modal-box w-full max-w-md">
-        <div class="modal-head">
-          <h3>{{ t('status.backupTitle') }}</h3>
-          <button type="button" class="modal-close" @click="backupOpen = false"><Icon name="x" size="16" /></button>
-        </div>
-        <div class="backup-list">
-          <div class="backup-item">
-            <div class="backup-meta">
-              <div class="backup-title">{{ t('status.exportDatabase') }}</div>
-              <div class="backup-description">{{ t('status.exportDatabaseDesc') }}</div>
-            </div>
-            <button class="btn btn-brand" :title="t('status.exportDatabase')" @click="downloadBackup"><Icon name="download" size="14" /></button>
+    <Modal :model-value="backupOpen" size="lg" :title="t('status.backupTitle')" @close="backupOpen = false">
+      <div class="backup-list">
+        <div class="backup-item">
+          <div class="backup-meta">
+            <div class="backup-title">{{ t('status.exportDatabase') }}</div>
+            <div class="backup-description">{{ t('status.exportDatabaseDesc') }}</div>
           </div>
-          <div class="backup-item">
-            <div class="backup-meta">
-              <div class="backup-title">{{ t('status.importDatabase') }}</div>
-              <div class="backup-description">{{ t('status.importDatabaseDesc') }}</div>
-            </div>
-            <button class="btn btn-brand" :title="t('status.importDatabase')" @click="backupInput?.click()"><Icon name="upload" size="14" /></button>
-          </div>
+          <Button variant="brand" :title="t('status.exportDatabase')" @click="downloadBackup"><Icon name="download" size="14" /></Button>
         </div>
-        <input ref="backupInput" type="file" accept=".tar.gz,.gz" class="hidden" @change="restoreBackup" />
-        <p class="text-[11px] text-muted px-5 pb-4">{{ t('status.restoreConfirm') }}</p>
+        <div class="backup-item">
+          <div class="backup-meta">
+            <div class="backup-title">{{ t('status.importDatabase') }}</div>
+            <div class="backup-description">{{ t('status.importDatabaseDesc') }}</div>
+          </div>
+          <Button variant="brand" :title="t('status.importDatabase')" @click="backupInput?.click()"><Icon name="upload" size="14" /></Button>
+        </div>
       </div>
-    </div>
+      <input ref="backupInput" type="file" accept=".tar.gz,.gz" class="hidden" @change="restoreBackup" />
+      <p class="text-[11px] text-muted px-5 pb-4">{{ t('status.restoreConfirm') }}</p>
+    </Modal>
 
     <!-- ============ 系统历史弹窗(仿 3x-ui SystemHistoryModal:Tabs + 图) ============ -->
-    <div v-if="historyOpen" class="modal-mask" @click.self="historyOpen = false">
-      <div class="modal-box w-full max-w-2xl">
-        <div class="modal-head">
-          <h3>{{ t('status.systemHistory') }}</h3>
-          <button type="button" class="modal-close" @click="historyOpen = false"><Icon name="x" size="16" /></button>
-        </div>
-        <div class="h-tabs px-4 pt-3">
-          <button
-            v-for="tab in historyTabs"
-            :key="tab.key"
-            type="button"
-            class="h-tab"
-            :class="{ active: historyTab === tab.key }"
-            @click="historyTab = tab.key"
-          >
-            <Icon :name="tab.icon" size="13" class="inline mr-1 align-[-2px]" /> {{ t(tab.labelKey) }}
-          </button>
-        </div>
-        <div class="p-5">
-          <div class="flex items-center justify-between text-[12px] mb-2">
-            <span class="text-muted">{{ historyChart.title }}</span>
-            <span class="font-mono">{{ historyChart.current }}</span>
-          </div>
-          <MiniChart
-            :s1="historyChart.s1"
-            :s2="historyChart.s2"
-            :color1="historyChart.color1"
-            :color2="historyChart.color2"
-            :height="200"
-            :fill="0.24"
-            :stroke-width="1.5"
-            :show-tooltip="true"
-            :labels="labels"
-            :y-formatter="historyChart.fmt"
-            :value-max="historyChart.valueMax"
-            :ref-lines="historyChart.refLines"
-          />
-        </div>
+    <Modal :model-value="historyOpen" size="xl" :title="t('status.systemHistory')" @close="historyOpen = false">
+      <div class="h-tabs px-4 pt-3">
+        <button
+          v-for="tab in historyTabs"
+          :key="tab.key"
+          type="button"
+          class="h-tab"
+          :class="{ active: historyTab === tab.key }"
+          @click="historyTab = tab.key"
+        >
+          <Icon :name="tab.icon" size="13" class="inline mr-1 align-[-2px]" /> {{ t(tab.labelKey) }}
+        </button>
       </div>
-    </div>
+      <div class="p-5">
+        <div class="flex items-center justify-between text-[12px] mb-2">
+          <span class="text-muted">{{ historyChart.title }}</span>
+          <span class="font-mono">{{ historyChart.current }}</span>
+        </div>
+        <MiniChart
+          :s1="historyChart.s1"
+          :s2="historyChart.s2"
+          :color1="historyChart.color1"
+          :color2="historyChart.color2"
+          :height="200"
+          :fill="0.24"
+          :stroke-width="1.5"
+          :show-tooltip="true"
+          :labels="labels"
+          :y-formatter="historyChart.fmt"
+          :value-max="historyChart.valueMax"
+          :ref-lines="historyChart.refLines"
+        />
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -354,6 +331,10 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, 
 import { useI18n } from 'vue-i18n'
 import MiniChart from '../components/MiniChart.vue'
 import Icon from '../components/Icon.vue'
+import Modal from '../components/Modal.vue'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { api, getToken, entrancePath } from '../api'
 import { formatBytes } from '../util'
 import { toastErr, toastOk } from '../toast'
@@ -592,7 +573,7 @@ function refreshAll() {
 // ---------- 操作栏弹窗(仿 3x-ui LogModal / ConfigModal / BackupModal) ----------
 const logsOpen = ref(false)
 const logsText = ref('')
-const logRows = ref(50)
+const logRows = ref('50')
 const logAuto = ref(false)
 const logLoading = ref(false)
 let logTimer = null

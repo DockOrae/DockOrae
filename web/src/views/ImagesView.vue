@@ -3,61 +3,59 @@
     <div class="flex flex-wrap items-center gap-3">
       <div class="relative">
         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted"><Icon name="search" size="14" /></span>
-        <input v-model="keyword" class="input !w-64 !pl-9" :placeholder="t('images.searchPh')" />
+        <Input v-model="keyword" class="!w-64 !pl-9" :placeholder="t('images.searchPh')" />
       </div>
       <div class="ml-auto flex items-center gap-2">
-        <button class="btn btn-ghost btn-sm" @click="prune"><Icon name="trash" size="13" /> {{ t('images.prune') }}</button>
-        <button class="btn btn-brand btn-sm" @click="pullOpen = true"><Icon name="download" size="13" /> {{ t('images.pullImage') }}</button>
+        <Button variant="ghost" size="sm" @click="prune"><Icon name="trash" size="13" /> {{ t('images.prune') }}</Button>
+        <Button variant="brand" size="sm" @click="pullOpen = true"><Icon name="download" size="13" /> {{ t('images.pullImage') }}</Button>
       </div>
     </div>
 
-    <div class="card overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="table">
-          <thead>
-            <tr>
-              <th class="th">{{ t('images.thImage') }}</th>
-              <th class="th">{{ t('images.thId') }}</th>
-              <th class="th">{{ t('images.thSize') }}</th>
-              <th class="th">{{ t('images.thCreated') }}</th>
-              <th class="th w-28">{{ t('images.thActions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="img in filtered" :key="img.Id">
-              <td class="td font-medium">{{ tag(img) }}</td>
-              <td class="td font-mono text-[12px] text-muted">{{ shortId(img.Id) }}</td>
-              <td class="td text-muted">{{ fmt(img.Size) }}</td>
-              <td class="td text-muted text-[12px]">{{ formatDate(img.Created) }}</td>
-              <td class="td">
-                <div class="flex items-center gap-1">
-                  <button class="btn btn-icon btn-sm" :title="t('images.detail')" @click="showDetail(img)">
-                    <Icon name="eye" size="13" />
-                  </button>
-                  <button class="btn btn-icon btn-sm text-danger" :title="t('common.delete')" @click="remove(img)">
-                    <Icon name="trash" size="13" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!filtered.length">
-              <td colspan="5" class="td text-center text-muted py-10">{{ t('images.noImages') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Card class="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{{ t('images.thImage') }}</TableHead>
+            <TableHead>{{ t('images.thId') }}</TableHead>
+            <TableHead>{{ t('images.thSize') }}</TableHead>
+            <TableHead>{{ t('images.thCreated') }}</TableHead>
+            <TableHead class="w-28">{{ t('images.thActions') }}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="img in filtered" :key="img.Id">
+            <TableCell class="font-medium">{{ tag(img) }}</TableCell>
+            <TableCell class="font-mono text-[12px] text-muted">{{ shortId(img.Id) }}</TableCell>
+            <TableCell class="text-muted">{{ fmt(img.Size) }}</TableCell>
+            <TableCell class="text-muted text-[12px]">{{ formatDate(img.Created) }}</TableCell>
+            <TableCell>
+              <div class="flex items-center gap-1">
+                <Button variant="icon" :title="t('images.detail')" @click="showDetail(img)">
+                  <Icon name="eye" size="13" />
+                </Button>
+                <Button variant="icon" class="text-danger" :title="t('common.delete')" @click="remove(img)">
+                  <Icon name="trash" size="13" />
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+          <TableRow v-if="!filtered.length">
+            <TableCell colspan="5" class="text-center text-muted py-10">{{ t('images.noImages') }}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Card>
 
     <!-- 拉取镜像 -->
     <Modal :model-value="pullOpen" :title="t('images.pullTitle')" @close="closePull">
       <div class="space-y-3">
         <div>
-          <label class="label">{{ t('images.imageName') }}</label>
-          <input v-model="pullForm.from_image" class="input" :placeholder="t('images.imageNamePh')" />
+          <Label>{{ t('images.imageName') }}</Label>
+          <Input v-model="pullForm.from_image" :placeholder="t('images.imageNamePh')" />
         </div>
         <div>
-          <label class="label">{{ t('images.tag') }}</label>
-          <input v-model="pullForm.tag" class="input !w-40" :placeholder="t('images.tagPh')" />
+          <Label>{{ t('images.tag') }}</Label>
+          <Input v-model="pullForm.tag" class="!w-40" :placeholder="t('images.tagPh')" />
         </div>
         <div v-if="pulling || overall || layerList.length" class="rounded-lg border border-line p-3">
           <!-- 整体进度条 -->
@@ -83,11 +81,11 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-ghost btn-sm" @click="closePull">{{ t('common.close') }}</button>
-        <button class="btn btn-brand btn-sm" :disabled="pulling || !pullForm.from_image" @click="pull">
+        <Button variant="ghost" size="sm" @click="closePull">{{ t('common.close') }}</Button>
+        <Button variant="brand" size="sm" :disabled="pulling || !pullForm.from_image" @click="pull">
           <span v-if="pulling" class="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           {{ pulling ? t('images.pulling') : t('images.pullStart') }}
-        </button>
+        </Button>
       </template>
     </Modal>
 
@@ -103,6 +101,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, pullImageStream } from '../api'
 import { shortId, formatDate, formatBytes } from '../util'
 import { useConfirm } from '../confirm'

@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4 fade-up">
     <div class="flex items-center gap-2">
-      <router-link to="/containers" class="btn btn-ghost btn-sm"><Icon name="x" size="13" /> {{ t('common.back') }}</router-link>
+      <router-link :class="buttonVariants({ variant: 'ghost', size: 'sm' })" to="/containers"><Icon name="x" size="13" /> {{ t('common.back') }}</router-link>
       <h2 class="text-base font-semibold">{{ t('createContainer.title') }}</h2>
     </div>
 
@@ -9,16 +9,16 @@
       <Icon name="alert" size="14" /> {{ error }}
     </div>
 
-    <div class="card p-5 space-y-5">
+    <Card class="p-5 space-y-5">
       <!-- 基础 -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="label">{{ t('createContainer.nameLabel') }}</label>
-          <input v-model="form.name" class="input" :placeholder="t('createContainer.namePh')" />
+          <Label>{{ t('createContainer.nameLabel') }}</Label>
+          <Input v-model="form.name" :placeholder="t('createContainer.namePh')" />
         </div>
         <div>
-          <label class="label">{{ t('createContainer.imageLabel') }}</label>
-          <input v-model="form.image" class="input" list="image-list" :placeholder="t('createContainer.imagePh')" />
+          <Label>{{ t('createContainer.imageLabel') }}</Label>
+          <Input v-model="form.image" list="image-list" :placeholder="t('createContainer.imagePh')" />
           <datalist id="image-list">
             <option v-for="img in images" :key="img" :value="img" />
           </datalist>
@@ -26,35 +26,41 @@
       </div>
 
       <div>
-        <label class="label">{{ t('createContainer.cmdLabel') }}</label>
-        <input v-model="form.cmdText" class="input" :placeholder="t('createContainer.cmdPh')" />
+        <Label>{{ t('createContainer.cmdLabel') }}</Label>
+        <Input v-model="form.cmdText" :placeholder="t('createContainer.cmdPh')" />
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="label">{{ t('createContainer.restartPolicy') }}</label>
-          <select v-model="form.restart_policy" class="input">
-            <option value="no">{{ t('createContainer.policyNo') }}</option>
-            <option value="always">{{ t('createContainer.policyAlways') }}</option>
-            <option value="unless-stopped">{{ t('createContainer.policyUnless') }}</option>
-            <option value="on-failure">{{ t('createContainer.policyOnFailure') }}</option>
-          </select>
+          <Label>{{ t('createContainer.restartPolicy') }}</Label>
+          <Select v-model="form.restart_policy">
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="no">{{ t('createContainer.policyNo') }}</SelectItem>
+              <SelectItem value="always">{{ t('createContainer.policyAlways') }}</SelectItem>
+              <SelectItem value="unless-stopped">{{ t('createContainer.policyUnless') }}</SelectItem>
+              <SelectItem value="on-failure">{{ t('createContainer.policyOnFailure') }}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div>
-          <label class="label">{{ t('createContainer.network') }}</label>
-          <select v-model="form.network" class="input">
-            <option value="bridge">{{ t('createContainer.netBridge') }}</option>
-            <option value="host">host</option>
-            <option value="none">none</option>
-            <option v-for="n in networks" :key="n.Name" :value="n.Name">{{ n.Name }}</option>
-          </select>
+          <Label>{{ t('createContainer.network') }}</Label>
+          <Select v-model="form.network">
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bridge">{{ t('createContainer.netBridge') }}</SelectItem>
+              <SelectItem value="host">host</SelectItem>
+              <SelectItem value="none">none</SelectItem>
+              <SelectItem v-for="n in networks" :key="n.Name" :value="n.Name">{{ n.Name }}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div class="flex items-end gap-4 pb-1">
           <label class="flex items-center gap-2 text-[13px] cursor-pointer select-none">
-            <input v-model="form.tty" type="checkbox" class="accent-[#ec4899]" /> {{ t('createContainer.tty') }}
+            <Checkbox v-model="form.tty" /> {{ t('createContainer.tty') }}
           </label>
           <label class="flex items-center gap-2 text-[13px] cursor-pointer select-none">
-            <input v-model="form.privileged" type="checkbox" class="accent-[#ec4899]" /> {{ t('createContainer.privileged') }}
+            <Checkbox v-model="form.privileged" /> {{ t('createContainer.privileged') }}
           </label>
         </div>
       </div>
@@ -62,74 +68,81 @@
       <!-- 端口映射 -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <label class="label !mb-0">{{ t('createContainer.portMapping') }}</label>
-          <button class="btn btn-ghost btn-sm" @click="ports.push({ container: '', host: null, host_ip: '0.0.0.0' })">
+          <Label class="!mb-0">{{ t('createContainer.portMapping') }}</Label>
+          <Button variant="ghost" size="sm" @click="ports.push({ container: '', host: null, host_ip: '0.0.0.0' })">
             <Icon name="plus" size="13" /> {{ t('createContainer.addPort') }}
-          </button>
+          </Button>
         </div>
         <div v-for="(p, i) in ports" :key="i" class="flex gap-2 mb-2">
-          <input v-model="p.container" class="input !w-36" :placeholder="t('createContainer.containerPortPh')" />
-          <input v-model.number="p.host" type="number" min="1" max="65535" class="input !w-36" :placeholder="t('createContainer.hostPortPh')" />
-          <input v-model="p.host_ip" class="input flex-1" :placeholder="t('createContainer.hostIpPh')" />
-          <button class="btn btn-icon btn-sm" @click="ports.splice(i, 1)"><Icon name="trash" size="13" /></button>
+          <Input v-model="p.container" class="!w-36" :placeholder="t('createContainer.containerPortPh')" />
+          <Input v-model.number="p.host" type="number" min="1" max="65535" class="!w-36" :placeholder="t('createContainer.hostPortPh')" />
+          <Input v-model="p.host_ip" class="flex-1" :placeholder="t('createContainer.hostIpPh')" />
+          <Button variant="icon" @click="ports.splice(i, 1)"><Icon name="trash" size="13" /></Button>
         </div>
       </div>
 
       <!-- 环境变量 -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <label class="label !mb-0">{{ t('createContainer.envVars') }}</label>
-          <button class="btn btn-ghost btn-sm" @click="envs.push({ k: '', v: '' })">
+          <Label class="!mb-0">{{ t('createContainer.envVars') }}</Label>
+          <Button variant="ghost" size="sm" @click="envs.push({ k: '', v: '' })">
             <Icon name="plus" size="13" /> {{ t('createContainer.addVar') }}
-          </button>
+          </Button>
         </div>
         <div v-for="(e, i) in envs" :key="i" class="flex gap-2 mb-2">
-          <input v-model="e.k" class="input !w-56" :placeholder="t('createContainer.envKPh')" />
-          <input v-model="e.v" class="input flex-1" :placeholder="t('createContainer.envVPh')" />
-          <button class="btn btn-icon btn-sm" @click="envs.splice(i, 1)"><Icon name="trash" size="13" /></button>
+          <Input v-model="e.k" class="!w-56" :placeholder="t('createContainer.envKPh')" />
+          <Input v-model="e.v" class="flex-1" :placeholder="t('createContainer.envVPh')" />
+          <Button variant="icon" @click="envs.splice(i, 1)"><Icon name="trash" size="13" /></Button>
         </div>
       </div>
 
       <!-- 卷挂载 -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <label class="label !mb-0">{{ t('createContainer.volumeMounts') }}</label>
-          <button class="btn btn-ghost btn-sm" @click="vols.push({ type: 'bind', host: '', volume: '', container: '', mode: 'rw' })">
+          <Label class="!mb-0">{{ t('createContainer.volumeMounts') }}</Label>
+          <Button variant="ghost" size="sm" @click="vols.push({ type: 'bind', host: '', volume: '', container: '', mode: 'rw' })">
             <Icon name="plus" size="13" /> {{ t('createContainer.addMount') }}
-          </button>
+          </Button>
         </div>
         <div v-for="(v, i) in vols" :key="i" class="flex gap-2 mb-2 flex-wrap">
-          <select v-model="v.type" class="input !w-28">
-            <option value="bind">{{ t('createContainer.bindDir') }}</option>
-            <option value="volume">{{ t('createContainer.dataVolume') }}</option>
-          </select>
-          <input v-model="v.host" v-if="v.type === 'bind'" class="input !w-56" :placeholder="t('createContainer.hostPathPh')" />
-          <input v-model="v.volume" v-else class="input !w-56" :placeholder="t('createContainer.volumeNamePh')" />
-          <input v-model="v.container" class="input flex-1" :placeholder="t('createContainer.containerPathPh')" />
-          <select v-model="v.mode" class="input !w-24">
-            <option value="rw">rw</option>
-            <option value="ro">ro</option>
-          </select>
-          <button class="btn btn-icon btn-sm" @click="vols.splice(i, 1)"><Icon name="trash" size="13" /></button>
+          <Select v-model="v.type" class="!w-28">
+            <SelectTrigger class="!w-28"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bind">{{ t('createContainer.bindDir') }}</SelectItem>
+              <SelectItem value="volume">{{ t('createContainer.dataVolume') }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input v-model="v.host" v-if="v.type === 'bind'" class="!w-56" :placeholder="t('createContainer.hostPathPh')" />
+          <Input v-model="v.volume" v-else class="!w-56" :placeholder="t('createContainer.volumeNamePh')" />
+          <Input v-model="v.container" class="flex-1" :placeholder="t('createContainer.containerPathPh')" />
+          <Select v-model="v.mode" class="!w-24">
+            <SelectTrigger class="!w-24"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rw">rw</SelectItem>
+              <SelectItem value="ro">ro</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="icon" @click="vols.splice(i, 1)"><Icon name="trash" size="13" /></Button>
         </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-2 border-t border-line">
-        <router-link to="/containers" class="btn btn-ghost">{{ t('common.cancel') }}</router-link>
-        <button
+        <router-link :class="buttonVariants({ variant: 'ghost' })" to="/containers">{{ t('common.cancel') }}</router-link>
+        <Button
           v-if="!licenseActive"
-          class="btn btn-ghost !text-amber-400 border border-amber-400/40"
+          variant="ghost"
+          class="!text-amber-400 border-amber-400/40"
           :title="t('license.requiredHint')"
           @click="$router.push('/settings#license')"
         >
           <Icon name="lock" size="14" /> {{ t('license.required') }}
-        </button>
-        <button v-else class="btn btn-brand" :disabled="loading" @click="submit">
+        </Button>
+        <Button v-else variant="brand" :disabled="loading" @click="submit">
           <span v-if="loading" class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           {{ loading ? t('createContainer.creating') : t('createContainer.create') }}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   </div>
 </template>
 
@@ -138,6 +151,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card } from '@/components/ui/card'
 import { api } from '../api'
 import { licenseActive } from '../store'
 import { toastErr, toastOk } from '../toast'

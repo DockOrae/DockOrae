@@ -1,47 +1,47 @@
 <template>
   <div class="space-y-4">
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div class="card p-4">
+      <Card class="p-4">
         <div class="text-[11px] text-muted mb-1">{{ t('stats.cpuUsage') }}</div>
         <div class="text-2xl font-bold" :style="{ color: cpuColor }">{{ last.cpu_pct ?? 0 }}%</div>
-      </div>
-      <div class="card p-4">
+      </Card>
+      <Card class="p-4">
         <div class="text-[11px] text-muted mb-1">{{ t('stats.memory') }}</div>
         <div class="text-2xl font-bold text-emerald-400">{{ fmt(last.mem_usage) }}</div>
         <div class="text-[11px] text-muted mt-0.5">/ {{ fmt(last.mem_limit) }} · {{ last.mem_pct ?? 0 }}%</div>
-      </div>
-      <div class="card p-4">
+      </Card>
+      <Card class="p-4">
         <div class="text-[11px] text-muted mb-1">{{ t('stats.netRx') }}</div>
         <div class="text-2xl font-bold text-sky-400">{{ rate(last.net_rx) }}</div>
-      </div>
-      <div class="card p-4">
+      </Card>
+      <Card class="p-4">
         <div class="text-[11px] text-muted mb-1">{{ t('stats.netTx') }}</div>
         <div class="text-2xl font-bold text-purple-400">{{ rate(last.net_tx) }}</div>
-      </div>
+      </Card>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-      <div class="card p-4">
+      <Card class="p-4">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs text-muted">{{ t('stats.cpuTrend') }}</span>
           <span class="text-xs font-semibold text-brand">{{ last.cpu_pct ?? 0 }}%</span>
         </div>
         <Sparkline :data="cpu" color="#ec4899" :height="90" :max="100" />
-      </div>
-      <div class="card p-4">
+      </Card>
+      <Card class="p-4">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs text-muted">{{ t('stats.memTrend') }}</span>
           <span class="text-xs font-semibold text-emerald-400">{{ last.mem_pct ?? 0 }}%</span>
         </div>
         <Sparkline :data="mem" color="#34d399" :height="90" :max="100" />
-      </div>
-      <div class="card p-4">
+      </Card>
+      <Card class="p-4">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs text-muted">{{ t('stats.netTrend') }}</span>
           <span class="text-xs text-muted">RX {{ rate(last.net_rx) }} · TX {{ rate(last.net_tx) }}</span>
         </div>
         <Sparkline :data="net" color="#60a5fa" :height="90" />
-      </div>
+      </Card>
     </div>
 
     <p v-if="!connected" class="text-center text-xs text-muted">{{ t('stats.connecting') }}</p>
@@ -54,6 +54,7 @@ import { useI18n } from 'vue-i18n'
 import Sparkline from '../../components/Sparkline.vue'
 import { wsUrl } from '../../api'
 import { formatBytes } from '../../util'
+import { Card } from '@/components/ui/card'
 
 const { t } = useI18n()
 const props = defineProps({ id: { type: String, required: true } })

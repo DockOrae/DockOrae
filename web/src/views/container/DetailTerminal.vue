@@ -1,31 +1,34 @@
 <template>
   <div class="flex flex-col h-[520px]">
     <div class="flex items-center gap-2 mb-2 flex-wrap">
-      <select v-model="shell" class="input !w-32 !py-1.5 !text-xs" :disabled="connected">
-        <option value="/bin/sh">/bin/sh</option>
-        <option value="/bin/bash">/bin/bash</option>
-        <option value="/bin/ash">/bin/ash</option>
-        <option value="/bin/zsh">/bin/zsh</option>
-        <option value="custom">{{ t('terminal.custom') }}</option>
-      </select>
-      <input v-if="shell === 'custom'" v-model="customShell" class="input !w-40 !py-1.5 !text-xs" placeholder="/bin/busybox sh" />
-      <button class="btn btn-sm" :class="connected ? 'btn-danger' : 'btn-brand'" @click="toggle">
+      <Select v-model="shell" :disabled="connected" class="!w-32">
+        <SelectTrigger class="!w-32 !h-8 !text-xs !py-1"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="/bin/sh">/bin/sh</SelectItem>
+          <SelectItem value="/bin/bash">/bin/bash</SelectItem>
+          <SelectItem value="/bin/ash">/bin/ash</SelectItem>
+          <SelectItem value="/bin/zsh">/bin/zsh</SelectItem>
+          <SelectItem value="custom">{{ t('terminal.custom') }}</SelectItem>
+        </SelectContent>
+      </Select>
+      <Input v-if="shell === 'custom'" v-model="customShell" class="!w-40 !h-8 !text-xs !py-1" placeholder="/bin/busybox sh" />
+      <Button size="sm" :variant="connected ? 'destructive' : 'brand'" @click="toggle">
         {{ connected ? t('terminal.disconnect') : t('terminal.connect') }}
-      </button>
-      <button class="btn btn-ghost btn-sm" @click="clearScreen" :disabled="!term">
+      </Button>
+      <Button variant="ghost" size="sm" @click="clearScreen" :disabled="!term">
         <Icon name="x" size="13" /> {{ t('terminal.clear') }}
-      </button>
+      </Button>
       <div class="flex items-center gap-1 rounded-md border border-line px-1 py-0.5">
-        <button class="btn btn-icon btn-xs" :disabled="!hasSelection" :title="t('terminal.copy')" @click="copySel"><Icon name="copy" size="12" /></button>
-        <button class="btn btn-icon btn-xs" :disabled="!connected" :title="t('terminal.paste')" @click="pasteText"><Icon name="clipboard" size="12" /></button>
+        <Button variant="icon" :disabled="!hasSelection" :title="t('terminal.copy')" @click="copySel"><Icon name="copy" size="12" /></Button>
+        <Button variant="icon" :disabled="!connected" :title="t('terminal.paste')" @click="pasteText"><Icon name="clipboard" size="12" /></Button>
         <span class="w-px h-3 bg-line mx-0.5" />
-        <button class="btn btn-icon btn-xs" :title="t('terminal.fontDec')" @click="fontSize--"><Icon name="minus" size="12" /></button>
+        <Button variant="icon" :title="t('terminal.fontDec')" @click="fontSize--"><Icon name="minus" size="12" /></Button>
         <span class="text-[11px] text-muted w-6 text-center">{{ fontSize }}</span>
-        <button class="btn btn-icon btn-xs" :title="t('terminal.fontInc')" @click="fontSize++"><Icon name="plus" size="12" /></button>
+        <Button variant="icon" :title="t('terminal.fontInc')" @click="fontSize++"><Icon name="plus" size="12" /></Button>
       </div>
-      <button class="btn btn-ghost btn-sm" :title="t('terminal.theme')" @click="dark = !dark">
+      <Button variant="ghost" size="sm" :title="t('terminal.theme')" @click="dark = !dark">
         <Icon :name="dark ? 'sun' : 'moon'" size="13" />
-      </button>
+      </Button>
       <span v-if="error" class="text-xs text-danger">{{ error }}</span>
     </div>
     <div ref="termEl" class="flex-1 bg-[#0a0d13] border border-line rounded-lg overflow-hidden p-2" />
@@ -42,6 +45,9 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import Icon from '../../components/Icon.vue'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { wsUrl } from '../../api'
 import { toastErr } from '../../toast'
 

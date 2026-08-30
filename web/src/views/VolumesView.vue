@@ -2,79 +2,82 @@
   <div class="page">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold">{{ t('volumes.count', { count: volumes.length }) }}</h2>
-      <button class="btn btn-brand btn-sm" @click="openCreate"><Icon name="plus" size="13" /> {{ t('volumes.createTitle') }}</button>
+      <Button variant="brand" size="sm" @click="openCreate"><Icon name="plus" size="13" /> {{ t('volumes.createTitle') }}</Button>
     </div>
 
-    <div class="panel p-0">
-      <table class="table w-full">
-        <thead>
-          <tr>
-            <th class="th">{{ t('volumes.volumeName') }}</th>
-            <th class="th">{{ t('volumes.driver') }}</th>
-            <th class="th">{{ t('volumes.thCreated') }}</th>
-            <th class="th"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="v in volumes" :key="v.Name">
-            <td class="td font-medium">{{ v.Name }}</td>
-            <td class="td text-muted">{{ v.Driver }}</td>
-            <td class="td text-muted text-[12px]">{{ formatDate(v.CreatedAt) }}</td>
-            <td class="td">
-              <button class="btn btn-icon btn-sm text-danger" :title="t('common.delete')" @click="remove(v)">
+    <Card class="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{{ t('volumes.volumeName') }}</TableHead>
+            <TableHead>{{ t('volumes.driver') }}</TableHead>
+            <TableHead>{{ t('volumes.thCreated') }}</TableHead>
+            <TableHead class="w-20"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="v in volumes" :key="v.Name">
+            <TableCell class="font-medium">{{ v.Name }}</TableCell>
+            <TableCell class="text-muted">{{ v.Driver }}</TableCell>
+            <TableCell class="text-muted text-[12px]">{{ formatDate(v.CreatedAt) }}</TableCell>
+            <TableCell>
+              <Button variant="icon" class="text-danger" :title="t('common.delete')" @click="remove(v)">
                 <Icon name="trash" size="13" />
-              </button>
-            </td>
-          </tr>
-          <tr v-if="!volumes.length">
-            <td colspan="4" class="td text-center text-muted py-10">{{ t('volumes.noVolumes') }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+              </Button>
+            </TableCell>
+          </TableRow>
+          <TableRow v-if="!volumes.length">
+            <TableCell colspan="4" class="text-center text-muted py-10">{{ t('volumes.noVolumes') }}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Card>
 
     <Modal :model-value="createOpen" :title="t('volumes.createTitle')" @close="createOpen = false">
       <div class="space-y-3 max-w-[480px]">
         <div>
-          <label class="label">{{ t('volumes.volumeName') }}</label>
-          <input v-model="form.name" class="input" :placeholder="t('volumes.volumeNamePh')" />
+          <Label>{{ t('volumes.volumeName') }}</Label>
+          <Input v-model="form.name" :placeholder="t('volumes.volumeNamePh')" />
         </div>
 
         <!-- 类型 -->
         <div>
-          <label class="label">{{ t('volumes.type') }}</label>
+          <Label>{{ t('volumes.type') }}</Label>
           <div class="flex gap-2">
-            <button type="button" class="btn btn-sm flex-1" :class="form.type === 'local' ? 'btn-brand' : 'btn-ghost'" @click="form.type = 'local'">
+            <Button type="button" size="sm" class="flex-1" :variant="form.type === 'local' ? 'brand' : 'ghost'" @click="form.type = 'local'">
               {{ t('volumes.typeLocal') }}
-            </button>
-            <button type="button" class="btn btn-sm flex-1" :class="form.type === 'nfs' ? 'btn-brand' : 'btn-ghost'" @click="form.type = 'nfs'">
+            </Button>
+            <Button type="button" size="sm" class="flex-1" :variant="form.type === 'nfs' ? 'brand' : 'ghost'" @click="form.type = 'nfs'">
               {{ t('volumes.typeNfs') }}
-            </button>
+            </Button>
           </div>
         </div>
 
         <!-- NFS 设置 -->
         <template v-if="form.type === 'nfs'">
           <div>
-            <label class="label">{{ t('volumes.nfsAddress') }}</label>
-            <input v-model="form.nfs.address" class="input" :placeholder="t('volumes.nfsAddressPh')" />
+            <Label>{{ t('volumes.nfsAddress') }}</Label>
+            <Input v-model="form.nfs.address" :placeholder="t('volumes.nfsAddressPh')" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="label">{{ t('volumes.nfsVersion') }}</label>
-              <select v-model="form.nfs.version" class="input">
-                <option value="4">4</option>
-                <option value="3">3</option>
-              </select>
+              <Label>{{ t('volumes.nfsVersion') }}</Label>
+              <Select v-model="form.nfs.version">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label class="label">{{ t('volumes.nfsMountPoint') }}</label>
-              <input v-model="form.nfs.mountpoint" class="input" placeholder="/exports/data" />
+              <Label>{{ t('volumes.nfsMountPoint') }}</Label>
+              <Input v-model="form.nfs.mountpoint" placeholder="/exports/data" />
             </div>
           </div>
           <div>
-            <label class="label">{{ t('volumes.nfsOptions') }}</label>
-            <input v-model="form.nfs.options" class="input" :placeholder="t('volumes.nfsOptionsPh')" />
+            <Label>{{ t('volumes.nfsOptions') }}</Label>
+            <Input v-model="form.nfs.options" :placeholder="t('volumes.nfsOptionsPh')" />
           </div>
         </template>
 
@@ -84,40 +87,40 @@
         <!-- 驱动选项(仅本地;NFS 由上方字段自动生成 driver_opts) -->
         <template v-if="form.type === 'local'">
           <div>
-            <label class="label">{{ t('volumes.driverOpts') }}</label>
+            <Label>{{ t('volumes.driverOpts') }}</Label>
             <div class="space-y-1.5">
               <div v-for="(o, i) in form.opts" :key="i" class="flex gap-1.5">
-                <input v-model="o.key" class="input !w-1/2" :placeholder="t('volumes.optKey')" />
-                <input v-model="o.value" class="input !w-1/2" :placeholder="t('volumes.optValue')" />
-                <button type="button" class="btn btn-icon btn-sm text-danger" @click="form.opts.splice(i, 1)"><Icon name="x" size="12" /></button>
+                <Input v-model="o.key" class="!w-1/2" :placeholder="t('volumes.optKey')" />
+                <Input v-model="o.value" class="!w-1/2" :placeholder="t('volumes.optValue')" />
+                <Button type="button" variant="icon" class="text-danger" @click="form.opts.splice(i, 1)"><Icon name="x" size="12" /></Button>
               </div>
-              <button type="button" class="btn btn-ghost btn-xs" @click="form.opts.push({ key: '', value: '' })">
+              <Button type="button" variant="ghost" @click="form.opts.push({ key: '', value: '' })">
                 <Icon name="plus" size="12" /> {{ t('volumes.addOpt') }}
-              </button>
+              </Button>
             </div>
           </div>
         </template>
 
         <!-- 标签(键值对) -->
         <div>
-          <label class="label">{{ t('volumes.labels') }}</label>
+          <Label>{{ t('volumes.labels') }}</Label>
           <div class="space-y-1.5">
             <div v-for="(o, i) in form.labels" :key="i" class="flex gap-1.5">
-              <input v-model="o.key" class="input !w-1/2" :placeholder="t('volumes.labelKey')" />
-              <input v-model="o.value" class="input !w-1/2" :placeholder="t('volumes.labelValue')" />
-              <button type="button" class="btn btn-icon btn-sm text-danger" @click="form.labels.splice(i, 1)"><Icon name="x" size="12" /></button>
+              <Input v-model="o.key" class="!w-1/2" :placeholder="t('volumes.labelKey')" />
+              <Input v-model="o.value" class="!w-1/2" :placeholder="t('volumes.labelValue')" />
+              <Button type="button" variant="icon" class="text-danger" @click="form.labels.splice(i, 1)"><Icon name="x" size="12" /></Button>
             </div>
-            <button type="button" class="btn btn-ghost btn-xs" @click="form.labels.push({ key: '', value: '' })">
+            <Button type="button" variant="ghost" @click="form.labels.push({ key: '', value: '' })">
               <Icon name="plus" size="12" /> {{ t('volumes.addLabel') }}
-            </button>
+            </Button>
           </div>
         </div>
 
         <p v-if="error" class="text-xs text-danger">{{ error }}</p>
       </div>
       <template #footer>
-        <button class="btn btn-ghost btn-sm" @click="createOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-brand btn-sm" :disabled="!form.name" @click="create">{{ t('common.create') }}</button>
+        <Button variant="ghost" size="sm" @click="createOpen = false">{{ t('common.cancel') }}</Button>
+        <Button variant="brand" size="sm" :disabled="!form.name" @click="create">{{ t('common.create') }}</Button>
       </template>
     </Modal>
   </div>
@@ -128,6 +131,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
 import Modal from '../components/Modal.vue'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '../api'
 import { formatDate } from '../util'
 import { useConfirm } from '../confirm'
