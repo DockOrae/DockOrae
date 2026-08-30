@@ -3,45 +3,10 @@
     <!-- 背景图 + 遮罩(1Panel 风格;自定义壁纸优先,失败回退内置 bg.jpg) -->
     <img :src="bgFailed ? '/bg.jpg' : '/api/system/wallpaper'" alt="" class="login-bg" @error="onBgError" />
     <div class="login-bg-overlay" />
-    <!-- 右上角工具栏:主题切换 + 语言切换(仿 3x-ui) -->
+    <!-- 右上角工具栏:主题切换 + 语言切换(shadcn-vue 组件,与管理页一致) -->
     <div class="login-toolbar">
-      <button
-        id="login-theme-cycle"
-        type="button"
-        class="toolbar-btn"
-        :title="t('menu.theme')"
-        :aria-label="t('menu.theme')"
-        @click="toggleTheme"
-      >
-        <Icon :name="isDark ? 'moon' : 'sun'" size="18" />
-      </button>
-      <div class="lang-pop-wrap" ref="langWrapRef">
-        <button
-          type="button"
-          class="toolbar-btn"
-          :title="t('lang.toggle')"
-          :aria-label="t('lang.toggle')"
-          @click.stop="langOpen = !langOpen"
-        >
-          <Icon name="translate" size="18" />
-        </button>
-        <Transition name="dm-drop">
-          <div v-if="langOpen" class="lang-pop" :class="{ 'is-dark': isDark }" @click.stop>
-            <button
-              v-for="l in LANGS"
-              :key="l.code"
-              type="button"
-              class="lang-item"
-              :class="{ active: locale === l.code }"
-              @click="onLang(l.code)"
-            >
-              <span aria-hidden="true">{{ l.flag }}</span>
-              <span>{{ l.label }}</span>
-              <span v-if="locale === l.code" class="lang-check">✓</span>
-            </button>
-          </div>
-        </Transition>
-      </div>
+      <ThemeToggle />
+      <ToggleLocale />
     </div>
 
     <div class="login-wrapper">
@@ -127,11 +92,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '../components/Icon.vue'
+import ThemeToggle from '../components/ThemeToggle.vue'
+import ToggleLocale from '../components/ToggleLocale.vue'
 import { api, setToken } from '../api'
 import { toastErr, toastOk } from '../toast'
 import { applyUser } from '../store'
-import { LANGS, setLang } from '../i18n'
-import { isDark, toggleTheme } from '../store'
+import { isDark } from '../store'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -141,8 +107,6 @@ const error = ref('')
 const showPw = ref(false)
 const totpStep = ref(false)
 const totpCode = ref('')
-const langOpen = ref(false)
-const langWrapRef = ref(null)
 const headlineIndex = ref(0)
 // 仅当 admin 仍是默认密码(未改密)时显示"默认账号"提示
 const showDefaultHint = ref(false)
@@ -158,24 +122,11 @@ setInterval(() => {
   headlineIndex.value = (headlineIndex.value + 1) % 2
 }, 2000)
 
-function onLang(code) {
-  setLang(code)
-  langOpen.value = false
-}
-
-// 点击外部关闭语言菜单
-function onDocClick(e) {
-  if (langOpen.value && langWrapRef.value && !langWrapRef.value.contains(e.target)) {
-    langOpen.value = false
-  }
-}
 onMounted(() => {
-  document.addEventListener('click', onDocClick)
   api('/system/default-account')
     .then((r) => (showDefaultHint.value = !!r.show))
     .catch(() => (showDefaultHint.value = false))
 })
-
 async function doLogin() {
   if (!form.username || !form.password) {
     error.value = t('login.errFill')
@@ -366,7 +317,7 @@ async function doTotp() {
   }
 }
 
-/* ---------- 右上角工具栏 ---------- */
+/* ---------- 右上角工具栏(shadcn 组件:主题按钮 + 语言 DropdownMenu) ---------- */
 .login-toolbar {
   position: fixed;
   top: 16px;
@@ -374,82 +325,31 @@ async function doTotp() {
   z-index: 10;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-.toolbar-btn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  border-radius: 50%;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.55);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.is-dark .toolbar-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: var(--color-text);
-}
-.toolbar-btn:hover {
-  transform: translateY(-1px);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+  gap: 10px;
 }
 
-/* 语言下拉(仿 3x-ui Popover 菜单) */
-.lang-pop-wrap {
-  position: relative;
+/* 登录页工具栏按钮:放大(44px 圆 + 20px 图标)+ 背景醒目(背景图上清晰可见) */
+.login-toolbar :deep(button) {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s;
 }
-.lang-pop {
-  position: absolute;
-  top: 48px;
-  right: 0;
-  z-index: 30;
-  min-width: 180px;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: #fff;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+.login-toolbar :deep(button:hover) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  transform: translateY(-1px);
 }
-.lang-pop.is-dark {
-  background: #1c1a22;
-  border-color: rgba(255, 255, 255, 0.12);
-}
-.lang-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s;
-}
-.lang-item:hover {
-  background: rgba(236, 72, 153, 0.08);
-}
-.lang-item.active {
-  background: rgba(236, 72, 153, 0.12);
-  color: var(--color-accent);
-  font-weight: 600;
-}
-.lang-check {
-  margin-left: auto;
-  font-size: 12px;
+.login-toolbar :deep(svg) {
+  width: 20px;
+  height: 20px;
 }
 
 /* ---------- 居中卡片 ---------- */

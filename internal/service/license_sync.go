@@ -46,6 +46,7 @@ const (
 	SyncGrace        SyncState = "grace"            // 宽限期(Server 故障,授权暂时保留)
 	SyncGraceExpired SyncState = "grace_expired"    // 宽限过期 → 限制
 	SyncRecovered    SyncState = "server_recovered" // SSE 重连成功,正在 Verify
+	SyncUnbound      SyncState = "unbound"          // 许可证已解绑(用户/管理员),License 仍有效,可重新激活
 	SyncRevoked      SyncState = "revoked"          // Server 判定吊销/无效/过期
 	SyncBlocked      SyncState = "blocked"          // 版本被封禁
 )
@@ -272,6 +273,34 @@ func (s *LicenseSync) verifyOnce(reason string) map[string]any {
 			applyServerTime(m, res)
 		})
 		return map[string]any{"mode": "online", "state": onlineRevoked, "verify_state": status, "revoked_at": now}
+	case "unbound":
+		// 许可证已解绑(用户主动解绑或管理员强制解绑):License 仍 ACTIVE,只是 Binding 解除。
+		// 清除本地凭据(activation_token/activation_id 已作废),保留 Key —— 用户可一键重新激活。
+		// 绝不清除 key,绝不进入 revoked 状态。
+		reason := strOr(res["unbind_reason"])
+		if reason == "" {
+			reason = "server_unbound"
+		}
+		s.state.Update(func(m map[string]any) {
+			m["verify_state"] = "unbound"
+			m["sync_state"] = string(SyncUnbound)
+			delete(m, "activation_token")
+			delete(m, "activation_id")
+			// 精确来源优先:SSE 事件已捕获 admin/user → 保留;否则用 verify 响应
+			if src := strOr(m["unbind_source"]); src != "" {
+				m["last_unbind_reason"] = src + "_unbound"
+			} else {
+				m["last_unbind_reason"] = reason
+			}
+			m["last_unbind_at"] = now
+			delete(m, "revoked_at")
+			delete(m, "grace_deadline")
+			applyServerTime(m, res)
+			if sv := int64(float64(numOr(res["state_version"]))); sv > 0 {
+				m["state_version"] = sv
+			}
+		})
+		return map[string]any{"mode": "online", "state": onlineUnbound, "verify_state": "unbound", "unbind_reason": reason}
 	default:
 		return map[string]any{"mode": "online", "state": onlineStateOf(s.st), "error": "unexpected status: " + status}
 	}
@@ -310,9 +339,9 @@ func (s *LicenseSync) markOffline(reason string) {
 	now := time.Now().Unix()
 	grace := int64(licenseGracePeriod().Seconds())
 	s.state.Update(func(m map[string]any) {
-		// 禁用状态优先:Server Down ≠ Revoked(§9),但反之已 Revoked 也不回退
+		// 禁用状态优先:Server Down ≠ Revoked(§9),但反之已 Revoked/Unbound 也不回退
 		switch SyncState(strOr(m["sync_state"])) {
-		case SyncRevoked, SyncBlocked, SyncGraceExpired:
+		case SyncRevoked, SyncBlocked, SyncGraceExpired, SyncUnbound:
 			return
 		}
 		lastOK := int64(float64(numOr(m["last_successful_verify"])))
@@ -561,6 +590,19 @@ func (s *LicenseSync) onLicenseEvent(ev *sseEvent) {
 	s.persistEventPosLocked()
 
 	logLicenseSync("license event: %s (seq=%d ver=%d)%s", ev.EventType, ev.SequenceID, ev.StateVersion, map[bool]string{true: " [GAP]"}[gap])
+
+	// 解绑事件(activation.unbound):捕获来源(user/admin),供 UI 区分提示文案。
+	// 事件只是 Trigger,权威状态仍由后续 Verify 决定;unbind_source 仅用于展示
+	// "许可证已由管理员解除绑定,请重新激活许可证"(admin)vs 普通未激活(user)。
+	if ev.EventType == "activation.unbound" {
+		if src, _ := ev.Payload["source"].(string); src != "" {
+			s.state.Update(func(m map[string]any) {
+				m["unbind_source"] = src
+				m["last_unbind_reason"] = src + "_unbound"
+				m["last_unbind_at"] = time.Now().Unix()
+			})
+		}
+	}
 
 	// Event = Trigger:状态可能变化 → 交给 Server 权威 Verify(不直接改授权结论)
 	if gap {

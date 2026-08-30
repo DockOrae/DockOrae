@@ -3,7 +3,9 @@ package service
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
@@ -125,31 +127,50 @@ func (m *LicenseStateManager) notifyLocked() {
 
 // atomicWriteLicenseFile 原子写 license.json:临时文件 → fsync → rename。
 // 权限 0600;绝不在日志中输出内容。
+//
+// 并发安全:所有 LicenseStateManager 实例(引擎/激活/解绑)共用 licenseFileMu,
+// 串行化"临时文件写入 + rename"整段 —— 否则两个实例并发写固定 .tmp 名会互相
+// 覆盖/占用(Windows 上 rename 目标被占用直接失败,曾导致解绑返回 500)。
+// 临时文件用唯一名(CreateTemp),rename 失败(目标被短暂占用)重试 3 次。
+var licenseFileMu sync.Mutex
+
 func atomicWriteLicenseFile(st *state.AppState, m map[string]any) error {
 	raw, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err
 	}
 	path := licensePath(st)
-	tmp := path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+
+	licenseFileMu.Lock()
+	defer licenseFileMu.Unlock()
+
+	tmp, err := os.CreateTemp(filepath.Dir(path), "license-*.tmp")
 	if err != nil {
 		return err
 	}
-	if _, err := f.Write(raw); err != nil {
-		f.Close()
-		os.Remove(tmp)
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // rename 成功后无害;失败时清理
+
+	if _, err := tmp.Write(raw); err != nil {
+		tmp.Close()
 		return err
 	}
 	// fsync:确保数据落盘后再 rename(防 Crash 后 tmp 未刷盘导致空/旧文件覆盖)
-	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(tmp)
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
 		return err
 	}
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
+	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	// 目标被短暂占用(并发读/杀软扫描)时重试,避免偶发 500
+	for i := 0; i < 3; i++ {
+		if err := os.Rename(tmpName, path); err == nil {
+			return nil
+		} else if i == 2 {
+			return err
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return err
 }

@@ -43,7 +43,8 @@ const (
 	onlineVerified       = "verified"        // 最近验证成功(在线)
 	onlineGrace          = "grace"           // Server 不可达但宽限期内(授权保留)
 	onlineGraceExpired   = "grace_expired"   // 超过宽限期 → 禁用 Pro
-	onlineRevoked        = "revoked"         // 服务端吊销/过期/设备无效 → 禁用 Pro
+	onlineUnbound        = "unbound"         // 许可证已解绑(用户/管理员),License 仍有效,可重新激活
+	onlineRevoked        = "revoked"         // 服务端吊销/无效 → 禁用 Pro
 	onlineVersionBlocked = "version_blocked" // 客户端版本被服务端封禁 → 禁用 Pro
 	onlineUpdateRequired = "update_required" // 客户端版本低于 minimum_client_version → 提示升级
 	onlineClockRollback  = "clock_rollback"  // 检测到本地时钟回退 → 禁用 Pro
@@ -163,6 +164,9 @@ func onlineStateOf(st *state.AppState) string {
 		if vs == "clock_rollback" {
 			return onlineClockRollback
 		}
+		if vs == "unbound" {
+			return onlineUnbound
+		}
 		return onlineRevoked
 	}
 	switch ss := strOr(m["sync_state"]); ss {
@@ -176,6 +180,8 @@ func onlineStateOf(st *state.AppState) string {
 		return onlineVersionBlocked
 	case "revoked":
 		return onlineRevoked
+	case "unbound":
+		return onlineUnbound
 	}
 	last := int64(float64(numOr(m["last_successful_verify"])))
 	if last <= 0 {
@@ -184,13 +190,14 @@ func onlineStateOf(st *state.AppState) string {
 	return onlineVerified // 有成功记录但状态未写入(兼容旧文件)
 }
 
-// licenseOnlineAllowed 门控判断:在线模式下 revoked/grace_expired/version_blocked/clock_rollback 一律禁用 Pro。
+// licenseOnlineAllowed 门控判断:在线模式下 revoked/grace_expired/version_blocked/clock_rollback/unbound 一律禁用 Pro。
+// unbound = 已解绑(未激活),本就没有授权。
 func licenseOnlineAllowed(st *state.AppState) bool {
 	switch onlineStateOf(st) {
 	case onlineOffline, onlineVerified, onlineGrace, onlineUpdateRequired:
 		return true
 	default:
-		return false // revoked / grace_expired / version_blocked / clock_rollback / never
+		return false // revoked / unbound / grace_expired / version_blocked / clock_rollback / never
 	}
 }
 

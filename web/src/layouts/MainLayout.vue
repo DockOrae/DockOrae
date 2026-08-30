@@ -87,16 +87,16 @@
       <header class="app-header">
         <h1 class="page-title">{{ t($route.meta.title || '') }}</h1>
         <div class="header-actions">
-          <SwitchAppearance />
+          <ThemeToggle />
           <ToggleLocale />
           <a
-            href="https://manager.kejizero.xyz"
+            href="https://doc.kejizero.xyz"
             target="_blank"
             rel="noopener"
             class="header-btn"
             :title="t('app.docs')"
           >
-            <Icon name="book" size="18" />
+            <BookOpenText class="size-[18px]" />
           </a>
           <a
             href="https://github.com/DockerManger/Docker_Manager_Go"
@@ -169,9 +169,10 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { BookOpenText } from '@lucide/vue'
 import Icon from '../components/Icon.vue'
 import ToggleLocale from '../components/ToggleLocale.vue'
-import SwitchAppearance from '../components/SwitchAppearance.vue'
+import ThemeToggle from '../components/ThemeToggle.vue'
 import UpdateModal from '../components/UpdateModal.vue'
 import { getToken, setToken, api } from '../api'
 import { licenseActive, connectLicenseWS, disconnectLicenseWS, resetUser, user } from '../store'
@@ -555,15 +556,36 @@ function logout() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--dm-line);
+  background: var(--dm-surface2);
   color: var(--dm-muted);
-  transition: color 0.2s, background 0.2s;
+  transition: all 0.2s;
 }
 .header-btn:hover {
-  color: var(--dm-text);
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+  background: rgba(236, 72, 153, 0.08);
+}
+/* 主题/语言按钮(shadcn Button)与文档/GitHub 按钮同款圆框 */
+.app-header :deep(.header-actions button) {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--dm-line);
   background: var(--dm-surface2);
+  color: var(--dm-muted);
+  transition: all 0.2s;
+}
+.app-header :deep(.header-actions button:hover) {
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+  background: rgba(236, 72, 153, 0.08);
 }
 
 .pwd-banner {

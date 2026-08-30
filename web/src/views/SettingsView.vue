@@ -617,17 +617,14 @@
           <div class="flex items-center gap-2 mb-4">
             <Icon name="key" size="16" class="text-brand" />
             <h2 class="text-sm font-semibold">{{ t('license.title') }}</h2>
-            <Button variant="brand" size="sm" class="ml-auto" @click="openLicForm">
-              <Icon name="plus" size="13" /> {{ t('license.add') }}
-            </Button>
+            <Badge :style="onlineStyle" ml-auto>{{ onlineStateLabel }}</Badge>
           </div>
 
-                                           
+          <!-- 在线授权状态 -->
           <div class="rounded-xl border border-line p-4 mb-4">
             <div class="flex items-center gap-2 mb-1">
               <Icon name="link" size="14" class="text-brand" />
               <span class="text-[12px] font-medium">{{ t('license.onlineTitle') }}</span>
-              <Badge :style="onlineStyle" ml-auto>{{ onlineStateLabel }}</Badge>
             </div>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
               <span v-if="licOnline.sync_state" class="font-medium inline-flex items-center gap-1" :style="licSyncStyle">
@@ -636,62 +633,115 @@
               </span>
               <span v-if="licOnline.last_verify">{{ t('license.lastVerify') }}: {{ fmtDateTime(licOnline.last_verify) }}</span>
               <span v-if="licOnline.grace_deadline">{{ t('license.graceDeadline') }}: {{ fmtDateTime(licOnline.grace_deadline) }}</span>
-              <span v-if="licOnline.verify_state" class="text-danger">{{ t('license.verifyState' + (licOnline.verify_state === 'revoked' ? 'Revoked' : 'Invalid')) }}</span>
               <span v-if="licOnline.last_event_id" class="font-mono opacity-70">{{ t('license.lastEvent') }}: {{ licOnline.last_event_id }}</span>
-              <Button variant="ghost" size="sm" class="ml-auto" v-if="licActive || licInfo"
+              <Button variant="ghost" size="sm" class="ml-auto" v-if="licKey"
                 :disabled="licBusy"
                 @click="verifyNow"
               >
                 <span v-if="licBusy" class="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin mr-1" />
                 {{ licBusy ? t('license.verifying') : t('license.verifyNow') }}
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div class="rounded-xl border border-line overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{{ t('license.licenseId') }}</TableHead>
-                  <TableHead>{{ t('license.authorizedUser') }}</TableHead>
-                  <TableHead>{{ t('license.edition') }}</TableHead>
-                  <TableHead>{{ t('license.features') }}</TableHead>
-                  <TableHead>{{ t('license.maxDevices') }}</TableHead>
-                  <TableHead>{{ t('license.status') }}</TableHead>
-                  <TableHead>{{ t('license.boundTo') }}</TableHead>
-                  <TableHead>{{ t('license.expires') }}</TableHead>
-                  <TableHead class="w-36">{{ t('common.actions') }}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-if="licInfo">
-                  <TableCell class="font-mono text-[11px]">{{ licInfo.license_id || licKey.slice(0, 14) }}…</TableCell>
-                  <TableCell>{{ licInfo.customer || licInfo.user || '-' }}</TableCell>
-                  <TableCell><Badge :style="okStyle">{{ t('license.' + (licInfo.plan || licInfo.type || 'pro')) }}</Badge></TableCell>
-                  <TableCell class="text-[12px]">{{ fmtFeatures(licInfo.features) }}</TableCell>
-                  <TableCell>{{ licInfo.max_devices ?? '-' }}</TableCell>
-                  <TableCell>
-                    <Badge :style="licStatusStyle">{{ licStatusLabel }}</Badge>
-                  </TableCell>
-                  <TableCell class="font-mono text-[11px]">{{ licDeviceId }}</TableCell>
-                  <TableCell>{{ fmtDate(licInfo.expires_at || licInfo.exp) }}</TableCell>
-                  <TableCell>
-                    <div class="flex items-center gap-1">
-                      <Button variant="icon" size="sm"  :title="t('license.unbind')" :disabled="licBusy" @click="deactivate">
-                        <Icon name="link" size="13" />
-                      </Button>
-                      <Button variant="icon" size="sm" class="text-danger" :title="t('license.unbindDelete')" :disabled="licBusy" @click="deactivate">
-                        <Icon name="trash" size="13" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-                <TableRow v-else>
-                  <TableCell colspan="9" class="text-center text-muted py-8">{{ t('license.empty') }}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+          <!-- ============ 当前许可证(一个实例最多一个 License) ============ -->
+          <!-- 已激活 -->
+          <div v-if="licActive && licInfo" class="rounded-xl border border-ok/25 bg-ok/5 p-5">
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-9 h-9 rounded-full bg-ok/15 text-ok flex items-center justify-center">
+                <Icon name="check" size="16" />
+              </span>
+              <div>
+                <div class="text-[14px] font-semibold text-text leading-tight">{{ t('license.active') }}</div>
+                <div class="text-[11px] text-ok/80">{{ t('license.onlineVerified') }}</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              <div>
+                <div class="text-[11px] text-muted mb-0.5">{{ t('license.licenseId') }}</div>
+                <div class="font-mono text-[13px] text-text">{{ licInfo.license_id || licKey.slice(0, 20) }}…</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-muted mb-0.5">{{ t('license.edition') }}</div>
+                <div class="text-[13px] text-text">{{ t('license.' + (licInfo.plan || licInfo.type || 'pro')) }}</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-muted mb-0.5">{{ t('license.authorizedUser') }}</div>
+                <div class="text-[13px] text-text">{{ licInfo.customer || licInfo.user || '-' }}</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-muted mb-0.5">{{ t('license.expires') }}</div>
+                <div class="text-[13px] text-text">{{ fmtDate(licInfo.expires_at || licInfo.exp) }}</div>
+              </div>
+              <div class="sm:col-span-2">
+                <div class="text-[11px] text-muted mb-0.5">{{ t('license.deviceId') }}</div>
+                <div class="font-mono text-[12px] text-text">{{ licDeviceId }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 mt-5 pt-4 border-t border-ok/15">
+              <Button variant="ghost" size="sm" class="!text-warn" :disabled="licBusy" @click="confirmUnbind">
+                <Icon name="link" size="13" /> {{ t('license.unbind') }}
+              </Button>
+              <span class="text-[11px] text-muted">{{ t('license.unbindHint') }}</span>
+            </div>
           </div>
+
+          <!-- 已吊销(仅吊销场景显示"已吊销") -->
+          <div v-else-if="licRevoked" class="rounded-xl border border-danger/30 bg-danger/10 p-5">
+            <div class="flex items-center gap-2.5 mb-3">
+              <span class="w-9 h-9 rounded-full bg-danger/15 text-danger flex items-center justify-center">
+                <Icon name="x" size="16" />
+              </span>
+              <div>
+                <div class="text-[14px] font-semibold text-danger leading-tight">{{ t('license.revoked') }}</div>
+                <div class="text-[11px] text-muted">{{ t('license.revokedDesc') }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button variant="brand" size="sm" @click="openLicForm">
+                <Icon name="plus" size="13" /> {{ t('license.reactivate') }}
+              </Button>
+            </div>
+          </div>
+
+          <!-- 管理员强制解绑(明确提示:请重新激活,不是吊销) -->
+          <div v-else-if="licAdminUnbound" class="rounded-xl border border-warn/30 bg-warn/10 p-5">
+            <div class="flex items-center gap-2.5 mb-3">
+              <span class="w-9 h-9 rounded-full bg-warn/15 text-warn flex items-center justify-center">
+                <Icon name="link" size="16" />
+              </span>
+              <div>
+                <div class="text-[14px] font-semibold text-warn leading-tight">{{ t('license.adminUnboundTitle') }}</div>
+                <div class="text-[12px] text-text mt-0.5">{{ t('license.adminUnboundDesc') }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button variant="brand" size="sm" @click="openLicForm">
+                <Icon name="plus" size="13" /> {{ t('license.reactivate') }}
+              </Button>
+              <span v-if="licKey" class="text-[11px] text-muted">{{ t('license.keyKept') }}</span>
+            </div>
+          </div>
+
+          <!-- 未激活 / 已解绑(普通) -->
+          <div v-else class="rounded-xl border border-line bg-surface2/40 p-5">
+            <div class="flex items-center gap-2.5 mb-3">
+              <span class="w-9 h-9 rounded-full bg-surface2 text-muted flex items-center justify-center">
+                <Icon name="key" size="15" />
+              </span>
+              <div>
+                <div class="text-[14px] font-semibold text-muted leading-tight">{{ t('license.inactive') }}</div>
+                <div class="text-[12px] text-muted mt-0.5">{{ t('license.unboundDesc') }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button variant="brand" size="sm" @click="openLicForm">
+                <Icon name="plus" size="13" /> {{ t('license.activate') }}
+              </Button>
+              <span v-if="licKey" class="text-[11px] text-muted">{{ t('license.keyKept') }}</span>
+            </div>
+          </div>
+
           <div v-if="licErr" class="text-xs text-danger mt-3">{{ licErr }}</div>
 
           <div v-if="licFormOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="licFormOpen = false">
@@ -1394,6 +1444,7 @@ async function verifyNow() {
     await refreshLic()
     if (r.state === 'verified') toastOk(t('license.verifyOk'))
     else if (r.state === 'revoked') toastErr(t('license.onlineRevoked'))
+    else if (r.state === 'unbound') toastOk(t('license.unboundToast'))
     else if (r.error) toastErr(r.error)
   } catch (e) {
     toastErr(e.message)
@@ -1444,6 +1495,35 @@ async function authorizeFile() {
     licBusy.value = false
   }
 }
+
+// ---------- 许可证状态判定(解绑 ≠ 吊销) ----------
+// 已吊销:仅服务端 verify 判定 revoked 时显示"已吊销"(唯一允许显示吊销的场景)
+const licRevoked = computed(
+  () =>
+    licOnline.value.verify_state === 'revoked' ||
+    licOnline.value.sync_state === 'revoked' ||
+    licOnline.value.state === 'revoked',
+)
+// 管理员强制解绑:SSE 事件 source=admin / verify unbound → 显示"请重新激活"
+const licAdminUnbound = computed(
+  () =>
+    licOnline.value.unbind_source === 'admin' ||
+    licOnline.value.unbind_reason === 'admin_unbound' ||
+    (licOnline.value.verify_state === 'unbound' && licOnline.value.unbind_reason !== 'user_unbound'),
+)
+
+// 用户主动解绑(确认后只解 Binding:保留 Key,License 不会被吊销,可重新激活)
+function confirmUnbind() {
+  confirmAction({
+    title: t('license.unbind'),
+    message: t('license.unbindConfirmDesc'),
+    okText: t('license.unbindConfirm'),
+    danger: true,
+  })
+    .then(() => deactivate())
+    .catch(() => {})
+}
+
 async function deactivate() {
   licBusy.value = true
   licErr.value = ''

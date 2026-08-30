@@ -301,7 +301,8 @@ func TestGraceExpiredDisablesFeature(t *testing.T) {
 	}
 }
 
-// TestOnlineDeactivateCallsServer 在线解绑:通知服务端后删除本地文件。
+// TestOnlineDeactivateCallsServer 在线解绑:通知服务端后,本地保留 Key、清除凭据、状态 unbound
+// (解绑 ≠ 吊销:license.json 不清除 Key,重启后仍可一键重新激活)。
 func TestOnlineDeactivateCallsServer(t *testing.T) {
 	srv := mockLicenseServer(t, 200, okActivate, 200, okVerify)
 	st := testLicState(t, srv.URL)
@@ -311,8 +312,18 @@ func TestOnlineDeactivateCallsServer(t *testing.T) {
 	if err := LicenseDeactivate(st); err != nil {
 		t.Fatalf("deactivate: %v", err)
 	}
-	if _, ok := readLicenseStore(st); ok {
-		t.Fatal("license.json must be removed")
+	m, ok := readLicenseStore(st)
+	if !ok {
+		t.Fatal("license.json must be kept after unbind (key preserved for re-activation)")
+	}
+	if strOr(m["key"]) == "" {
+		t.Fatal("key must be kept after unbind")
+	}
+	if strOr(m["activation_token"]) != "" {
+		t.Fatal("activation_token must be cleared after unbind")
+	}
+	if strOr(m["sync_state"]) != string(SyncUnbound) {
+		t.Fatalf("sync_state = %s, want unbound", strOr(m["sync_state"]))
 	}
 	if LicenseActive(st) {
 		t.Fatal("license must be inactive after deactivate")

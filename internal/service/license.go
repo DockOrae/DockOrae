@@ -294,7 +294,9 @@ func LicenseInfo(st *state.AppState) map[string]any {
 		return map[string]any{"active": false, "key": key, "info": nil, "device_id": deviceID, "bound": false, "online": onlineInfo(st)}
 	}
 	boundID := strOr(m["device_id"])
-	bound := boundID != "" && boundID == deviceID
+	// unbound(已解绑/未激活):保留 key 但不再视为绑定,active=false
+	unbound := strOr(m["verify_state"]) == "unbound" || strOr(m["sync_state"]) == "unbound"
+	bound := boundID != "" && boundID == deviceID && !unbound
 	active := strOr(info["status"]) == "active" && bound && licenseOnlineAllowed(st)
 	return map[string]any{
 		"active":        active,
@@ -341,6 +343,16 @@ func onlineInfo(st *state.AppState) map[string]any {
 	if sv := int64(float64(numOr(m["state_version"]))); sv > 0 {
 		out["state_version"] = sv
 	}
+	// 解绑来源(admin_unbound / user_unbound),UI 据此区分提示文案
+	if ur := strOr(m["last_unbind_reason"]); ur != "" {
+		out["unbind_reason"] = ur
+	}
+	if us := strOr(m["unbind_source"]); us != "" {
+		out["unbind_source"] = us
+	}
+	if ua := int64(float64(numOr(m["last_unbind_at"]))); ua > 0 {
+		out["unbound_at"] = ua
+	}
 	return out
 }
 
@@ -384,6 +396,9 @@ func LicenseDoActivate(st *state.AppState, key string) (map[string]any, error) {
 			switch code {
 			case "DEVICE_LIMIT_REACHED":
 				return nil, BadRequest("license.deviceLimit")
+			case "DEVICE_BOUND":
+				// 本设备已绑定其他 License(一个 DMG 只能绑定一个许可证):需先解绑旧的
+				return nil, BadRequest("license.deviceBound")
 			case "LICENSE_REVOKED":
 				return nil, BadRequest("license.revokedKey")
 			case "LICENSE_EXPIRED":
@@ -435,7 +450,10 @@ func LicenseDoActivate(st *state.AppState, key string) (map[string]any, error) {
 	return info, nil
 }
 
-// LicenseDeactivate 解除激活(删除本地授权文件;在线模式先通知服务端解绑)。
+// LicenseDeactivate 解除激活(用户主动解绑)。
+// 语义:只解除 Binding —— 保留 Key(可一键重新激活),清除本地凭据
+// (activation_token/activation_id 已作废),状态置 unbound。
+// 绝不删除 Key,绝不标记 revoked。在线模式先通知服务端解绑。
 func LicenseDeactivate(st *state.AppState) error {
 	m, ok := readLicenseStore(st)
 	if !ok {
@@ -448,10 +466,26 @@ func LicenseDeactivate(st *state.AppState) error {
 	if serverURL != "" && token != "" && deviceID != "" {
 		licenseDeactivateRemote(serverURL, token, deviceID)
 	}
-	err := os.Remove(licensePath(st))
+	// 本地状态:保留 key/device_id,清除凭据,标记 unbound(重启后仍保持未激活)
+	mgr := NewLicenseStateManager(st)
+	now := time.Now().Unix()
+	if err := mgr.Update(func(m map[string]any) {
+		delete(m, "activation_token")
+		delete(m, "activation_id")
+		m["verify_state"] = "unbound"
+		m["sync_state"] = string(SyncUnbound)
+		m["unbind_source"] = "user"
+		m["last_unbind_reason"] = "user_unbound"
+		m["last_unbind_at"] = now
+		delete(m, "revoked_at")
+		delete(m, "grace_deadline")
+		m["last_successful_verify"] = now
+	}); err != nil {
+		return err
+	}
 	// 唤醒 SSE 循环(无凭据 → 停止连接)
 	if s := LicenseSyncInst(); s != nil {
 		s.wakeSSE()
 	}
-	return err
+	return nil
 }
