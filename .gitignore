@@ -6,7 +6,8 @@ target/
 # Node
 web/node_modules/
 node_modules/
-public/dist/
+public/dist/*
+!public/dist/README.md
 web/dist/
 
 # Data
