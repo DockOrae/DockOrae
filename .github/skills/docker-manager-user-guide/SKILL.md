@@ -46,7 +46,7 @@ disable-model-invocation: false
 
 ## 第一部分:项目概述
 
-- **定位**:Go 编写的 Docker 管理面板(单二进制,前端 Vue3 内嵌),UI 参考 1Panel 交互 + 3x-ui 系统状态页,粉色 #ec4899 品牌色,支持深/浅色主题,14 种语言。
+- **定位**:Go 编写的 Docker 管理面板(单二进制,前端 Vue3 内嵌),UI 参考 1Panel 交互 + 3x-ui 系统状态页,粉色 #ec4899 品牌色,支持深/浅色主题,3 种语言(简中/繁中/英文)。
 - **架构**:`main.go`(入口)+ `web.go`(go:embed public/dist 静态资源)+ `internal/api`(gin 路由与 handler)+ `internal/settings`(SQLite 设置存储)+ `internal/state`(内存状态)+ `internal/auth`(JWT/TOTP)+ `internal/db`(SQLite)+ `internal/netutil`(代理感知 HTTP 客户端)。
 - **存储**:SQLite(`data/` 目录,`DATA_DIR` 环境变量可覆盖)。设置存 `settings` 表 `main` 键(JSON)。
 - **默认账号**:`admin / 123456`(首次登录强制改密)。
