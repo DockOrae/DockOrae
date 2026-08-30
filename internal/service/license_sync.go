@@ -370,6 +370,14 @@ func (s *LicenseSync) sseLoop() {
 			return // 引擎停止
 		}
 
+		// SSE 401 = 凭据被服务端明确拒绝(吊销/解绑后 token 作废)→ 立即 Verify 权威状态。
+		// 这不是周期检查:401 是服务端响应信号(类似 Event),Verify 会返回 revoked/invalid,
+		// 避免客户端在 Grace 里"永久不知情"直到宽限过期(设计 §9:Server Down ≠ Revoked)。
+		if he, ok := connErr.(*sseHTTPError); ok && he.Code == http.StatusUnauthorized {
+			logLicenseSync("SSE auth rejected (401) -> V3 Verify authoritative state")
+			s.triggerVerify("sse-unauthorized")
+		}
+
 		// 断线:标记 Offline → Grace
 		s.markOffline("sse-disconnect")
 
@@ -388,6 +396,15 @@ func (s *LicenseSync) sseLoop() {
 		case <-time.After(wait):
 		}
 	}
+}
+
+// sseHTTPError SSE 连接的服务端 HTTP 状态错误(用于 401 等明确信号识别)。
+type sseHTTPError struct {
+	Code int
+}
+
+func (e *sseHTTPError) Error() string {
+	return fmt.Sprintf("SSE status %d", e.Code)
 }
 
 // sseConnect 建立一次 SSE 订阅并阻塞读取,直到连接断开。
@@ -420,7 +437,7 @@ func (s *LicenseSync) sseConnect(token, deviceID string, wasDisconnected bool) e
 	}
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return fmt.Errorf("SSE status %d", resp.StatusCode)
+		return &sseHTTPError{Code: resp.StatusCode}
 	}
 	defer resp.Body.Close()
 

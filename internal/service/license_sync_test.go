@@ -281,6 +281,51 @@ func TestSSEEventTriggersVerify(t *testing.T) {
 	t.Fatal("SSE event not processed within timeout")
 }
 
+// TestSSE401TriggersVerify SSE 401(凭据被服务端拒绝)→ 触发 Verify(吊销后客户端不卡 Grace)。
+func TestSSE401TriggersVerify(t *testing.T) {
+	verifyCount := 0
+	orig := licenseVerifyCountHook
+	licenseVerifyCountHook = func() { verifyCount++ }
+	defer func() { licenseVerifyCountHook = orig }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/activate"):
+			_, _ = w.Write([]byte(okActivate))
+			return
+		case strings.HasSuffix(r.URL.Path, "/verify"):
+			// token 已吊销 → 200 invalid(服务端权威结论)
+			_, _ = w.Write([]byte(`{"status":"invalid","valid":false,"server_time":1780000000}`))
+			return
+		case strings.HasSuffix(r.URL.Path, "/events"):
+			w.WriteHeader(401) // token 作废后 SSE 认证失败
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	t.Cleanup(srv.Close)
+
+	st := testLicState(t, srv.URL)
+	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
+		t.Fatal(err)
+	}
+	s := StartLicenseSync(st)
+	defer s.Stop()
+
+	deadline := time.Now().Add(8 * time.Second)
+	for time.Now().Before(deadline) {
+		if verifyCount >= 1 {
+			m, _ := readLicenseStore(st)
+			if strOr(m["sync_state"]) == string(SyncRevoked) {
+				return // 401 → Verify → revoked ✓
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("401 must trigger verify (count=%d)", verifyCount)
+}
+
 // TestNoPeriodicVerify 同步引擎不包含任何周期验证(Ticker/Timer/Cron)。
 func TestNoPeriodicVerify(t *testing.T) {
 	src, err := os.ReadFile("license_sync.go")
