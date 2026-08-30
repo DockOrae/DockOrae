@@ -52,9 +52,9 @@ build: web backend
 .PHONY: web
 web:
 	@echo "==> 下载前端 dist (github.com/$(FRONTEND_REPO) rolling release)"
-	@URL=$$(curl -fsSL https://api.github.com/repos/$(FRONTEND_REPO)/releases/tags/rolling | jq -r '.assets[] | select(.name | startswith("dockorae-frontend-dist-") and endswith(".tar.gz")) | .browser_download_url' 2>/dev/null | head -1); \
+	@URL=$$(curl -fsSL $${GITHUB_TOKEN:+ -H "Authorization: Bearer $$GITHUB_TOKEN"} https://api.github.com/repos/$(FRONTEND_REPO)/releases/tags/rolling | jq -r '.assets[] | select(.name | startswith("dockorae-frontend-dist-") and endswith(".tar.gz")) | .browser_download_url' 2>/dev/null | head -1); \
 	if [ -z "$$URL" ]; then echo "❌ 获取前端 dist 资产失败(rolling release 未发布?先推送 DockOrae-Frontend)"; exit 1; fi; \
-	curl -fsSL "$$URL" -o /tmp/dockorae-fe.tar.gz && \
+	curl -fsSL $${GITHUB_TOKEN:+ -H "Authorization: Bearer $$GITHUB_TOKEN"} "$$URL" -o /tmp/dockorae-fe.tar.gz && \
 	rm -rf $(PUBLIC_DIR)/dist && mkdir -p $(PUBLIC_DIR)/dist && \
 	tar -xzf /tmp/dockorae-fe.tar.gz -C $(PUBLIC_DIR)/dist && \
 	rm -f /tmp/dockorae-fe.tar.gz && \

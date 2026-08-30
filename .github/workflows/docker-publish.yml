@@ -46,6 +46,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 前端已独立到 DockOrae/DockOrae-Frontend:下载其 rolling release 的 dist
+      # 资产到 public/dist(带 GITHUB_TOKEN 认证避免 API 限流),Dockerfile COPY 嵌入。
+      - name: Download frontend dist
+        run: |
+          URL=$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
+            https://api.github.com/repos/DockOrae/DockOrae-Frontend/releases/tags/rolling \
+            | jq -r '.assets[] | select(.name | startswith("dockorae-frontend-dist-") and endswith(".tar.gz")) | .browser_download_url' | head -1)
+          [ -n "$URL" ] || { echo "::error::未找到前端 dist 资产(rolling release 未发布?)"; exit 1; }
+          curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" "$URL" -o /tmp/fe.tar.gz
+          rm -rf public/dist && mkdir -p public/dist
+          tar -xzf /tmp/fe.tar.gz -C public/dist
+          rm -f /tmp/fe.tar.gz
+          echo "前端 dist 就绪: $(ls public/dist | head -3 | tr '\n' ' ')"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:

@@ -1,15 +1,6 @@
-# ================= Stage 1: 前端 dist =================
-# 前端已独立到 DockOrae/DockOrae-Frontend 仓库,其 CI 发布 rolling release 资产;
-# 这里直接下载 dist tar.gz(不 clone 源码、不 npm 构建,构建更快更稳定)。
-FROM --platform=$BUILDPLATFORM alpine:3.20 AS web
-RUN apk add --no-cache curl tar jq \
-    && URL=$(curl -fsSL https://api.github.com/repos/DockOrae/DockOrae-Frontend/releases/tags/rolling | jq -r '.assets[] | select(.name | startswith("dockorae-frontend-dist-") and endswith(".tar.gz")) | .browser_download_url' | head -1) \
-    && [ -n "$URL" ] \
-    && curl -fsSL "$URL" -o /dist.tar.gz \
-    && mkdir -p /fe/dist \
-    && tar -xzf /dist.tar.gz -C /fe/dist
-
-# ================= Stage 2: Go 后端编译(原生交叉编译,不需要 QEMU) =================
+# ================= Stage 1: Go 后端编译(原生交叉编译,不需要 QEMU) =================
+# 前端 dist 由 CI 在 build-push 前下载到 context 的 public/dist(见 docker-publish.yml
+# "Download frontend dist" 步骤,带 GITHUB_TOKEN 认证避免 API 限流)。
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
@@ -24,8 +15,7 @@ RUN go env -w GOPROXY=https://goproxy.cn,direct
 COPY go.mod go.sum ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
-COPY public/embed.go ./public/
-COPY --from=web /fe/dist ./public/dist
+COPY public/ ./public/
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
     -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X github.com/DockOrae/DockOrae/internal/service.AppVersion=${VERSION}" \
     -o docker-manager ./cmd/docker-manager

@@ -85,6 +85,8 @@ jobs:
 
       - name: 构建全部架构 (make cross)
         run: make cross VERSION=${{ needs.check.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 发布 Release
         uses: softprops/action-gh-release@v3.0.2
