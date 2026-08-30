@@ -8,8 +8,7 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
-      - 'web/package.json'
-      - 'web/vite.config.*'
+      - 'web/embed.go'
       - '.github/workflows/go-checks.yml'
   pull_request:
     paths:

@@ -1,9 +1,13 @@
 # ============================================================
-# Docker Manager Go — 构建 Makefile
+# DockOrae — 构建 Makefile
+#
+# 前端已独立到 DockOrae/DockOrae-Frontend 仓库:
+#   make web  从前端仓库克隆并构建 dist → web/dist(go:embed 嵌入用)
+#   make dev  本地前端开发(需先 clone 前端仓库到 ../DockOrae-Frontend)
 #
 # 常用目标:
 #   make            完整构建(前端 web/dist + 后端二进制,当前平台)
-#   make web        仅构建前端(web/dist,go:embed 嵌入用)
+#   make web        构建前端(克隆 DockOrae-Frontend → web/dist)
 #   make backend    仅构建后端(需先 make web;前端未改时可跳过)
 #   make dev        前端开发模式(vite :5173,API 代理到 :8080,需后端已启动)
 #   make run        完整构建后直接运行
@@ -16,9 +20,10 @@
 # ---------- 变量 ----------
 GO        ?= go
 NPM       ?= npm
-BIN       := docker-manager-go
+BIN       := dockorae
 WEB_DIR   := web
 DIST_DIR  := dist
+FRONTEND_REPO := https://github.com/DockOrae/DockOrae-Frontend.git
 
 # 版本号:优先取最近 Git tag(如 v1.0.3),无 tag 时 unknown;可用 VERSION=xxx 覆盖(CI 传 tag)
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo unknown)
@@ -46,9 +51,14 @@ build: web backend
 
 .PHONY: web
 web:
-	@echo "==> 构建前端 (vite build)"
-	@test -d $(WEB_DIR)/node_modules || (echo "    node_modules 缺失,先执行 npm install"; cd $(WEB_DIR) && $(NPM) install --no-audit --no-fund)
-	cd $(WEB_DIR) && $(NPM) run build
+	@echo "==> 构建前端 (克隆 DockOrae/DockOrae-Frontend)"
+	@rm -rf /tmp/dockorae-fe-build
+	@git clone --depth 1 $(FRONTEND_REPO) /tmp/dockorae-fe-build 2>/dev/null || { echo "❌ 克隆前端仓库失败"; exit 1; }
+	@cd /tmp/dockorae-fe-build && $(NPM) ci --no-audit --no-fund && $(NPM) run build
+	@rm -rf $(WEB_DIR)/dist && mkdir -p $(WEB_DIR)/dist
+	@cp -r /tmp/dockorae-fe-build/dist/* $(WEB_DIR)/dist/
+	@rm -rf /tmp/dockorae-fe-build
+	@echo "✅ 前端构建完成 → web/dist"
 
 .PHONY: backend
 backend:
@@ -63,8 +73,9 @@ run: build
 
 .PHONY: dev
 dev:
+	@test -d ../DockOrae-Frontend || { echo "❌ 请先克隆前端仓库: git clone $(FRONTEND_REPO) ../DockOrae-Frontend"; exit 1; }
 	@echo "==> 前端开发模式: http://localhost:5173 (API 代理到 :8080,请确保后端已启动)"
-	cd $(WEB_DIR) && $(NPM) run dev
+	cd ../DockOrae-Frontend && $(NPM) run dev
 
 # ---------- 交叉编译(Linux 发版) ----------
 .PHONY: cross
@@ -79,15 +90,15 @@ cross: web
 	    goarch=$$arch; goarm=; suffix=$$arch; \
 	    echo "==> 交叉编译 linux/$$goarch"; \
 	  fi; \
-	  rm -rf $(DIST_DIR)/docker-manager-go; \
-	  mkdir -p $(DIST_DIR)/docker-manager-go; \
+	  rm -rf $(DIST_DIR)/dockorae; \
+	  mkdir -p $(DIST_DIR)/dockorae; \
 	  CGO_ENABLED=0 GOOS=linux GOARCH=$$goarch GOARM=$$goarm \
 	    $(GO) build -trimpath -ldflags="$(LDFLAGS)" \
-	    -o $(DIST_DIR)/docker-manager-go/$(BIN) ./cmd/docker-manager || exit 1; \
-	  cp README.md $(DIST_DIR)/docker-manager-go/ 2>/dev/null || true; \
-	  tar -czf $(DIST_DIR)/docker-manager-go-linux-$$suffix.tar.gz -C $(DIST_DIR) docker-manager-go || exit 1; \
-	  (cd $(DIST_DIR) && sha256sum docker-manager-go-linux-$$suffix.tar.gz > docker-manager-go-linux-$$suffix.tar.gz.sha256) || exit 1; \
-	  rm -rf $(DIST_DIR)/docker-manager-go; \
+	    -o $(DIST_DIR)/dockorae/$(BIN) ./cmd/docker-manager || exit 1; \
+	  cp README.md $(DIST_DIR)/dockorae/ 2>/dev/null || true; \
+	  tar -czf $(DIST_DIR)/dockorae-linux-$$suffix.tar.gz -C $(DIST_DIR) dockorae || exit 1; \
+	  (cd $(DIST_DIR) && sha256sum dockorae-linux-$$suffix.tar.gz > dockorae-linux-$$suffix.tar.gz.sha256) || exit 1; \
+	  rm -rf $(DIST_DIR)/dockorae; \
 	done
 	@echo "✅ 交叉编译完成,产物:"
 	@ls -lh $(DIST_DIR)/*.tar.gz $(DIST_DIR)/*.sha256

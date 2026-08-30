@@ -75,16 +75,13 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
-      # 前端 dist 必须在 go build 之前构建 —— web/embed.go 的 //go:embed all:dist
-      # 编译期要求 web/dist/ 存在;dist 已 gitignore,CI 全新检出时为空。
-      # make cross 内部会 npm install + vite build + 7 架构交叉编译 + tar 打包,
-      # 并把 VERSION 通过 ldflags 注入 main.Version / service.AppVersion。
+      # 前端已独立到 DockOrae/DockOrae-Frontend 仓库:
+      # make cross 内部会先克隆前端仓库 npm 构建 dist → web/dist(go:embed),
+      # 再做 7 架构交叉编译 + tar 打包,并把 VERSION 通过 ldflags 注入。
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: web/package-lock.json
 
       - name: 构建全部架构 (make cross)
         run: make cross VERSION=${{ needs.check.outputs.tag }}

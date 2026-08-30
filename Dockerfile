@@ -1,11 +1,12 @@
 # ================= Stage 1: 前端构建 =================
+# 前端已独立到 DockOrae/DockOrae-Frontend 仓库,构建时克隆最新代码构建 dist
 # --platform=$BUILDPLATFORM:始终在构建机原生平台执行(避免 QEMU 模拟 node 极慢)
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
-WORKDIR /web
-COPY web/package.json web/package-lock.json* ./
-RUN npm install --no-audit --no-fund --registry=https://registry.npmmirror.com
-COPY web/ ./
-RUN npm run build
+RUN apk add --no-cache git \
+    && git clone --depth 1 https://github.com/DockOrae/DockOrae-Frontend.git /fe
+WORKDIR /fe
+RUN npm install --no-audit --no-fund --registry=https://registry.npmmirror.com \
+    && npm run build
 
 # ================= Stage 2: Go 后端编译(原生交叉编译,不需要 QEMU) =================
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
@@ -23,7 +24,7 @@ COPY go.mod go.sum ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY web/embed.go ./web/
-COPY --from=web /web/dist ./web/dist
+COPY --from=web /fe/dist ./web/dist
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
     -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X github.com/DockOrae/DockOrae/internal/service.AppVersion=${VERSION}" \
     -o docker-manager ./cmd/docker-manager
