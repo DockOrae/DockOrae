@@ -103,19 +103,24 @@ func (c *verifyCoordinator) run(fn func() map[string]any) map[string]any {
 		done := c.done
 		c.mu.Unlock()
 		<-done
-		return c.result
+		// 等待者读 result 必须持锁:执行者的 c.result 写与首个 verify 的返回读并发(race)
+		c.mu.Lock()
+		res := c.result
+		c.mu.Unlock()
+		return res
 	}
 	c.inflight = true
 	c.done = make(chan struct{})
 	c.mu.Unlock()
 
-	c.result = fn()
+	res := fn()
 
 	c.mu.Lock()
 	c.inflight = false
+	c.result = res
 	close(c.done)
 	c.mu.Unlock()
-	return c.result
+	return res
 }
 
 var (
@@ -295,39 +300,37 @@ func UnsubscribeLicenseState(st *state.AppState, ch chan struct{}) {
 
 // markOffline Server 不可达:进入 Offline → Grace 评估(有限保护)。
 // 已判定的禁用状态(revoked/blocked/grace_expired)优先,不被 Server 不可达覆盖回 grace。
+// 整个"读-判-写"必须在单次 Update 内完成(与 verify 的 Update 互斥):
+// 否则 Get() 读到旧状态后 verify 写入 revoked,setState(grace) 会覆盖(race 可命中)。
 func (s *LicenseSync) markOffline(reason string) {
 	s.sseMu.Lock()
 	s.disconnected = true
 	s.sseMu.Unlock()
 
-	m, _ := readLicenseStore(s.st)
-	if m == nil {
-		return
-	}
-	// 禁用状态优先:Server Down ≠ Revoked(§9),但反之已 Revoked 也不回退
-	switch SyncState(strOr(m["sync_state"])) {
-	case SyncRevoked, SyncBlocked, SyncGraceExpired:
-		return
-	}
-	lastOK := int64(float64(numOr(m["last_successful_verify"])))
 	now := time.Now().Unix()
 	grace := int64(licenseGracePeriod().Seconds())
-	if lastOK <= 0 {
-		// 从未验证成功:无保护,直接限制
-		s.setState(SyncGraceExpired)
-		return
-	}
-	deadline := lastOK + grace
-	if now >= deadline {
-		logLicenseSync("grace expired: server unreachable since %d, deadline %d -> restricted", lastOK, deadline)
-		s.setState(SyncGraceExpired)
-		return
-	}
-	s.state.Update(func(mm map[string]any) {
-		mm["grace_deadline"] = deadline
+	s.state.Update(func(m map[string]any) {
+		// 禁用状态优先:Server Down ≠ Revoked(§9),但反之已 Revoked 也不回退
+		switch SyncState(strOr(m["sync_state"])) {
+		case SyncRevoked, SyncBlocked, SyncGraceExpired:
+			return
+		}
+		lastOK := int64(float64(numOr(m["last_successful_verify"])))
+		if lastOK <= 0 {
+			// 从未验证成功:无保护,直接限制
+			m["sync_state"] = string(SyncGraceExpired)
+			return
+		}
+		deadline := lastOK + grace
+		if now >= deadline {
+			logLicenseSync("grace expired: server unreachable since %d, deadline %d -> restricted", lastOK, deadline)
+			m["sync_state"] = string(SyncGraceExpired)
+			return
+		}
+		m["grace_deadline"] = deadline
+		m["sync_state"] = string(SyncGrace)
+		logLicenseSync("server unreachable (%s): offline -> grace until %d", reason, deadline)
 	})
-	logLicenseSync("server unreachable (%s): offline -> grace until %d", reason, deadline)
-	s.setState(SyncGrace)
 }
 
 // ---------- SSE 客户端(自动重连 + Last-Event-ID) ----------

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -147,10 +148,10 @@ func TestEventIdempotency(t *testing.T) {
 	s := &LicenseSync{st: st, state: NewLicenseStateManager(st)}
 
 	ev := &sseEvent{EventID: "evt_100", SequenceID: 100, EventType: "license.changed", StateVersion: 2}
-	verifyCount := 0
+	var verifyCount atomic.Int32
 	// 注入 verify 计数
 	orig := licenseVerifyCountHook
-	licenseVerifyCountHook = func() { verifyCount++ }
+	licenseVerifyCountHook = func() { verifyCount.Add(1) }
 	defer func() { licenseVerifyCountHook = orig }()
 
 	s.onLicenseEvent(ev)
@@ -161,8 +162,8 @@ func TestEventIdempotency(t *testing.T) {
 		t.Fatalf("lastSeq = %d, want 100", s.lastSeq)
 	}
 	// 只应触发一次 Verify(首个事件触发;重复的被幂等丢弃)
-	if verifyCount != 1 {
-		t.Fatalf("verify triggered %d times, want 1", verifyCount)
+	if verifyCount.Load() != 1 {
+		t.Fatalf("verify triggered %d times, want 1", verifyCount.Load())
 	}
 }
 
@@ -197,15 +198,15 @@ func TestEventGapTriggersVerify(t *testing.T) {
 	s := &LicenseSync{st: st, state: NewLicenseStateManager(st)}
 	s.lastSeq = 100 // local = 100
 
-	verifyCount := 0
+	var verifyCount atomic.Int32
 	orig := licenseVerifyCountHook
-	licenseVerifyCountHook = func() { verifyCount++ }
+	licenseVerifyCountHook = func() { verifyCount.Add(1) }
 	defer func() { licenseVerifyCountHook = orig }()
 
 	// server = 105:序号 101-104 缺失 → Gap → Verify
 	s.onLicenseEvent(&sseEvent{EventID: "evt_105", SequenceID: 105, EventType: "license.changed", StateVersion: 20})
-	if verifyCount != 1 {
-		t.Fatalf("gap must trigger verify, got %d", verifyCount)
+	if verifyCount.Load() != 1 {
+		t.Fatalf("gap must trigger verify, got %d", verifyCount.Load())
 	}
 }
 
@@ -283,9 +284,9 @@ func TestSSEEventTriggersVerify(t *testing.T) {
 
 // TestSSE401TriggersVerify SSE 401(凭据被服务端拒绝)→ 触发 Verify(吊销后客户端不卡 Grace)。
 func TestSSE401TriggersVerify(t *testing.T) {
-	verifyCount := 0
+	var verifyCount atomic.Int32
 	orig := licenseVerifyCountHook
-	licenseVerifyCountHook = func() { verifyCount++ }
+	licenseVerifyCountHook = func() { verifyCount.Add(1) }
 	defer func() { licenseVerifyCountHook = orig }()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -315,7 +316,7 @@ func TestSSE401TriggersVerify(t *testing.T) {
 
 	deadline := time.Now().Add(20 * time.Second)
 	for time.Now().Before(deadline) {
-		if verifyCount >= 1 {
+		if verifyCount.Load() >= 1 {
 			m, _ := readLicenseStore(st)
 			if strOr(m["sync_state"]) == string(SyncRevoked) {
 				return // 401 → Verify → revoked ✓
@@ -323,7 +324,7 @@ func TestSSE401TriggersVerify(t *testing.T) {
 		}
 		time.Sleep(150 * time.Millisecond)
 	}
-	t.Fatalf("401 must trigger verify (count=%d)", verifyCount)
+	t.Fatalf("401 must trigger verify (count=%d)", verifyCount.Load())
 }
 
 // TestNoPeriodicVerify 同步引擎不包含任何周期验证(Ticker/Timer/Cron)。
