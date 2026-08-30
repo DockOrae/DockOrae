@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/DockOrae/DockOrae/web"
+	"github.com/DockOrae/DockOrae/public"
 )
 
 // serveStatic 静态资源服务:SPA 路由回退到 index.html(basePath 为 URI 前缀)
@@ -46,18 +46,18 @@ func serveStatic(basePath string) gin.HandlerFunc {
 		if strings.HasPrefix(path, "assets/") {
 			// 带 hash 的资源:直接命中,不做 SPA 回退
 			name = rel
-			data, err = web.Dist.ReadFile(rel)
+			data, err = public.Dist.ReadFile(rel)
 			if err != nil {
 				c.Status(404)
 				return
 			}
 		} else {
 			name = rel
-			data, err = web.Dist.ReadFile(rel)
+			data, err = public.Dist.ReadFile(rel)
 			if err != nil {
 				// SPA 回退
 				name = "dist/index.html"
-				data, err = web.Dist.ReadFile(name)
+				data, err = public.Dist.ReadFile(name)
 				if err != nil {
 					c.Status(404)
 					return

@@ -2,12 +2,12 @@
 # DockOrae — 构建 Makefile
 #
 # 前端已独立到 DockOrae/DockOrae-Frontend 仓库:
-#   make web  从前端仓库克隆并构建 dist → web/dist(go:embed 嵌入用)
+#   make web  下载前端 dist(DockOrae-Frontend rolling release → public/dist)
 #   make dev  本地前端开发(需先 clone 前端仓库到 ../DockOrae-Frontend)
 #
 # 常用目标:
-#   make            完整构建(前端 web/dist + 后端二进制,当前平台)
-#   make web        构建前端(克隆 DockOrae-Frontend → web/dist)
+#   make            完整构建(前端 public/dist + 后端二进制,当前平台)
+#   make web        下载前端 dist(rolling release → public/dist)
 #   make backend    仅构建后端(需先 make web;前端未改时可跳过)
 #   make dev        前端开发模式(vite :5173,API 代理到 :8080,需后端已启动)
 #   make run        完整构建后直接运行
@@ -21,9 +21,9 @@
 GO        ?= go
 NPM       ?= npm
 BIN       := dockorae
-WEB_DIR   := web
+PUBLIC_DIR := public
 DIST_DIR  := dist
-FRONTEND_REPO := https://github.com/DockOrae/DockOrae-Frontend.git
+FRONTEND_REPO := DockOrae/DockOrae-Frontend
 
 # 版本号:优先取最近 Git tag(如 v1.0.3),无 tag 时 unknown;可用 VERSION=xxx 覆盖(CI 传 tag)
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo unknown)
@@ -51,18 +51,18 @@ build: web backend
 
 .PHONY: web
 web:
-	@echo "==> 构建前端 (克隆 DockOrae/DockOrae-Frontend)"
-	@rm -rf /tmp/dockorae-fe-build
-	@git clone --depth 1 $(FRONTEND_REPO) /tmp/dockorae-fe-build 2>/dev/null || { echo "❌ 克隆前端仓库失败"; exit 1; }
-	@cd /tmp/dockorae-fe-build && $(NPM) ci --no-audit --no-fund && $(NPM) run build
-	@rm -rf $(WEB_DIR)/dist && mkdir -p $(WEB_DIR)/dist
-	@cp -r /tmp/dockorae-fe-build/dist/* $(WEB_DIR)/dist/
-	@rm -rf /tmp/dockorae-fe-build
-	@echo "✅ 前端构建完成 → web/dist"
+	@echo "==> 下载前端 dist (github.com/$(FRONTEND_REPO) rolling release)"
+	@URL=$$(curl -fsSL https://api.github.com/repos/$(FRONTEND_REPO)/releases/tags/rolling | jq -r '.assets[] | select(.name=="dockorae-frontend-dist.tar.gz") | .browser_download_url' 2>/dev/null); \
+	if [ -z "$$URL" ]; then echo "❌ 获取前端 dist 资产失败(rolling release 未发布?先推送 DockOrae-Frontend)"; exit 1; fi; \
+	curl -fsSL "$$URL" -o /tmp/dockorae-fe.tar.gz && \
+	rm -rf $(PUBLIC_DIR)/dist && mkdir -p $(PUBLIC_DIR)/dist && \
+	tar -xzf /tmp/dockorae-fe.tar.gz -C $(PUBLIC_DIR)/dist && \
+	rm -f /tmp/dockorae-fe.tar.gz && \
+	echo "✅ 前端 dist 下载完成 → $(PUBLIC_DIR)/dist"
 
 .PHONY: backend
 backend:
-	@test -d $(WEB_DIR)/dist || { echo "❌ web/dist 不存在,请先执行 make web(前端未构建,go:embed 无法编译)"; exit 1; }
+	@test -d $(PUBLIC_DIR)/dist || { echo "❌ public/dist 不存在,请先执行 make web(前端未构建,go:embed 无法编译)"; exit 1; }
 	@echo "==> 编译后端 $(BIN) (v$(VERSION), linux/$$(go env GOARCH))"
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN) ./cmd/docker-manager
 
@@ -118,7 +118,7 @@ vet:
 clean:
 	rm -rf $(DIST_DIR)
 	rm -f $(BIN)
-	rm -rf $(WEB_DIR)/dist
+	rm -rf $(PUBLIC_DIR)/dist
 	@echo "✅ 已清理"
 
 # ---------- 帮助 ----------
