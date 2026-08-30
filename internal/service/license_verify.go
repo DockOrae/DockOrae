@@ -10,42 +10,39 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/DockerManger/Docker_Manager_Go/internal/state"
 )
 
-// ---------- 在线授权闭环(客户端侧,V3) ----------
+// ---------- 在线授权闭环(客户端侧,V3 Event-Driven) ----------
 //
-// 与 Docker_Manager_License 服务端契约一致(见 License Server 仓库 docs/integration.md §8):
-//   - License Key 只用于首次激活/重新激活(Skill §13)
+// 与 Docker_Manager_License 服务端契约一致(见 License Server 仓库 docs/integration.md):
+//   - License Key 只用于首次激活/重新激活
 //   - 正常运行使用 Activation Token:本地 license.json 保存,绝不写入日志
-//   - verify/deactivate 携带 timestamp + nonce 防重放(Skill §16)
-//   - 服务端响应含 server_time,客户端据此维护 clock_offset(trusted_now),防本地时间作弊(Skill §14)
-//   - 本地时钟回退(>5min)检测 → CLOCK_ROLLBACK_DETECTED,禁用 Pro(Skill §14)
-//   - 服务端 minimum_client_version / blocked_versions 控制客户端版本(Skill §21)
-//   - 激活必须在线成功(严格模式);周期验证每 24h;Grace Period 7 天由本地维护
-//   - 验证带 10s 超时,独立后台任务,绝不阻塞面板主流程
+//   - verify/deactivate 携带 timestamp + nonce 防重放
+//   - 服务端响应含 server_time,客户端据此维护 clock_offset(trusted_now),防本地时间作弊
+//   - 本地时钟回退(>5min)检测 → CLOCK_ROLLBACK_DETECTED,禁用 Pro
+//   - 服务端 minimum_client_version / blocked_versions 控制客户端版本
+//   - 激活必须在线成功(严格模式)
 //
-// 升级兼容:新客户端 + 旧服务端(未升级窗口)时,服务端返回 "key is required",
-// 客户端自动回退旧格式(key + activation_id)请求。
+// 同步模型(V3):状态变化由 Server 经 SSE 主动推送(Event-Driven),
+// 客户端收到事件后 Verify 获取权威状态 —— 禁止任何周期性 Verify / Heartbeat / Check-in / Lease。
+// V2/Legacy 完全移除:不存在 key + activation_id 兼容路径,不存在 V3→V2 fallback。
 
 const (
-	licenseVerifyInterval  = 24 * time.Hour     // 定期验证间隔
-	licenseGracePeriod     = 7 * 24 * time.Hour // 宽限期:最后一次成功验证后 7 天
 	licenseRemoteTimeout   = 10 * time.Second   // 远程调用超时(不阻塞主流程)
-	licenseVerifyPath      = "/api/v1/public"   // 服务端公开 API 前缀
-	clockRollbackThreshold = 5 * time.Minute    // 本地时钟回退判定阈值(Skill §14:5 分钟)
+	licenseVerifyPath      = "/api/v3"          // 服务端公开 API V3 前缀
+	clockRollbackThreshold = 5 * time.Minute    // 本地时钟回退判定阈值(5 分钟)
 	replayNonceBytes       = 32                 // nonce 长度(32 字节随机 → 64 hex)
 )
 
 // onlineState 在线验证状态(前端展示 + 门控依据)。
 const (
 	onlineOffline        = "offline"         // 未配置授权服务器:纯离线模式
-	onlineVerified       = "verified"        // 最近验证成功(24h 内)
-	onlineGrace          = "grace"           // 验证未成功但宽限期内(24h~7天)
-	onlineGraceExpired   = "grace_expired"   // 超过宽限期仍未验证成功 → 禁用 Pro
+	onlineVerified       = "verified"        // 最近验证成功(在线)
+	onlineGrace          = "grace"           // Server 不可达但宽限期内(授权保留)
+	onlineGraceExpired   = "grace_expired"   // 超过宽限期 → 禁用 Pro
 	onlineRevoked        = "revoked"         // 服务端吊销/过期/设备无效 → 禁用 Pro
 	onlineVersionBlocked = "version_blocked" // 客户端版本被服务端封禁 → 禁用 Pro
 	onlineUpdateRequired = "update_required" // 客户端版本低于 minimum_client_version → 提示升级
@@ -68,7 +65,7 @@ func serverURLOf(st *state.AppState) string {
 // License Server 与面板同域部署,由 nginx 将 /license-api/ 反代到 License Server 容器(:3000)。
 const defaultLicenseServerURL = "https://manager.kejizero.xyz/license-api"
 
-// ---------- license.json 存储(V3 在线字段扩展) ----------
+// ---------- license.json 存储(V3 字段;写入统一走 LicenseStateManager) ----------
 //
 // 存储结构:
 //
@@ -76,16 +73,18 @@ const defaultLicenseServerURL = "https://manager.kejizero.xyz/license-api"
 //	  "key": "...", "device_id": "...", "activated_at": 123,
 //	  "activation_id": "ACT-...",           // 激活展示 ID
 //	  "activation_token": "...",            // 激活凭据(V3;绝不写入日志)
-//	  "last_successful_verify": 123,        // 最近一次验证成功时间
-//	  "verify_state": "",                   // 服务端判定的吊销/无效/封禁状态(非空 = 禁用)
-//	  "server_url": "...",                  // 激活时的服务器地址(冗余,便于识别模式)
-//	  "last_server_time": 123,              // 最近一次服务端时间(trusted_now 基准)
-//	  "last_local_time": 123,               // 记录 last_server_time 时的本地时间
-//	  "clock_offset": 0                     // server_time - local_time(防时间作弊)
+//	  "last_successful_verify": 123,        // 最近一次验证成功时间(Grace 基准)
+//	  "verify_state": "",                   // 服务端判定:revoked/expired/invalid/blocked/...
+//	  "sync_state": "",                     // 在线同步状态:online/offline/grace/grace_expired/...
+//	  "last_event_id": "evt_N",             // 最近处理的事件 ID(SSE Replay)
+//	  "state_version": 1,                   // Server 权威状态版本(乱序保护)
+//	  "grace_deadline": 123,                // 宽限截止时间
+//	  "server_url": "...", "clock_offset": 0, ...
 //	}
 //
 // 敏感信息(activation_token)禁止写入日志;文件权限 0600。
 
+// readLicenseStore 读取 license.json(只读;所有写入必须经过 LicenseStateManager)。
 func readLicenseStore(st *state.AppState) (map[string]any, bool) {
 	raw, err := os.ReadFile(licensePath(st))
 	if err != nil {
@@ -98,18 +97,10 @@ func readLicenseStore(st *state.AppState) (map[string]any, bool) {
 	return m, true
 }
 
-// writeLicenseStore 原子写 license.json(临时文件 + rename),权限 0600。
+// writeLicenseStore 直接写 license.json(测试/兼容路径;生产代码统一用 LicenseStateManager)。
+// 同样采用 临时文件 + fsync + rename 原子写入。
 func writeLicenseStore(st *state.AppState, m map[string]any) error {
-	raw, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	path := licensePath(st)
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return atomicWriteLicenseFile(st, m)
 }
 
 // loadLicenseCred 提取在线验证所需凭据(key/activation_token/activation_id/device_id)。
@@ -148,7 +139,8 @@ func clockRollbackDetected(m map[string]any) bool {
 	return time.Now().Unix() < lastLocal-int64(clockRollbackThreshold.Seconds())
 }
 
-// onlineStateOf 计算当前在线验证状态(不发起请求,纯本地判定)。
+// onlineStateOf 当前在线验证状态(纯本地判定,不发起请求)。
+// V3:直接读取 sync_state(LicenseSync 引擎维护,SSE 事件驱动更新)。
 func onlineStateOf(st *state.AppState) string {
 	if serverURLOf(st) == "" {
 		return onlineOffline
@@ -162,24 +154,34 @@ func onlineStateOf(st *state.AppState) string {
 		return onlineClockRollback
 	}
 	if vs := strOr(m["verify_state"]); vs != "" {
-		// revoked / invalid / expired / blocked:服务端已判定禁用
 		if vs == "update_required" {
 			return onlineUpdateRequired
 		}
+		if vs == "grace_expired" {
+			return onlineGraceExpired
+		}
+		if vs == "clock_rollback" {
+			return onlineClockRollback
+		}
+		return onlineRevoked
+	}
+	switch ss := strOr(m["sync_state"]); ss {
+	case "online", "server_recovered":
+		return onlineVerified
+	case "grace":
+		return onlineGrace
+	case "grace_expired":
+		return onlineGraceExpired
+	case "blocked":
+		return onlineVersionBlocked
+	case "revoked":
 		return onlineRevoked
 	}
 	last := int64(float64(numOr(m["last_successful_verify"])))
-	now := time.Now().Unix()
 	if last <= 0 {
 		return onlineNever
 	}
-	if now-last <= int64(licenseVerifyInterval.Seconds()) {
-		return onlineVerified
-	}
-	if now-last <= int64(licenseGracePeriod.Seconds()) {
-		return onlineGrace
-	}
-	return onlineGraceExpired
+	return onlineVerified // 有成功记录但状态未写入(兼容旧文件)
 }
 
 // licenseOnlineAllowed 门控判断:在线模式下 revoked/grace_expired/version_blocked/clock_rollback 一律禁用 Pro。
@@ -192,7 +194,7 @@ func licenseOnlineAllowed(st *state.AppState) bool {
 	}
 }
 
-// ---------- 远程调用(License Server) ----------
+// ---------- 远程调用(License Server,V3 token 唯一凭据) ----------
 
 // licensePostJSON POST JSON 到授权服务器,解析统一错误体。
 // 返回 (http 状态码, 解析后的响应对象, error)。网络错误返回 error。
@@ -238,7 +240,6 @@ func newNonce() string {
 
 // licenseActivateRemote 服务端激活(V3),返回 (响应 map, 服务端错误码, error)。
 // 网络/超时错误 → error(code 为空);服务端拒绝(4xx)→ code 非空 + error。
-// 旧服务端(未升级)不认新字段,仅需 key + device_id 即可(兼容)。
 func licenseActivateRemote(serverURL, key, deviceID, productVersion, deviceFingerprint, platform, architecture string) (map[string]any, string, error) {
 	var out map[string]any
 	_, err := licensePostJSON(serverURL+licenseVerifyPath+"/activate", map[string]any{
@@ -270,13 +271,11 @@ func serverErrorCode(err error) string {
 	return ""
 }
 
-// licenseVerifyRemote 服务端验证(V3)。
-// 优先 token 凭据;旧服务端返回 "key is required" 时回退旧格式(key + activation_id)。
-// 返回 (status, 响应 map, error)。
-func licenseVerifyRemote(serverURL, key, token, activationID, deviceID, productVersion string) (string, map[string]any, error) {
+// licenseVerifyRemote 服务端验证(V3,唯一路径:activation_token)。
+// 返回 (status, 响应 map, error)。无 Legacy 回退 —— V3 失败就是 V3 错误。
+func licenseVerifyRemote(serverURL, token, deviceID, productVersion string) (string, map[string]any, error) {
 	now := time.Now().Unix()
 	nonce := newNonce()
-	// 新格式:activation_token + device_id + timestamp + nonce
 	body := map[string]any{
 		"activation_token": token,
 		"device_id":        deviceID,
@@ -287,12 +286,6 @@ func licenseVerifyRemote(serverURL, key, token, activationID, deviceID, productV
 	var out map[string]any
 	status, err := licensePostJSON(serverURL+licenseVerifyPath+"/verify", body, &out)
 	if err != nil {
-		// 旧服务端(未升级):不认 activation_token,要求 key → 回退旧格式
-		if code := serverErrorCode(err); code == "BAD_REQUEST" || code == "" {
-			if token == "" && activationID != "" {
-				return licenseVerifyRemoteLegacy(serverURL, key, activationID, deviceID, productVersion)
-			}
-		}
 		return "", nil, err
 	}
 	if status != 200 {
@@ -301,164 +294,19 @@ func licenseVerifyRemote(serverURL, key, token, activationID, deviceID, productV
 	return strOr(out["status"]), out, nil
 }
 
-// licenseVerifyRemoteLegacy 旧格式验证(key + activation_id + device_id;兼容未升级服务端)。
-func licenseVerifyRemoteLegacy(serverURL, key, activationID, deviceID, productVersion string) (string, map[string]any, error) {
-	var out map[string]any
-	status, err := licensePostJSON(serverURL+licenseVerifyPath+"/verify", map[string]any{
-		"key":             key,
-		"activation_id":   activationID,
-		"device_id":       deviceID,
-		"product_version": productVersion,
-	}, &out)
-	if err != nil {
-		return "", nil, err
-	}
-	if status != 200 {
-		return "", nil, fmt.Errorf("verify failed: http %d", status)
-	}
-	return strOr(out["status"]), out, nil
-}
-
-// licenseDeactivateRemote 服务端解绑(尽力而为,失败不阻断本地解绑)。
-// 优先 token 凭据;无 token 时用旧格式(key + activation_id)。
-func licenseDeactivateRemote(serverURL, key, token, activationID, deviceID string) {
+// licenseDeactivateRemote 服务端解绑(尽力而为,失败不阻断本地解绑;token 唯一凭据)。
+func licenseDeactivateRemote(serverURL, token, deviceID string) {
 	now := time.Now().Unix()
 	nonce := newNonce()
-	if token != "" {
-		_, _ = licensePostJSON(serverURL+licenseVerifyPath+"/deactivate", map[string]any{
-			"activation_token": token,
-			"device_id":        deviceID,
-			"timestamp":        now,
-			"nonce":            nonce,
-		}, nil)
-		return
-	}
-	if key != "" && activationID != "" {
-		_, _ = licensePostJSON(serverURL+licenseVerifyPath+"/deactivate", map[string]any{
-			"key":           key,
-			"activation_id": activationID,
-			"device_id":     deviceID,
-		}, nil)
-	}
+	_, _ = licensePostJSON(serverURL+licenseVerifyPath+"/deactivate", map[string]any{
+		"activation_token": token,
+		"device_id":        deviceID,
+		"timestamp":        now,
+		"nonce":            nonce,
+	}, nil)
 }
 
-// ---------- 周期验证器 ----------
-
-// LicenseVerifier 周期验证后台任务:启动 5s 后首次验证,之后每 24h。
-// 独立 goroutine,10s 超时,失败不重试(等下一周期,Grace 自然推进)。
-type LicenseVerifier struct {
-	st   *state.AppState
-	done chan struct{}
-	mu   sync.Mutex // 防手动 + 周期并发
-}
-
-// StartLicenseVerifier 启动验证器(在 state 初始化后调用)。
-func StartLicenseVerifier(st *state.AppState) *LicenseVerifier {
-	v := &LicenseVerifier{st: st, done: make(chan struct{})}
-	go v.loop()
-	return v
-}
-
-// Stop 停止验证器。
-func (v *LicenseVerifier) Stop() {
-	select {
-	case <-v.done:
-	default:
-		close(v.done)
-	}
-}
-
-func (v *LicenseVerifier) loop() {
-	timer := time.NewTimer(5 * time.Second) // 启动后首次验证(不阻塞面板启动)
-	defer timer.Stop()
-	tick := time.NewTicker(licenseVerifyInterval)
-	defer tick.Stop()
-	for {
-		select {
-		case <-timer.C:
-			_ = v.verifyOnce()
-		case <-tick.C:
-			_ = v.verifyOnce()
-		case <-v.done:
-			return
-		}
-	}
-}
-
-// verifyOnce 执行一次验证(手动与周期共用)。
-func (v *LicenseVerifier) verifyOnce() map[string]any {
-	return VerifyNow(v.st)
-}
-
-// VerifyNow 立即执行一次在线验证(手动触发 API 与周期任务共用)。
-// 未配置服务器 / 未激活时不发请求,直接返回当前状态。
-func VerifyNow(st *state.AppState) map[string]any {
-	serverURL := serverURLOf(st)
-	if serverURL == "" {
-		return map[string]any{"mode": "offline", "state": onlineOffline}
-	}
-	key, token, activationID, deviceID, ok := loadLicenseCred(st)
-	if !ok {
-		return map[string]any{"mode": "online", "state": "", "error": "not activated"}
-	}
-	now := time.Now().Unix()
-
-	// 本地时钟回退检测(先于远程请求;回退 = 时间作弊嫌疑 → 禁用 Pro)
-	if m, ok := readLicenseStore(st); ok && clockRollbackDetected(m) {
-		m["verify_state"] = "clock_rollback"
-		_ = writeLicenseStore(st, m)
-		return map[string]any{"mode": "online", "state": onlineClockRollback, "verify_state": "clock_rollback"}
-	}
-
-	status, res, err := licenseVerifyRemote(serverURL, key, token, activationID, deviceID, DisplayVersion())
-	if err != nil {
-		// 网络/服务不可达:不动 last_successful_verify(Grace 自然推进)
-		return map[string]any{"mode": "online", "state": onlineStateOf(st), "error": err.Error()}
-	}
-	switch status {
-	case "valid":
-		if m, ok := readLicenseStore(st); ok {
-			m["last_successful_verify"] = now
-			m["verify_state"] = ""
-			applyServerTime(m, res)
-			_ = writeLicenseStore(st, m)
-		}
-		// 版本控制:minimum_client_version 高于当前版本 → UPDATE_REQUIRED(提示,不封禁)
-		// 开发构建(unknown)不参与版本控制
-		if cv := DisplayVersion(); cv != "unknown" {
-			if minVer := strOr(res["minimum_client_version"]); minVer != "" && versionLess(cv, minVer) {
-				if m, ok := readLicenseStore(st); ok {
-					m["verify_state"] = "update_required"
-					_ = writeLicenseStore(st, m)
-				}
-				return map[string]any{"mode": "online", "state": onlineUpdateRequired, "last_verify": now, "minimum_client_version": minVer}
-			}
-		}
-		return map[string]any{"mode": "online", "state": onlineVerified, "last_verify": now}
-	case "blocked":
-		// 版本被封禁 → 禁用 Pro
-		if m, ok := readLicenseStore(st); ok {
-			m["verify_state"] = "blocked"
-			m["revoked_at"] = now
-			applyServerTime(m, res)
-			_ = writeLicenseStore(st, m)
-		}
-		return map[string]any{"mode": "online", "state": onlineVersionBlocked, "verify_state": "blocked", "revoked_at": now}
-	case "revoked", "expired", "invalid":
-		// 吊销/过期/设备无效 → 本地标记禁用(下一次门控判断即生效)
-		if m, ok := readLicenseStore(st); ok {
-			m["verify_state"] = status
-			m["revoked_at"] = now
-			applyServerTime(m, res)
-			_ = writeLicenseStore(st, m)
-		}
-		return map[string]any{"mode": "online", "state": onlineRevoked, "verify_state": status, "revoked_at": now}
-	default:
-		return map[string]any{"mode": "online", "state": onlineStateOf(st), "error": "unexpected status: " + status}
-	}
-}
-
-// applyServerTime 根据服务端返回的 server_time 更新 clock_offset(Skill §14)。
+// applyServerTime 根据服务端返回的 server_time 更新 clock_offset(防本地时间作弊)。
 // 仅在服务端时间合法(>0)且与本地时间差异合理(<24h)时更新,防异常数据污染。
 func applyServerTime(m map[string]any, res map[string]any) {
 	if res == nil {

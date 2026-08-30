@@ -219,15 +219,16 @@ func TestOfflineModeUnchanged(t *testing.T) {
 	}
 }
 
-// TestVerifyNowValid 手动验证 valid → 刷新 last_successful_verify,功能保持。
+// TestVerifyNowValid 手动验证 valid → 恢复 online,功能保持。
 func TestVerifyNowValid(t *testing.T) {
 	srv := mockLicenseServer(t, 200, okActivate, 200, okVerify)
 	st := testLicState(t, srv.URL)
 	if _, err := LicenseDoActivate(st, v2TestKey()); err != nil {
 		t.Fatal(err)
 	}
-	// 模拟上次验证在 2 天前(验证未成功的宽限状态)
+	// 模拟 Server 故障离线:sync_state=grace(引擎 markOffline 写入)
 	m, _ := readLicenseStore(st)
+	m["sync_state"] = "grace"
 	m["last_successful_verify"] = time.Now().Unix() - 2*86400
 	if err := writeLicenseStore(st, m); err != nil {
 		t.Fatal(err)
@@ -271,19 +272,20 @@ func TestVerifyNowRevoked(t *testing.T) {
 	}
 }
 
-// TestGraceExpiredDisablesFeature 超过 7 天宽限期 → 功能禁用(即使本地签名有效)。
+// TestGraceExpiredDisablesFeature 宽限过期(sync_state=grace_expired)→ 功能禁用(即使本地签名有效)。
 func TestGraceExpiredDisablesFeature(t *testing.T) {
 	st := testLicState(t, "http://127.0.0.1:1") // 服务器不可达,验证必然失败
 	if _, err := LicenseDoActivate(st, v2TestKey()); err == nil {
 		t.Fatal("activate must fail with unreachable server")
 	}
-	// 直接写入在线激活结果(模拟此前激活成功过),再把 last_successful_verify 推到 8 天前
+	// 直接写入在线激活结果(模拟此前激活成功过),再置为宽限过期状态
 	key := v2TestKey()
 	deviceID := LicenseDeviceID(st.Cfg.DataDir)
 	if err := writeLicenseStore(st, map[string]any{
 		"key": key, "device_id": deviceID,
 		"activation_id":          "old-code",
 		"last_successful_verify": time.Now().Unix() - 8*86400,
+		"sync_state":             "grace_expired", // 引擎在宽限到期后写入
 		"server_url":             "http://127.0.0.1:1",
 	}); err != nil {
 		t.Fatal(err)

@@ -627,12 +627,17 @@
             <div class="flex items-center gap-2 mb-1">
               <Icon name="link" size="14" class="text-brand" />
               <span class="text-[12px] font-medium">{{ t('license.onlineTitle') }}</span>
-              <Badge :style="onlineStyle" ml-auto>>{{ onlineStateLabel }}</Badge>
+              <Badge :style="onlineStyle" ml-auto>{{ onlineStateLabel }}</Badge>
             </div>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
+              <span v-if="licOnline.sync_state" class="font-medium inline-flex items-center gap-1" :style="licSyncStyle">
+                <span class="inline-block w-1.5 h-1.5 rounded-full" :style="{ background: 'currentColor' }" />
+                {{ licSyncLabel }}
+              </span>
               <span v-if="licOnline.last_verify">{{ t('license.lastVerify') }}: {{ fmtDateTime(licOnline.last_verify) }}</span>
               <span v-if="licOnline.grace_deadline">{{ t('license.graceDeadline') }}: {{ fmtDateTime(licOnline.grace_deadline) }}</span>
               <span v-if="licOnline.verify_state" class="text-danger">{{ t('license.verifyState' + (licOnline.verify_state === 'revoked' ? 'Revoked' : 'Invalid')) }}</span>
+              <span v-if="licOnline.last_event_id" class="font-mono opacity-70">{{ t('license.lastEvent') }}: {{ licOnline.last_event_id }}</span>
               <Button variant="ghost" size="sm" class="ml-auto" v-if="licActive || licInfo"
                 :disabled="licBusy"
                 @click="verifyNow"
@@ -758,7 +763,7 @@ import { LANGS } from '../i18n'
 import { api, setToken, getRegistryMirrors, saveRegistryMirrors, getLicense, activateLicenseFile, deactivateLicense, verifyLicense } from '../api'
 import { toastErr, toastOk } from '../toast'
 import { useConfirm } from '../confirm'
-import { applyUser, loadLicense as refreshLicense, user } from '../store'
+import { applyUser, loadLicense as refreshLicense, licenseOnline, user } from '../store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -1294,7 +1299,34 @@ const licDragging = ref(false)
 const licFileName = ref('')
 const licFile = ref(null)
 const licFileInput = ref(null)
-const licOnline = ref({}) // { mode: offline|online, state, last_verify, grace_deadline, verify_state }
+// 在线状态(V3):直接绑定 store 的 ref,/ws/license 实时推送自动更新(无需刷新页面)
+const licOnline = licenseOnline // { mode, state, sync_state, last_verify, grace_deadline, verify_state, last_event_id, state_version }
+
+// V3 同步状态(sync_state)展示:online/offline/grace/grace_expired/server_recovered/revoked/blocked
+const licSyncStyle = computed(() => {
+  switch (licOnline.value.sync_state) {
+    case 'online': return okStyle
+    case 'server_recovered': return { color: '#38bdf8', background: 'rgba(56,189,248,.12)', border: '1px solid rgba(56,189,248,.3)' }
+    case 'grace':
+    case 'offline': return { color: '#fbbf24', background: 'rgba(251,191,36,.12)', border: '1px solid rgba(251,191,36,.3)' }
+    case 'grace_expired':
+    case 'revoked':
+    case 'blocked': return dangerStyle
+    default: return mutedStyle
+  }
+})
+const licSyncLabel = computed(() => {
+  switch (licOnline.value.sync_state) {
+    case 'online': return t('license.syncOnline')
+    case 'server_recovered': return t('license.syncRecovered')
+    case 'grace': return t('license.syncGrace')
+    case 'offline': return t('license.syncOffline')
+    case 'grace_expired': return t('license.syncGraceExpired')
+    case 'revoked': return t('license.syncRevoked')
+    case 'blocked': return t('license.syncBlocked')
+    default: return ''
+  }
+})
 
 // 在线验证状态展示(style + label)
 const onlineStyle = computed(() => {

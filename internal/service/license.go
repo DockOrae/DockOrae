@@ -309,6 +309,7 @@ func LicenseInfo(st *state.AppState) map[string]any {
 }
 
 // onlineInfo 在线验证状态详情(未配置服务器 = 离线模式)。
+// V3:包含同步状态(sync_state)、事件游标(last_event_id)、权威版本(state_version)。
 func onlineInfo(st *state.AppState) map[string]any {
 	out := map[string]any{"mode": "offline", "state": onlineStateOf(st)}
 	serverURL := serverURLOf(st)
@@ -321,15 +322,24 @@ func onlineInfo(st *state.AppState) map[string]any {
 	if !ok {
 		return out
 	}
+	if ss := strOr(m["sync_state"]); ss != "" {
+		out["sync_state"] = ss
+	}
 	if lv := int64(float64(numOr(m["last_successful_verify"]))); lv > 0 {
 		out["last_verify"] = lv
-		out["grace_deadline"] = lv + int64(licenseGracePeriod.Seconds())
+		out["grace_deadline"] = lv + int64(licenseGracePeriod().Seconds())
 	}
 	if vs := strOr(m["verify_state"]); vs != "" {
 		out["verify_state"] = vs
 	}
 	if ra := int64(float64(numOr(m["revoked_at"]))); ra > 0 {
 		out["revoked_at"] = ra
+	}
+	if le := strOr(m["last_event_id"]); le != "" {
+		out["last_event_id"] = le
+	}
+	if sv := int64(float64(numOr(m["state_version"]))); sv > 0 {
+		out["state_version"] = sv
 	}
 	return out
 }
@@ -395,7 +405,7 @@ func LicenseDoActivate(st *state.AppState, key string) (map[string]any, error) {
 		}
 		store["last_successful_verify"] = time.Now().Unix()
 		store["server_url"] = serverURL
-		// V3:server_time → clock_offset(防本地时间作弊);直接作用于 store(尚未落盘)
+		// V3:server_time → clock_offset(防本地时间作弊)
 		if serverTime := int64(float64(numOr(res["server_time"]))); serverTime > 0 {
 			localNow := time.Now().Unix()
 			diff := serverTime - localNow
@@ -405,9 +415,21 @@ func LicenseDoActivate(st *state.AppState, key string) (map[string]any, error) {
 				store["clock_offset"] = diff
 			}
 		}
+		// V3 Event-Driven:激活即获权威状态版本与同步状态
+		if sv := int64(float64(numOr(res["state_version"]))); sv > 0 {
+			store["state_version"] = sv
+		}
+		store["sync_state"] = string(SyncOnline)
+		store["verify_state"] = ""
 	}
-	if err := writeLicenseStore(st, store); err != nil {
+	// 统一走 LicenseStateManager 原子写入(临时文件 + fsync + rename)
+	mgr := NewLicenseStateManager(st)
+	if err := mgr.UpdateBytes(store); err != nil {
 		return nil, BadRequest("write failed: " + err.Error())
+	}
+	// 唤醒 SSE 循环用新凭据建立连接(激活后立即订阅事件流)
+	if s := LicenseSyncInst(); s != nil {
+		s.wakeSSE()
 	}
 	info["device_id"] = deviceID
 	return info, nil
@@ -419,14 +441,17 @@ func LicenseDeactivate(st *state.AppState) error {
 	if !ok {
 		return BadRequest("license.notActivated")
 	}
-	// 在线模式:先尝试服务端解绑(尽力而为,失败不阻断本地解绑)
+	// 在线模式:先尝试服务端解绑(尽力而为,失败不阻断本地解绑;token 唯一凭据)
 	serverURL := serverURLOf(st)
-	key := strOr(m["key"])
 	token := strOr(m["activation_token"])
-	activationID := strOr(m["activation_id"])
 	deviceID := strOr(m["device_id"])
-	if serverURL != "" && deviceID != "" && (token != "" || (key != "" && activationID != "")) {
-		licenseDeactivateRemote(serverURL, key, token, activationID, deviceID)
+	if serverURL != "" && token != "" && deviceID != "" {
+		licenseDeactivateRemote(serverURL, token, deviceID)
 	}
-	return os.Remove(licensePath(st))
+	err := os.Remove(licensePath(st))
+	// 唤醒 SSE 循环(无凭据 → 停止连接)
+	if s := LicenseSyncInst(); s != nil {
+		s.wakeSSE()
+	}
+	return err
 }

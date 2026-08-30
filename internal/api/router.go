@@ -90,6 +90,7 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/license/deactivate", H(licenseDeactivate).Handler(deps))
 	p.POST("/license/verify", H(licenseVerifyNow).Handler(deps))
 	p.GET("/license/demo", H(licenseDemoKey).Handler(deps))
+	p.GET("/ws/license", H(licenseEventsWS).Handler(deps)) // License 状态实时推送(Vue 自动更新)
 
 	// ---------- 在线更新 ----------
 	p.GET("/update/check", H(updateCheck).Handler(deps))

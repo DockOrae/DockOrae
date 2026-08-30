@@ -174,7 +174,7 @@ import ToggleLocale from '../components/ToggleLocale.vue'
 import SwitchAppearance from '../components/SwitchAppearance.vue'
 import UpdateModal from '../components/UpdateModal.vue'
 import { getToken, setToken, api } from '../api'
-import { licenseActive, resetUser, user } from '../store'
+import { licenseActive, connectLicenseWS, disconnectLicenseWS, resetUser, user } from '../store'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -189,7 +189,11 @@ async function loadUpdate() {
     updateInfo.value = await api('/update/check')
   } catch { /* 网络/API 故障静默,不影响面板使用 */ }
 }
-onMounted(loadUpdate)
+onMounted(() => {
+  loadUpdate()
+  // V3 License 实时同步:WS 推送状态变化(Vue 自动更新,无需刷新页面)
+  connectLicenseWS()
+})
 setInterval(loadUpdate, 10 * 60 * 1000)
 
 // 3x-ui 交互:默认折叠,悬停展开;图钉固定后保持展开
@@ -275,6 +279,7 @@ function isSecChild(key) {
 
 function logout() {
   setToken(null)
+  disconnectLicenseWS()
   resetUser()
   router.push('/login')
 }

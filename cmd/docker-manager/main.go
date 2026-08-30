@@ -59,9 +59,10 @@ func main() {
 	// Telegram 周期报告调度(版本取 ldflags 注入的 DisplayVersion,不硬编码)
 	notify.StartReporter(st.Settings, cfg.DataDir, service.DisplayVersion())
 
-	// 许可证在线授权周期验证器(每 24h + 启动 5s 后首次;仅在线模式工作,10s 超时不阻塞)
-	licenseVerifier := service.StartLicenseVerifier(st)
-	defer licenseVerifier.Stop()
+	// 许可证 V3 同步引擎(Event-Driven + SSE):启动 Verify → 建立 SSE → 事件驱动实时同步。
+	// 无任何周期验证;Server 故障走 Grace(有限保护),SSE 重连成功即恢复。
+	licenseSync := service.StartLicenseSync(st)
+	defer licenseSync.Stop()
 
 	s := st.Settings.Get()
 	basePath := s.WebBasePath

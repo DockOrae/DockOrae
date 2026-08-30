@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from 'vue'
-import { getToken, api } from './api'
+import { getToken, api, entrancePath } from './api'
 
 /** 当前登录用户信息(登录 / 改资料后更新,供全局使用) */
 export const user = reactive({
@@ -90,20 +90,70 @@ export function resetUser() {
   applyUser({})
 }
 
-// ---------- 许可证状态(全局共享) ----------
+// ---------- 许可证状态(全局共享,V3 Event-Driven) ----------
 export const licenseActive = ref(false)
 export const licenseInfo = ref(null)
+export const licenseOnline = ref({}) // V3: { mode, state, sync_state, last_verify, grace_deadline, verify_state, last_event_id, state_version }
 
 export async function loadLicense() {
   try {
     const r = await api('/license')
     licenseActive.value = !!r.active
     licenseInfo.value = r.info
+    licenseOnline.value = r.online || {}
     return r
   } catch {
     licenseActive.value = false
     licenseInfo.value = null
     return null
+  }
+}
+
+/**
+ * License 状态实时推送(V3 Event-Driven):
+ * 后端 LicenseStateManager 状态变化 → /api/ws/license WS → 此处更新全局状态,
+ * 前端(Vue)自动刷新,无需刷新页面/重新登录。
+ * 认证:JWT 经 query 传递(浏览器 WebSocket 无法自定义 Header)。
+ * 断线自动重连(仅 UI 通道保活;不是授权轮询)。
+ */
+let licWS = null
+let licWSTimer = null
+
+export function connectLicenseWS() {
+  if (licWS && (licWS.readyState === WebSocket.OPEN || licWS.readyState === WebSocket.CONNECTING)) return
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const token = getToken()
+  const qs = token ? `?token=${encodeURIComponent(token)}` : ''
+  try {
+    licWS = new WebSocket(`${proto}//${location.host}${entrancePath('/api/ws/license')}${qs}`)
+  } catch {
+    return
+  }
+  licWS.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data)
+      if (msg.type !== 'license' || !msg.data) return
+      licenseActive.value = !!msg.data.active
+      licenseInfo.value = msg.data.info || null
+      licenseOnline.value = msg.data.online || {}
+    } catch { /* 忽略脏数据 */ }
+  }
+  licWS.onclose = () => {
+    licWS = null
+    clearTimeout(licWSTimer)
+    licWSTimer = setTimeout(connectLicenseWS, 3000)
+  }
+  licWS.onerror = () => {
+    try { licWS?.close() } catch { /* noop */ }
+  }
+}
+
+export function disconnectLicenseWS() {
+  clearTimeout(licWSTimer)
+  if (licWS) {
+    licWS.onclose = null
+    try { licWS.close() } catch { /* noop */ }
+    licWS = null
   }
 }
 
