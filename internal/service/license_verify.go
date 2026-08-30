@@ -31,10 +31,10 @@ import (
 // V2/Legacy 完全移除:不存在 key + activation_id 兼容路径,不存在 V3→V2 fallback。
 
 const (
-	licenseRemoteTimeout   = 10 * time.Second   // 远程调用超时(不阻塞主流程)
-	licenseVerifyPath      = "/api/v3"          // 服务端公开 API V3 前缀
-	clockRollbackThreshold = 5 * time.Minute    // 本地时钟回退判定阈值(5 分钟)
-	replayNonceBytes       = 32                 // nonce 长度(32 字节随机 → 64 hex)
+	licenseRemoteTimeout   = 10 * time.Second // 远程调用超时(不阻塞主流程)
+	licenseVerifyPath      = "/api/v3"        // 服务端公开 API V3 前缀
+	clockRollbackThreshold = 5 * time.Minute  // 本地时钟回退判定阈值(5 分钟)
+	replayNonceBytes       = 32               // nonce 长度(32 字节随机 → 64 hex)
 )
 
 // onlineState 在线验证状态(前端展示 + 门控依据)。

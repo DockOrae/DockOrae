@@ -40,14 +40,14 @@ import (
 type SyncState string
 
 const (
-	SyncNone         SyncState = ""                // 未激活/离线模式
-	SyncOnline       SyncState = "online"          // 已连接 + 最近验证有效
-	SyncOffline      SyncState = "offline"         // SSE 断开(Server 不可达)
-	SyncGrace        SyncState = "grace"           // 宽限期(Server 故障,授权暂时保留)
-	SyncGraceExpired SyncState = "grace_expired"   // 宽限过期 → 限制
+	SyncNone         SyncState = ""                 // 未激活/离线模式
+	SyncOnline       SyncState = "online"           // 已连接 + 最近验证有效
+	SyncOffline      SyncState = "offline"          // SSE 断开(Server 不可达)
+	SyncGrace        SyncState = "grace"            // 宽限期(Server 故障,授权暂时保留)
+	SyncGraceExpired SyncState = "grace_expired"    // 宽限过期 → 限制
 	SyncRecovered    SyncState = "server_recovered" // SSE 重连成功,正在 Verify
-	SyncRevoked      SyncState = "revoked"         // Server 判定吊销/无效/过期
-	SyncBlocked      SyncState = "blocked"         // 版本被封禁
+	SyncRevoked      SyncState = "revoked"          // Server 判定吊销/无效/过期
+	SyncBlocked      SyncState = "blocked"          // 版本被封禁
 )
 
 // sseBackoff SSE 重连指数退避序列(秒;最大间隔封顶,防 Server 故障时疯狂重连)。
@@ -79,14 +79,14 @@ type LicenseSync struct {
 
 	// SSE 状态
 	sseMu          sync.Mutex
-	lastSeq        int64          // 最近处理的事件 sequence(幂等)
-	lastEventID    string         // 最近处理的事件 ID(evt_N,Last-Event-ID 用)
-	stateVersion   int64          // Server 权威状态版本(乱序保护)
-	everConnected  bool           // 是否建立过 SSE(区分首次连接与重连)
-	disconnected   bool           // 当前是否处于断开状态
-	credsValid     bool           // 是否有可用的激活凭据(有凭据才连 SSE)
-	wake           chan struct{}  // 凭据变化时唤醒 SSE 循环
-	manualVerifyMu sync.Mutex     // 手动验证与事件触发的互斥(单飞覆盖)
+	lastSeq        int64         // 最近处理的事件 sequence(幂等)
+	lastEventID    string        // 最近处理的事件 ID(evt_N,Last-Event-ID 用)
+	stateVersion   int64         // Server 权威状态版本(乱序保护)
+	everConnected  bool          // 是否建立过 SSE(区分首次连接与重连)
+	disconnected   bool          // 当前是否处于断开状态
+	credsValid     bool          // 是否有可用的激活凭据(有凭据才连 SSE)
+	wake           chan struct{} // 凭据变化时唤醒 SSE 循环
+	manualVerifyMu sync.Mutex    // 手动验证与事件触发的互斥(单飞覆盖)
 }
 
 // verifyCoordinator 单飞:同一时刻最多一个实际 Verify,并发请求共享结果。
@@ -129,12 +129,12 @@ var (
 func StartLicenseSync(st *state.AppState) *LicenseSync {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &LicenseSync{
-		st:    st,
-		state: NewLicenseStateManager(st),
-		ctx:   ctx,
+		st:     st,
+		state:  NewLicenseStateManager(st),
+		ctx:    ctx,
 		cancel: cancel,
 		verify: &verifyCoordinator{},
-		wake:  make(chan struct{}, 1),
+		wake:   make(chan struct{}, 1),
 	}
 	syncMu.Lock()
 	syncInst = s
