@@ -8,11 +8,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/releases"><img src="https://img.shields.io/github/v/release/DockerManger/Docker_Manager_Go" alt="Release"></a>
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/actions"><img src="https://img.shields.io/github/actions/workflow/status/DockerManger/Docker_Manager_Go/release.yml.svg" alt="Build"></a>
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DockerManger/Docker_Manager_Go.svg" alt="Go Version"></a>
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/releases/latest"><img src="https://img.shields.io/github/downloads/DockerManger/Docker_Manager_Go/total.svg" alt="Downloads"></a>
-  <a href="https://hub.docker.com/r/zhaoweiwen123/docker-manager-go"><img src="https://img.shields.io/docker/pulls/zhaoweiwen123/docker-manager-go.svg" alt="Docker Pulls"></a>
+  <a href="https://github.com/DockOrae/DockOrae/releases"><img src="https://img.shields.io/github/v/release/DockOrae/DockOrae" alt="Release"></a>
+  <a href="https://github.com/DockOrae/DockOrae/actions"><img src="https://img.shields.io/github/actions/workflow/status/DockOrae/DockOrae/release.yml.svg" alt="Build"></a>
+  <a href="https://github.com/DockOrae/DockOrae/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DockOrae/DockOrae.svg" alt="Go Version"></a>
+  <a href="https://github.com/DockOrae/DockOrae/releases/latest"><img src="https://img.shields.io/github/downloads/DockOrae/DockOrae/total.svg" alt="Downloads"></a>
+  <a href="https://hub.docker.com/r/zhaoweiwen123/dockorae"><img src="https://img.shields.io/docker/pulls/zhaoweiwen123/dockorae.svg" alt="Docker Pulls"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
 </p>
 
@@ -48,7 +48,7 @@ This repository ships a built-in [GitHub Agent Skill](.github/skills/docker-mana
 ### Tek satırlık kurulum (önerilen)
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/DockerManger/Docker_Manager_Go/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/DockOrae/DockOrae/master/install.sh)
 ```
 
 Kurulum programı:
@@ -81,14 +81,14 @@ docker run -d --name docker-manager-go \
   -p 8080:8080 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v docker-manager-data:/data \
-  zhaoweiwen123/docker-manager-go:latest
+  zhaoweiwen123/dockorae:latest
 ```
 
 Ya da birlikte gelen `docker-compose.yml` dosyasını kullanın. Uzak Docker ana makineleri için `DOCKER_HOST=tcp://<host>:2375` değerini ayarlayın.
 
 ### İkili dosya (binary) (elle)
 
-`docker-manager-go-linux-<arch>.tar.gz` dosyasını [Sürümler sayfası](https://github.com/DockerManger/Docker_Manager_Go/releases/latest) bölümünden indirin, çıkarın ve çalıştırın:
+`docker-manager-go-linux-<arch>.tar.gz` dosyasını [Sürümler sayfası](https://github.com/DockOrae/DockOrae/releases/latest) bölümünden indirin, çıkarın ve çalıştırın:
 
 ```bash
 tar xzf docker-manager-go-linux-amd64.tar.gz

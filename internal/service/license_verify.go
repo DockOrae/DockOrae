@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // ---------- 在线授权闭环(客户端侧,V3 Event-Driven) ----------

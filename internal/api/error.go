@@ -3,8 +3,8 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/service"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/service"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // Deps 请求处理依赖集合:AppState + 具体 Service 实例。

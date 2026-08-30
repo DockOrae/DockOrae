@@ -789,8 +789,8 @@
             <div class="flex items-center gap-2">
               <dt class="text-muted w-28">{{ t('settings.source') }}</dt>
               <dd>
-                <a href="https://github.com/DockerManger/Docker_Manager_Go" target="_blank" rel="noopener" class="link flex items-center gap-1">
-                  github.com/DockerManger/Docker_Manager_Go <Icon name="external" size="12" />
+                <a href="https://github.com/DockOrae/DockOrae" target="_blank" rel="noopener" class="link flex items-center gap-1">
+                  github.com/DockOrae/DockOrae <Icon name="external" size="12" />
                 </a>
               </dd>
             </div>

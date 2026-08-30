@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/model"
+	"github.com/DockOrae/DockOrae/internal/model"
 )
 
 func TestNetworkCreateNameEmpty(t *testing.T) {

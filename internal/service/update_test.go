@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/model"
+	"github.com/DockOrae/DockOrae/internal/model"
 )
 
 // ---------- CompareVersions(SemVer) ----------
@@ -243,36 +243,36 @@ func TestFindManagerImage(t *testing.T) {
   redis:
     image: redis:7-alpine
   docker-manager:
-    image: zhaoweiwen123/docker-manager-go:latest
+    image: zhaoweiwen123/dockorae:latest
   db:
     image: postgres:16
 `
 	got, ok := findManagerImage(yaml)
-	if !ok || got != "zhaoweiwen123/docker-manager-go:latest" {
-		t.Fatalf("findManagerImage = %q, %v; want zhaoweiwen123/docker-manager-go:latest, true", got, ok)
+	if !ok || got != "zhaoweiwen123/dockorae:latest" {
+		t.Fatalf("findManagerImage = %q, %v; want zhaoweiwen123/dockorae:latest, true", got, ok)
 	}
 
 	// 写死版本 tag 也能识别
-	yaml2 := strings.ReplaceAll(yaml, "zhaoweiwen123/docker-manager-go:latest", "zhaoweiwen123/docker-manager-go:v1.0.2")
-	if got, ok = findManagerImage(yaml2); !ok || got != "zhaoweiwen123/docker-manager-go:v1.0.2" {
+	yaml2 := strings.ReplaceAll(yaml, "zhaoweiwen123/dockorae:latest", "zhaoweiwen123/dockorae:v1.0.2")
+	if got, ok = findManagerImage(yaml2); !ok || got != "zhaoweiwen123/dockorae:v1.0.2" {
 		t.Fatalf("pinned tag: findManagerImage = %q, %v", got, ok)
 	}
 
 	// 自定义 registry + 无 tag
 	yaml3 := `services:
   app:
-    image: registry.example.com/team/docker-manager-go
+    image: registry.example.com/team/dockorae
 `
-	if got, ok = findManagerImage(yaml3); !ok || got != "registry.example.com/team/docker-manager-go" {
+	if got, ok = findManagerImage(yaml3); !ok || got != "registry.example.com/team/dockorae" {
 		t.Fatalf("custom registry: findManagerImage = %q, %v", got, ok)
 	}
 
 	// digest 形式
 	yaml4 := `services:
   app:
-    image: zhaoweiwen123/docker-manager-go@sha256:abcdef1234567890
+    image: zhaoweiwen123/dockorae@sha256:abcdef1234567890
 `
-	if got, ok = findManagerImage(yaml4); !ok || got != "zhaoweiwen123/docker-manager-go@sha256:abcdef1234567890" {
+	if got, ok = findManagerImage(yaml4); !ok || got != "zhaoweiwen123/dockorae@sha256:abcdef1234567890" {
 		t.Fatalf("digest: findManagerImage = %q, %v", got, ok)
 	}
 
@@ -295,13 +295,13 @@ func TestFindManagerImage(t *testing.T) {
 
 func TestRetagImageValue(t *testing.T) {
 	cases := []struct{ val, tag, want string }{
-		{"zhaoweiwen123/docker-manager-go:latest", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
-		{"zhaoweiwen123/docker-manager-go:v1.0.2", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
-		{"zhaoweiwen123/docker-manager-go:v1.2.3", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
-		{"zhaoweiwen123/docker-manager-go:v1.10.20", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
+		{"zhaoweiwen123/dockorae:latest", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
+		{"zhaoweiwen123/dockorae:v1.0.2", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
+		{"zhaoweiwen123/dockorae:v1.2.3", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
+		{"zhaoweiwen123/dockorae:v1.10.20", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
 		{"registry.example.com/docker-manager-go:v1.0.2", "v1.3.0", "registry.example.com/docker-manager-go:v1.3.0"},
 		{"docker-manager-go", "v1.3.0", "docker-manager-go:v1.3.0"},
-		{"zhaoweiwen123/docker-manager-go@sha256:abc", "v1.3.0", "zhaoweiwen123/docker-manager-go:v1.3.0"},
+		{"zhaoweiwen123/dockorae@sha256:abc", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
 	}
 	for _, c := range cases {
 		if got := retagImageValue(c.val, c.tag); got != c.want {
@@ -311,7 +311,7 @@ func TestRetagImageValue(t *testing.T) {
 }
 
 func TestSafeImageValue(t *testing.T) {
-	valid := []string{"docker-manager-go:latest", "zhaoweiwen123/docker-manager-go:v1.0.2", "registry.example.com/a/docker-manager-go@sha256:abc", "docker-manager-go"}
+	valid := []string{"docker-manager-go:latest", "zhaoweiwen123/dockorae:v1.0.2", "registry.example.com/a/docker-manager-go@sha256:abc", "docker-manager-go"}
 	for _, v := range valid {
 		if !safeImageValue(v) {
 			t.Errorf("safeImageValue(%q) = false, want true", v)
@@ -326,16 +326,16 @@ func TestSafeImageValue(t *testing.T) {
 }
 
 func TestBuildHelperCmd(t *testing.T) {
-	cmd := buildHelperCmd("zhaoweiwen123/docker-manager-go:latest", "zhaoweiwen123/docker-manager-go:v1.3.0")
+	cmd := buildHelperCmd("zhaoweiwen123/dockorae:latest", "zhaoweiwen123/dockorae:v1.3.0")
 	// 包含精确替换(整行 image: 值)而不是脆弱的 :latest 全局替换
-	if !strings.Contains(cmd, "zhaoweiwen123/docker-manager-go:latest") {
+	if !strings.Contains(cmd, "zhaoweiwen123/dockorae:latest") {
 		t.Errorf("helper cmd 缺少旧值: %s", cmd)
 	}
-	if !strings.Contains(cmd, "zhaoweiwen123/docker-manager-go:v1.3.0") {
+	if !strings.Contains(cmd, "zhaoweiwen123/dockorae:v1.3.0") {
 		t.Errorf("helper cmd 缺少新值: %s", cmd)
 	}
 	// 新值只出现在替换目标中(不会再次匹配 image 行导致二次替换)
-	if strings.Count(cmd, "docker-manager-go:v1.3.0") != 1 {
+	if strings.Count(cmd, "dockorae:v1.3.0") != 1 {
 		t.Errorf("新值出现次数异常: %s", cmd)
 	}
 	if !strings.Contains(cmd, "docker compose -f /work/docker-compose.yml up -d --force-recreate --pull always") {

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
+	"github.com/DockOrae/DockOrae/internal/settings"
 )
 
 // 通知事件类型(与前端选项一致)

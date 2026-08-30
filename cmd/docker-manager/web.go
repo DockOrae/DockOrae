@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/DockerManger/Docker_Manager_Go/web"
+	"github.com/DockOrae/DockOrae/web"
 )
 
 // serveStatic 静态资源服务:SPA 路由回退到 index.html(basePath 为 URI 前缀)

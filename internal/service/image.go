@@ -7,9 +7,9 @@ import (
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
-	"github.com/DockerManger/Docker_Manager_Go/internal/model"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/model"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // ImageService 镜像业务:依赖注入(docker client)

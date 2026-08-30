@@ -26,14 +26,14 @@ import (
 	"github.com/moby/moby/client"
 	"golang.org/x/mod/semver"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
-	"github.com/DockerManger/Docker_Manager_Go/internal/model"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/model"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // AppVersion 面板当前版本,构建时由 ldflags 注入(与 main.Version 同步,发版打 tag 即可):
 //
-//	-X github.com/DockerManger/Docker_Manager_Go/internal/service.AppVersion=v1.0.3
+//	-X github.com/DockOrae/DockOrae/internal/service.AppVersion=v1.0.3
 //
 // 未注入(本地开发)时为空字符串,运行时按 unknown 处理。使用 Makefile 构建时自动注入。
 var AppVersion string
@@ -138,7 +138,7 @@ func GetUpdateStatus() UpdateStatus {
 }
 
 const (
-	updateGitHubURL  = "https://api.github.com/repos/DockerManger/Docker_Manager_Go/releases/latest"
+	updateGitHubURL  = "https://api.github.com/repos/DockOrae/DockOrae/releases/latest"
 	updateCheckTTL   = 10 * time.Minute
 	composeHelperImg = "docker/compose:latest"
 	updateHelperName = "dm-update-helper"
@@ -323,10 +323,10 @@ func DeploymentMode() string {
 
 var imageLineRe = regexp.MustCompile(`^\s*image:\s*(\S+)\s*$`)
 
-// findManagerImage 在 compose yaml 中查找 docker-manager-go 的 image 值(第一个匹配)。
-// 返回 image 字段的完整值(如 zhaoweiwen123/docker-manager-go:latest);
+// findManagerImage 在 compose yaml 中查找 dockorae 的 image 值(第一个匹配)。
+// 返回 image 字段的完整值(如 zhaoweiwen123/dockorae:latest);
 // 找不到(未使用该镜像 / 值带引号等)返回 false。
-// 只匹配镜像名(最后一段)为 docker-manager-go 的条目,绝不误改 nginx/redis 等其他镜像。
+// 只匹配镜像名(最后一段)为 dockorae 的条目,绝不误改 nginx/redis 等其他镜像。
 func findManagerImage(yaml string) (string, bool) {
 	for _, line := range strings.Split(yaml, "\n") {
 		m := imageLineRe.FindStringSubmatch(line)
@@ -342,7 +342,7 @@ func findManagerImage(yaml string) (string, bool) {
 		if i := strings.LastIndex(name, "/"); i >= 0 {
 			name = name[i+1:]
 		}
-		if name == "docker-manager-go" {
+		if name == "dockorae" {
 			return val, true
 		}
 	}
@@ -351,7 +351,7 @@ func findManagerImage(yaml string) (string, bool) {
 
 // retagImageValue 把 image 值(可含 :tag 或 @digest)替换为指定 tag,保留 repository。
 //
-//	zhaoweiwen123/docker-manager-go:latest      → zhaoweiwen123/docker-manager-go:v1.3.0
+//	zhaoweiwen123/dockorae:latest      → zhaoweiwen123/dockorae:v1.3.0
 //	registry.example.com/docker-manager-go:v1.0.2 → registry.example.com/docker-manager-go:v1.3.0
 //	docker-manager-go@sha256:abc                 → docker-manager-go:v1.3.0
 func retagImageValue(val, tag string) string {
@@ -527,7 +527,7 @@ func applyBinaryUpdate(st *state.AppState, ctx context.Context, tag string) erro
 	pkg := fmt.Sprintf("docker-manager-go-linux-%s.tar.gz", arch)
 	// 修复 UPD-005:下载"已确认的版本"资产(tag 精确),不用 latest——
 	// 避免检查后 GitHub 发布新版本导致下载错版本
-	url := fmt.Sprintf("https://github.com/DockerManger/Docker_Manager_Go/releases/download/%s/%s", tag, pkg)
+	url := fmt.Sprintf("https://github.com/DockOrae/DockOrae/releases/download/%s/%s", tag, pkg)
 
 	setUpdatePhase(PhaseDownloading)
 	// 1. 下载资产(120s 超时,避免挂死)

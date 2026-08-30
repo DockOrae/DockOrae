@@ -10,9 +10,9 @@ import (
 
 	"github.com/moby/moby/client"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/appstore"
-	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/appstore"
+	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // AppStoreService 应用商店业务:依赖注入(dataDir + docker client + license 检查)

@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: zhaoweiwen123/docker-manager-go
+  IMAGE: zhaoweiwen123/dockorae
 
 jobs:
   build-push:

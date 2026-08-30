@@ -7,10 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
-	"github.com/DockerManger/Docker_Manager_Go/internal/config"
-	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/auth"
+	"github.com/DockOrae/DockOrae/internal/config"
+	"github.com/DockOrae/DockOrae/internal/settings"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // TestAuthMiddlewarePCA SEC-003 中间件回归:

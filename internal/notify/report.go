@@ -16,7 +16,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
+	"github.com/DockOrae/DockOrae/internal/settings"
 )
 
 // 周期报告 cron(仿 3x-ui tgRunTime):@every 1h / @daily / @monthly / 自定义 crontab(6 字段,秒启用)

@@ -16,8 +16,8 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // ---------------- 宿主机信息 (/proc) ----------------

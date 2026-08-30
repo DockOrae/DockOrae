@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/service"
+	"github.com/DockOrae/DockOrae/internal/service"
 )
 
 func licenseGet(c *gin.Context, d *Deps) error {

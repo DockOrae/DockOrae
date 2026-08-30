@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/appstore"
-	"github.com/DockerManger/Docker_Manager_Go/internal/service"
+	"github.com/DockOrae/DockOrae/internal/appstore"
+	"github.com/DockOrae/DockOrae/internal/service"
 )
 
 // appstoreList 应用列表 + 分类

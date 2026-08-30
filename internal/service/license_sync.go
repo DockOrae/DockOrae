@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // ---------- V3 License 同步引擎(Event-Driven 主动同步) ----------

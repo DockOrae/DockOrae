@@ -31,7 +31,7 @@ LDFLAGS := -s -w \
 	-X main.Version=$(VERSION) \
 	-X main.Commit=$(GIT_COMMIT) \
 	-X main.BuildTime=$(BUILD_TIME) \
-	-X github.com/DockerManger/Docker_Manager_Go/internal/service.AppVersion=$(VERSION)
+	-X github.com/DockOrae/DockOrae/internal/service.AppVersion=$(VERSION)
 
 # Linux 交叉编译架构(与 README 支持平台一致)
 LINUX_SPECS := amd64: arm64: arm:5 arm:6 arm:7 386: s390x:

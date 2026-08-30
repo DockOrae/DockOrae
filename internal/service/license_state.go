@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // ---------- LicenseStateManager(V3 本地 License 状态唯一入口) ----------

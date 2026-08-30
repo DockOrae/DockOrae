@@ -8,11 +8,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/releases"><img src="https://img.shields.io/github/v/release/DockerManger/Docker_Manager_Go" alt="Release"></a>
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/actions"><img src="https://img.shields.io/github/actions/workflow/status/DockerManger/Docker_Manager_Go/release.yml.svg" alt="Build"></a>
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DockerManger/Docker_Manager_Go.svg" alt="Go Version"></a>
-  <a href="https://github.com/DockerManger/Docker_Manager_Go/releases/latest"><img src="https://img.shields.io/github/downloads/DockerManger/Docker_Manager_Go/total.svg" alt="Downloads"></a>
-  <a href="https://hub.docker.com/r/zhaoweiwen123/docker-manager-go"><img src="https://img.shields.io/docker/pulls/zhaoweiwen123/docker-manager-go.svg" alt="Docker Pulls"></a>
+  <a href="https://github.com/DockOrae/DockOrae/releases"><img src="https://img.shields.io/github/v/release/DockOrae/DockOrae" alt="Release"></a>
+  <a href="https://github.com/DockOrae/DockOrae/actions"><img src="https://img.shields.io/github/actions/workflow/status/DockOrae/DockOrae/release.yml.svg" alt="Build"></a>
+  <a href="https://github.com/DockOrae/DockOrae/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DockOrae/DockOrae.svg" alt="Go Version"></a>
+  <a href="https://github.com/DockOrae/DockOrae/releases/latest"><img src="https://img.shields.io/github/downloads/DockOrae/DockOrae/total.svg" alt="Downloads"></a>
+  <a href="https://hub.docker.com/r/zhaoweiwen123/dockorae"><img src="https://img.shields.io/docker/pulls/zhaoweiwen123/dockorae.svg" alt="Docker Pulls"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
 </p>
 
@@ -48,7 +48,7 @@ This repository ships a built-in [GitHub Agent Skill](.github/skills/docker-mana
 ### One-line install (recommended)
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/DockerManger/Docker_Manager_Go/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/DockOrae/DockOrae/master/install.sh)
 ```
 
 The installer:
@@ -81,14 +81,14 @@ docker run -d --name docker-manager-go \
   -p 8080:8080 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v docker-manager-data:/data \
-  zhaoweiwen123/docker-manager-go:latest
+  zhaoweiwen123/dockorae:latest
 ```
 
 Or use the bundled `docker-compose.yml`. For remote Docker hosts, set `DOCKER_HOST=tcp://<host>:2375`.
 
 ### Binary (manual)
 
-Download `docker-manager-go-linux-<arch>.tar.gz` from the [Releases page](https://github.com/DockerManger/Docker_Manager_Go/releases/latest), extract it, and run:
+Download `docker-manager-go-linux-<arch>.tar.gz` from the [Releases page](https://github.com/DockOrae/DockOrae/releases/latest), extract it, and run:
 
 ```bash
 tar xzf docker-manager-go-linux-amd64.tar.gz
@@ -124,9 +124,9 @@ Security model (V3):
 
 ### 1. Deploy the License Server
 
-Deploy [Docker_Manager_License](https://github.com/DockerManger/Docker_Manager_License) on any
+Deploy [Docker_Manager_License](https://github.com/DockOrae/Docker_Manager_License) on any
 server — single container, port 80, zero config. Step-by-step guides for both **direct IP** and
-**domain + Cloudflare HTTPS** setups: **[docs/DEPLOY.md](https://github.com/DockerManger/Docker_Manager_License/blob/master/docs/DEPLOY.md)**.
+**domain + Cloudflare HTTPS** setups: **[docs/DEPLOY.md](https://github.com/DockOrae/Docker_Manager_License/blob/master/docs/DEPLOY.md)**.
 
 > ⚠️ Use the private key paired with this panel's built-in public key (`private/license.key` in the
 > License repo) — otherwise the panel's signature verification will fail. See deploy guide step 3.

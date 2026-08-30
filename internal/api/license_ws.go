@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/service"
+	"github.com/DockOrae/DockOrae/internal/service"
 )
 
 // licenseEventsWS GET /ws/license — License 状态实时推送(Event-Driven → Vue 自动更新)。

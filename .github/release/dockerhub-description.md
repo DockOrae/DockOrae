@@ -17,11 +17,11 @@
 ## 🚀 快速开始
 
 ```bash
-docker run -d --name docker-manager-go \
+docker run -d --name dockorae \
   -p 8080:8080 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v dm-data:/data \
-  zhaoweiwen123/docker-manager-go:latest
+  zhaoweiwen123/dockorae:latest
 ```
 
 默认账号 `admin / 123456`(首次登录强制修改密码)。
@@ -29,12 +29,12 @@ docker run -d --name docker-manager-go \
 **一键安装脚本**(自动检测国内/海外网络、自动安装 Docker、可选域名 HTTPS):
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/DockerManger/Docker_Manager_Go/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/DockOrae/DockOrae/master/install.sh)
 ```
 
 ## 📖 更多
 
-- GitHub 源码: <https://github.com/DockerManger/Docker_Manager_Go>
+- GitHub 源码: <https://github.com/DockOrae/DockOrae>
 - 发布与更新: `bash install.sh update`
 - 个人使用免费;Pro 许可证支持离线激活
 <!-- 触发描述更新 -->

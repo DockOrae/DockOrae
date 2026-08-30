@@ -4,9 +4,9 @@
 # 取消注释:编辑器里选中多行按 Ctrl+/ 即可(缩进已按 YAML 层级排好)
 # ============================================================
 services:
-  docker-manager:
-    image: zhaoweiwen123/docker-manager-go:latest
-    container_name: docker-manager
+  dockorae:
+    image: zhaoweiwen123/dockorae:latest
+    container_name: dockorae
     restart: unless-stopped
 
     # ---- 端口映射 ----
@@ -27,7 +27,7 @@ services:
       # 远程 Docker 主机:面板直接操作远程 daemon(同时注释掉 docker.sock 挂载)
       # - DOCKER_HOST=tcp://<host>:2375
       # 应用商店数据仓库/下载地址覆盖(内网镜像、离线环境):
-      # - DM_APPSTORE_REPO=DockerManger/Docker_Manager_Apps
+      # - DM_APPSTORE_REPO=DockOrae/DockOrae-Apps
       # - DM_APPSTORE_URL=https://<内网镜像>/docker-manager-apps.tar.gz
 
     # ---- 数据卷 ----
@@ -119,7 +119,7 @@ services:
     # 只更新面板容器(避免动到其它服务)时,再取消下一行:
     # # - WATCHTOWER_SCOPE=dm
   # 配合上面的 scope:给面板容器打上标签
-  # (在 docker-manager 服务下加 labels: - com.centurylinklabs.watchtower.scope=dm)
+  # (在 dockorae 服务下加 labels: - com.centurylinklabs.watchtower.scope=dm)
 
 # ---- 定时备份(宿主机 cron 示例:每天 02:00 打包面板数据) ----
 # 在宿主机 crontab 添加(路径按实际修改):

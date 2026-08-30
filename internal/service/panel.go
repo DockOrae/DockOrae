@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/logger"
-	"github.com/DockerManger/Docker_Manager_Go/internal/notify"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/logger"
+	"github.com/DockOrae/DockOrae/internal/notify"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // RestartPanel 重启面板进程(新进程替换自身;docker restart:unless-stopped 自动拉起)

@@ -14,12 +14,12 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/client"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
-	"github.com/DockerManger/Docker_Manager_Go/internal/config"
-	"github.com/DockerManger/Docker_Manager_Go/internal/db"
-	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
-	"github.com/DockerManger/Docker_Manager_Go/internal/notify"
-	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
+	"github.com/DockOrae/DockOrae/internal/auth"
+	"github.com/DockOrae/DockOrae/internal/config"
+	"github.com/DockOrae/DockOrae/internal/db"
+	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/notify"
+	"github.com/DockOrae/DockOrae/internal/settings"
 )
 
 // StoredUser users.json 中存储的用户(扩展字段需兼容旧文件缺失的情况)

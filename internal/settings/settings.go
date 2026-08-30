@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/db"
+	"github.com/DockOrae/DockOrae/internal/db"
 )
 
 // Settings 面板设置(存 data_dir/settings.json,仿 3x-ui webSetting)

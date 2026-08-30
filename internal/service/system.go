@@ -14,10 +14,10 @@ import (
 
 	"github.com/moby/moby/api/types/system"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/auth"
-	"github.com/DockerManger/Docker_Manager_Go/internal/docker"
-	"github.com/DockerManger/Docker_Manager_Go/internal/notify"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/auth"
+	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/notify"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // PublicUser 用户公开信息(不含密码/totp secret)

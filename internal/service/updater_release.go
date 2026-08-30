@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/model"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/model"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // ---------- Release Notes 分类解析 ----------
@@ -127,7 +127,7 @@ func findAsset(assets []model.ReleaseAsset, name string) *model.ReleaseAsset {
 }
 
 // defaultDockerRepo 默认镜像仓库(fallback:compose 文件未找到 image 时)
-const defaultDockerRepo = "zhaoweiwen123/docker-manager-go"
+const defaultDockerRepo = "zhaoweiwen123/dockorae"
 
 // dockerImageAvailable 检查镜像仓库是否存在指定 tag 的镜像(明确版本,不依赖 latest)。
 // 修复 UPD-006:优先读取实际 compose 文件的 image(自建 registry 不误判"未发布");

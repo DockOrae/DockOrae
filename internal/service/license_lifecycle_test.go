@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/config"
-	"github.com/DockerManger/Docker_Manager_Go/internal/settings"
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/config"
+	"github.com/DockOrae/DockOrae/internal/settings"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // newLifecycleState 构造固定 DataDir 的 AppState(可模拟重启:同一 DataDir 再建一个)。

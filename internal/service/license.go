@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/state"
+	"github.com/DockOrae/DockOrae/internal/state"
 )
 
 // runtimeGOOS / runtimeGOARCH 供激活请求上报平台信息(独立函数便于测试注入)。

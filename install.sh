@@ -7,7 +7,7 @@
 # Last Updated: 2026-08-28
 #
 # Description:
-#   面向 Docker Manager (https://github.com/DockerManger/Docker_Manager_Go)
+#   面向 Docker Manager (https://github.com/DockOrae/DockOrae)
 #   的一键脚本,提供:
 #     - 两种安装方式:Docker Compose 安装 / 本地二进制安装(systemd)
 #     - 未安装 Docker 时自动安装(Debian/Ubuntu amd64/arm64 最新稳定版)
@@ -35,7 +35,7 @@
 #   DM_PORT        面板端口(默认 8080)
 #   DM_DATA_DIR    数据目录(默认 /opt/docker-manager/data)
 #   DM_INSTALL_DIR 安装目录(默认 /opt/docker-manager)
-#   DM_IMAGE       镜像(默认 zhaoweiwen123/docker-manager-go:latest)
+#   DM_IMAGE       镜像(默认 zhaoweiwen123/dockorae:latest)
 #   DM_MODE        安装方式 compose|binary
 #   DM_PRIVILEGED  特权模式 true/false(仅 compose,默认 false)
 #
@@ -53,15 +53,15 @@ DM_PORT="${DM_PORT:-8080}"
 DM_INSTALL_DIR="${DM_INSTALL_DIR:-/opt/docker-manager}"
 DM_DATA_DIR="${DM_DATA_DIR:-$DM_INSTALL_DIR/data}"
 DM_CERT_DIR="${DM_CERT_DIR:-$DM_INSTALL_DIR/cert}"
-DM_IMAGE="${DM_IMAGE:-zhaoweiwen123/docker-manager-go:latest}"
+DM_IMAGE="${DM_IMAGE:-zhaoweiwen123/dockorae:latest}"
 DM_PRIVILEGED="${DM_PRIVILEGED:-false}"
 DM_MODE="${DM_MODE:-}"
 CONTAINER_NAME="docker-manager"
-BIN_NAME="docker-manager-go"
+BIN_NAME="dockorae"
 COMPOSE_FILE="$DM_INSTALL_DIR/docker-compose.yml"
 SERVICE_FILE="$DM_INSTALL_DIR/docker-manager.service"
 BACKUP_DIR="$DM_INSTALL_DIR/backups"
-GITHUB_REPO="DockerManger/Docker_Manager_Go"
+GITHUB_REPO="DockOrae/DockOrae"
 
 # 国内镜像加速源(compose 拉镜像用,按顺序尝试)
 CN_MIRRORS=(
@@ -420,7 +420,7 @@ install_binary() {
   arch=$(detect_arch)
   log_info "检测到架构: $arch"
   local bin_dir="$DM_INSTALL_DIR/bin"
-  local pkg="docker-manager-go-linux-${arch}.tar.gz"
+  local pkg="dockorae-linux-${arch}.tar.gz"
   local url="https://github.com/${GITHUB_REPO}/releases/latest/download/${pkg}"
   mkdir -p "$bin_dir" "$DM_DATA_DIR" "$DM_CERT_DIR"
 
@@ -460,10 +460,10 @@ install_binary() {
   log_info "SHA256 校验通过 ✓"
 
   tar xzf "$DM_INSTALL_DIR/$pkg" -C "$bin_dir" || die "解压失败"
-  chmod +x "$bin_dir/docker-manager-go/docker-manager-go"
-  ln -sf "$bin_dir/docker-manager-go/docker-manager-go" /usr/local/bin/docker-manager-go
+  chmod +x "$bin_dir/dockorae/dockorae"
+  ln -sf "$bin_dir/dockorae/dockorae" /usr/local/bin/dockorae
   rm -f "$DM_INSTALL_DIR/$pkg"
-  [ -x /usr/local/bin/docker-manager-go ] || die "二进制安装失败"
+  [ -x /usr/local/bin/dockorae ] || die "二进制安装失败"
 
   # systemd service
   cat > "$SERVICE_FILE" <<EOF
@@ -477,7 +477,7 @@ Type=simple
 Environment=DATA_DIR=${DM_DATA_DIR}
 Environment=PORT=${DM_PORT}
 Environment=DOCKER_HOST=unix:///var/run/docker.sock
-ExecStart=/usr/local/bin/docker-manager-go
+ExecStart=/usr/local/bin/dockorae
 Restart=always
 RestartSec=3
 
@@ -619,7 +619,7 @@ uninstall() {
     systemctl stop docker-manager 2>/dev/null || true
     systemctl disable docker-manager 2>/dev/null || true
     rm -f /etc/systemd/system/docker-manager.service
-    rm -f /usr/local/bin/docker-manager-go
+    rm -f /usr/local/bin/dockorae
     systemctl daemon-reload
     confirm "是否同时删除安装目录?(数据保留)" && rm -rf "$DM_INSTALL_DIR/bin" "$DM_INSTALL_DIR/.install_mode"
   fi
@@ -884,7 +884,7 @@ Docker Manager 一键脚本 v2.0.0
   DM_PORT=8080                    面板端口
   DM_DATA_DIR=/opt/docker-manager/data   数据目录
   DM_INSTALL_DIR=/opt/docker-manager     安装目录
-  DM_IMAGE=zhaoweiwen123/docker-manager-go:latest   镜像(compose)
+  DM_IMAGE=zhaoweiwen123/dockorae:latest   镜像(compose)
   DM_MODE=compose|binary          安装方式
   DM_PRIVILEGED=false             特权模式(仅 compose)
 EOF

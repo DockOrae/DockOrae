@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/moby/moby/api/pkg/stdcopy"
 
-	"github.com/DockerManger/Docker_Manager_Go/internal/model"
-	"github.com/DockerManger/Docker_Manager_Go/internal/service"
+	"github.com/DockOrae/DockOrae/internal/model"
+	"github.com/DockOrae/DockOrae/internal/service"
 )
 
 // ---------------- 列表 / 详情 / 生命周期 ----------------
