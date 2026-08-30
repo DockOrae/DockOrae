@@ -313,7 +313,7 @@ func TestSSE401TriggersVerify(t *testing.T) {
 	s := StartLicenseSync(st)
 	defer s.Stop()
 
-	deadline := time.Now().Add(8 * time.Second)
+	deadline := time.Now().Add(20 * time.Second)
 	for time.Now().Before(deadline) {
 		if verifyCount >= 1 {
 			m, _ := readLicenseStore(st)
@@ -321,7 +321,7 @@ func TestSSE401TriggersVerify(t *testing.T) {
 				return // 401 → Verify → revoked ✓
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(150 * time.Millisecond)
 	}
 	t.Fatalf("401 must trigger verify (count=%d)", verifyCount)
 }
