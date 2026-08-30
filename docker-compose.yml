@@ -5,7 +5,7 @@
 # ============================================================
 services:
   dockorae:
-    image: zhaoweiwen123/dockorae:latest
+    image: dockorae/dockorae:latest
     container_name: dockorae
     restart: unless-stopped
 
