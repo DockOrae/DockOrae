@@ -664,16 +664,14 @@
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-if="licActive && licInfo">
+                <TableRow v-if="licInfo">
                   <TableCell class="font-mono text-[11px]">{{ licInfo.license_id || licKey.slice(0, 14) }}…</TableCell>
                   <TableCell>{{ licInfo.customer || licInfo.user || '-' }}</TableCell>
                   <TableCell><Badge :style="okStyle">{{ t('license.' + (licInfo.plan || licInfo.type || 'pro')) }}</Badge></TableCell>
                   <TableCell class="text-[12px]">{{ fmtFeatures(licInfo.features) }}</TableCell>
                   <TableCell>{{ licInfo.max_devices ?? '-' }}</TableCell>
                   <TableCell>
-                    <Badge :style="licInfo.status === 'expired' ? dangerStyle : okStyle">
-                      {{ t('license.' + (licInfo.status === 'expired' ? 'expired' : 'active')) }}
-                    </Badge>
+                    <Badge :style="licStatusStyle">{{ licStatusLabel }}</Badge>
                   </TableCell>
                   <TableCell class="font-mono text-[11px]">{{ licDeviceId }}</TableCell>
                   <TableCell>{{ fmtDate(licInfo.expires_at || licInfo.exp) }}</TableCell>
@@ -763,7 +761,7 @@ import { LANGS } from '../i18n'
 import { api, setToken, getRegistryMirrors, saveRegistryMirrors, getLicense, activateLicenseFile, deactivateLicense, verifyLicense } from '../api'
 import { toastErr, toastOk } from '../toast'
 import { useConfirm } from '../confirm'
-import { applyUser, loadLicense as refreshLicense, licenseOnline, user } from '../store'
+import { applyUser, loadLicense as refreshLicense, licenseActive as licActive, licenseInfo as licInfo, licenseOnline, user } from '../store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -1288,8 +1286,7 @@ async function loadMirrors() {
 }
 
 // ---------- 许可证 ----------
-const licActive = ref(false)
-const licInfo = ref(null)
+// 激活状态/详情绑定 store 的 ref(/ws/license 推送后表格实时更新,无需刷新页面)
 const licKey = ref('')
 const licDeviceId = ref('')
 const licBusy = ref(false)
@@ -1326,6 +1323,23 @@ const licSyncLabel = computed(() => {
     case 'blocked': return t('license.syncBlocked')
     default: return ''
   }
+})
+
+// 表格许可证状态列:吊销/封禁/过期优先于已激活(WS 实时更新)
+const licStatusLabel = computed(() => {
+  const vs = licOnline.value.verify_state
+  if (vs === 'revoked' || vs === 'invalid' || licOnline.value.sync_state === 'revoked') return t('license.revoked')
+  if (vs === 'blocked' || licOnline.value.sync_state === 'blocked') return t('license.blocked')
+  if (licInfo.value && licInfo.value.status === 'expired') return t('license.expired')
+  if (vs === 'clock_rollback') return t('license.clockRollback')
+  return t('license.active')
+})
+const licStatusStyle = computed(() => {
+  const vs = licOnline.value.verify_state
+  if (vs === 'revoked' || vs === 'invalid' || vs === 'blocked' || vs === 'clock_rollback'
+    || licOnline.value.sync_state === 'revoked' || licOnline.value.sync_state === 'blocked') return dangerStyle
+  if (licInfo.value && licInfo.value.status === 'expired') return dangerStyle
+  return okStyle
 })
 
 // 在线验证状态展示(style + label)
