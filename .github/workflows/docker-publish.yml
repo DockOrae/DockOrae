@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: zhaoweiwen123/dockorae
+  IMAGE: dockorae/dockorae
 
 jobs:
   build-push:
