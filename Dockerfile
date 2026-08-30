@@ -3,7 +3,7 @@
 # 这里直接下载 dist tar.gz(不 clone 源码、不 npm 构建,构建更快更稳定)。
 FROM --platform=$BUILDPLATFORM alpine:3.20 AS web
 RUN apk add --no-cache curl tar jq \
-    && URL=$(curl -fsSL https://api.github.com/repos/DockOrae/DockOrae-Frontend/releases/tags/rolling | jq -r '.assets[] | select(.name=="dockorae-frontend-dist.tar.gz") | .browser_download_url') \
+    && URL=$(curl -fsSL https://api.github.com/repos/DockOrae/DockOrae-Frontend/releases/tags/rolling | jq -r '.assets[] | select(.name | startswith("dockorae-frontend-dist-") and endswith(".tar.gz")) | .browser_download_url' | head -1) \
     && [ -n "$URL" ] \
     && curl -fsSL "$URL" -o /dist.tar.gz \
     && mkdir -p /fe/dist \
