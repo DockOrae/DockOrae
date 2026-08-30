@@ -53,4 +53,4 @@ jobs:
         run: make test
 
       - name: go build
-        run: go build -o /dev/null ./cmd
+        run: go build -o /dev/null .

@@ -13,12 +13,13 @@ WORKDIR /app
 # 国内代理加速;moby client 模块自带坏的 replace,用自身 replace 覆盖
 RUN go env -w GOPROXY=https://goproxy.cn,direct
 COPY go.mod go.sum ./
+COPY main.go ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY public/ ./public/
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
-    -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildTime=${BUILD_TIME} -X github.com/DockOrae/DockOrae/internal/service.AppVersion=${VERSION}" \
-    -o docker-manager ./cmd
+    -ldflags="-s -w -X github.com/DockOrae/DockOrae/cmd.Version=${VERSION} -X github.com/DockOrae/DockOrae/cmd.Commit=${COMMIT} -X github.com/DockOrae/DockOrae/cmd.BuildTime=${BUILD_TIME} -X github.com/DockOrae/DockOrae/internal/service.AppVersion=${VERSION}" \
+    -o docker-manager .
 
 # ================= Stage 3: 运行镜像(目标平台) =================
 FROM alpine:3.20

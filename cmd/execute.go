@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -14,8 +14,10 @@ import (
 	"github.com/DockOrae/DockOrae/internal/state"
 )
 
-func main() {
-	// 命令行 flag(参考 OpenList):显式传参时覆盖对应环境变量
+// Execute 应用启动入口(由顶层 main.go 调用)。
+// 职责:解析 CLI flags → 加载配置 → 初始化状态 → 启动后台任务 → 运行 HTTP Server。
+func Execute() {
+	// 命令行 flag:显式传参时覆盖对应环境变量(优先级 CLI flag > 环境变量 > 默认值)
 	flag.StringVar(&flags.DataDir, "data", "", "data directory (default $DATA_DIR or /data)")
 	flag.IntVar(&flags.Port, "port", 0, "listen port (default $PORT or 8080)")
 	flag.Parse()

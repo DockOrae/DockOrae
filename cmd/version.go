@@ -1,4 +1,4 @@
-package main
+package cmd
 
 // 构建信息,均由 ldflags 在构建时注入(发版只需打 Git tag,无需改源码):
 //
