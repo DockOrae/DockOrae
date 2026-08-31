@@ -53,3 +53,11 @@ func strOr(v any) string {
 	}
 	return ""
 }
+
+// Round2 保留两位小数(容器 stats 与监控展示共用)
+func Round2(v float64) float64 {
+	return float64(int64(v*100+0.5)) / 100.0
+}
+
+// Ptr 泛型指针
+func Ptr[T any](v T) *T { return &v }

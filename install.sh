@@ -35,9 +35,9 @@
 #   DM_PORT        面板端口(默认 8080)
 #   DM_DATA_DIR    数据目录(默认 /opt/docker-manager/data)
 #   DM_INSTALL_DIR 安装目录(默认 /opt/docker-manager)
-#   DM_IMAGE       镜像(默认 zhaoweiwen123/dockorae:latest)
-#   DM_MODE        安装方式 compose|binary
-#   DM_PRIVILEGED  特权模式 true/false(仅 compose,默认 false)
+#   DM_IMAGE        面板镜像(默认 dockorae/dockorae:latest)
+#   DM_AGENT_IMAGE  Agent 镜像(默认 dockorae/dockorae-agent:latest)
+#   DM_MODE         安装方式 compose|binary
 #
 ###############################################################################
 
@@ -53,8 +53,8 @@ DM_PORT="${DM_PORT:-8080}"
 DM_INSTALL_DIR="${DM_INSTALL_DIR:-/opt/docker-manager}"
 DM_DATA_DIR="${DM_DATA_DIR:-$DM_INSTALL_DIR/data}"
 DM_CERT_DIR="${DM_CERT_DIR:-$DM_INSTALL_DIR/cert}"
-DM_IMAGE="${DM_IMAGE:-zhaoweiwen123/dockorae:latest}"
-DM_PRIVILEGED="${DM_PRIVILEGED:-false}"
+DM_IMAGE="${DM_IMAGE:-dockorae/dockorae:latest}"
+DM_AGENT_IMAGE="${DM_AGENT_IMAGE:-dockorae/dockorae-agent:latest}"
 DM_MODE="${DM_MODE:-}"
 CONTAINER_NAME="docker-manager"
 BIN_NAME="dockorae"
@@ -286,6 +286,7 @@ pull_image() {
 generate_compose() {
   mkdir -p "$DM_INSTALL_DIR" "$DM_DATA_DIR" "$DM_CERT_DIR"
   log_step "生成 docker-compose.yml: $COMPOSE_FILE"
+  # §5/§12:面板不挂载 docker.sock,Docker/宿主操作全部经 dockorae-agent 执行
   cat > "$COMPOSE_FILE" <<EOF
 services:
   ${CONTAINER_NAME}:
@@ -298,12 +299,32 @@ services:
       - DATA_DIR=/data
       - PORT=8080
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ${DM_DATA_DIR}:/data
       - ${DM_CERT_DIR}:/data/cert:ro
-      - /:/host:ro
-      - /etc/docker:/host/etc/docker:ro
-    privileged: ${DM_PRIVILEGED}
+      # Agent 共享目录(socket + token):与 dockorae-agent 容器共用
+      - /run/dockorae:/run/dockorae
+
+  # DockOrae-Agent 宿主机控制平面:privileged + pid:host(nsenter 操作真实宿主)
+  # 面板经 /run/dockorae/agent.sock 调用 Agent,Agent 操作 Docker/宿主
+  dockorae-agent:
+    image: ${DM_AGENT_IMAGE}
+    container_name: dockorae-agent
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    volumes:
+      - /run/dockorae:/run/dockorae
+      - /var/run/docker.sock:/var/run/docker.sock
+      - agent-data:/var/lib/dockorae-agent
+    environment:
+      - TZ=Asia/Shanghai
+      - AGENT_SOCKET=/run/dockorae/agent.sock
+      - AGENT_TOKEN_FILE=/run/dockorae/agent.token
+      - AGENT_DATA_DIR=/var/lib/dockorae-agent
+      - AGENT_LOG_DIR=/var/log/dockorae
+
+volumes:
+  agent-data:
 EOF
   log_info "compose 文件已生成(端口 ${DM_PORT},数据目录 ${DM_DATA_DIR},证书目录 ${DM_CERT_DIR})"
 }
@@ -400,16 +421,16 @@ install_compose() {
   log_step "启动容器..."
   ( cd "$DM_INSTALL_DIR" && docker compose up -d ) || die "容器启动失败,请查看: docker compose -f $COMPOSE_FILE logs"
   wait_ready
-  # 容器内 Docker socket 校验:首次部署时 daemon 未就绪会把 socket 挂载成目录,
-  # 面板将永远连不上 Docker —— 检测到异常自动重建容器
-  if ! docker exec "$CONTAINER_NAME" test -S /var/run/docker.sock 2>/dev/null; then
-    log_warn "容器内 Docker socket 异常(挂载成了目录),自动重建容器..."
+  # Agent 容器校验:Agent 必须持 docker.sock(执行层);面板不再直接访问 Docker。
+  # 首次部署时 daemon 未就绪会把 socket 挂载成目录,检测到异常自动重建容器
+  if ! docker exec dockorae-agent test -S /var/run/docker.sock 2>/dev/null; then
+    log_warn "Agent 容器内 Docker socket 异常(挂载成了目录),自动重建容器..."
     ( cd "$DM_INSTALL_DIR" && docker compose down && docker compose up -d ) || die "重建失败"
     wait_ready
   fi
-  docker exec "$CONTAINER_NAME" test -S /var/run/docker.sock 2>/dev/null \
-    && log_info "容器内 Docker socket 正常 ✓" \
-    || log_warn "容器内仍未检测到 Docker socket,请检查: systemctl status docker 与 docker logs ${CONTAINER_NAME}"
+  docker exec dockorae-agent test -S /var/run/docker.sock 2>/dev/null \
+    && log_info "Agent 容器内 Docker socket 正常 ✓" \
+    || log_warn "Agent 容器内仍未检测到 Docker socket,请检查: systemctl status docker 与 docker logs dockorae-agent"
   write_mode_marker compose
 }
 
@@ -884,9 +905,9 @@ Docker Manager 一键脚本 v2.0.0
   DM_PORT=8080                    面板端口
   DM_DATA_DIR=/opt/docker-manager/data   数据目录
   DM_INSTALL_DIR=/opt/docker-manager     安装目录
-  DM_IMAGE=zhaoweiwen123/dockorae:latest   镜像(compose)
+  DM_IMAGE=dockorae/dockorae:latest   面板镜像(compose)
+  DM_AGENT_IMAGE=dockorae/dockorae-agent:latest  Agent 镜像(compose)
   DM_MODE=compose|binary          安装方式
-  DM_PRIVILEGED=false             特权模式(仅 compose)
 EOF
 }
 

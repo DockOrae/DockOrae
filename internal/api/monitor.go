@@ -27,7 +27,7 @@ func systemPublicIP(c *gin.Context, d *Deps) error {
 }
 
 func monitorRegistryMirrors(c *gin.Context, d *Deps) error {
-	mirrors, path, exists := service.RegistryMirrors()
+	mirrors, path, exists := service.RegistryMirrors(d.St)
 	c.JSON(200, gin.H{"mirrors": mirrors, "path": path, "exists": exists})
 	return nil
 }
@@ -39,7 +39,7 @@ func monitorSaveRegistryMirrors(c *gin.Context, d *Deps) error {
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := service.SaveRegistryMirrors(payload.Mirrors); err != nil {
+	if err := service.SaveRegistryMirrors(d.St, payload.Mirrors); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true, "needRestart": true})
@@ -47,7 +47,7 @@ func monitorSaveRegistryMirrors(c *gin.Context, d *Deps) error {
 }
 
 func monitorRestartDocker(c *gin.Context, d *Deps) error {
-	if err := service.RestartDocker(); err != nil {
+	if err := service.RestartDocker(d.St); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})

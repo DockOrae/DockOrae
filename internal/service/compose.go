@@ -2,25 +2,16 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/moby/moby/client"
-
-	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/model"
 	"github.com/DockOrae/DockOrae/internal/state"
 )
-
-// ComposeBin compose 可执行文件(COMPOSE_BIN 环境变量可覆盖,默认 docker-compose)
-func ComposeBin() string {
-	if b := os.Getenv("COMPOSE_BIN"); b != "" {
-		return b
-	}
-	return "docker-compose"
-}
 
 func SortStrings(s []string) {
 	for i := 1; i < len(s); i++ {
@@ -44,9 +35,9 @@ func ValidateProject(p string) (string, error) {
 	return p, nil
 }
 
-// ComposeService 栈业务:依赖注入(docker client + 数据目录 + license 检查)
+// ComposeService 栈业务(§11:YAML/项目管理在面板,执行在 Agent)。
 type ComposeService struct {
-	docker     *client.Client
+	agent      *agent.Client
 	composeDir string
 	license    func() bool
 }
@@ -54,7 +45,7 @@ type ComposeService struct {
 // NewComposeService 生产构造:从 AppState 提取实际依赖
 func NewComposeService(st *state.AppState) *ComposeService {
 	return &ComposeService{
-		docker:     st.Docker,
+		agent:      st.Agent,
 		composeDir: st.ComposeDir,
 		license:    func() bool { return LicenseFeatureActive(st, "compose") },
 	}
@@ -70,26 +61,6 @@ func composeFile(composeDir, project string) string {
 	return filepath.Join(projectDir(composeDir, project), "docker-compose.yml")
 }
 
-// Command 构造 compose 命令(未启动;流式执行由 api 层控制)
-func (s *ComposeService) Command(project string, args ...string) *exec.Cmd {
-	return exec.Command(ComposeBin(), append([]string{"-p", project, "-f", composeFile(s.composeDir, project)}, args...)...)
-}
-
-// Run 同步执行 compose 命令,返回 {ok, output}
-func (s *ComposeService) Run(project string, args ...string) (map[string]any, error) {
-	cmd := s.Command(project, args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		msg := strings.TrimSpace(string(out))
-		if msg == "" {
-			msg = err.Error()
-		}
-		return nil, NewApiError(502, msg)
-	}
-	output := strings.TrimSpace(string(out))
-	return map[string]any{"ok": true, "output": output}, nil
-}
-
 // File 项目编排文件路径(供 api 层检查/读写)
 func (s *ComposeService) File(project string) string {
 	return composeFile(s.composeDir, project)
@@ -100,14 +71,13 @@ func (s *ComposeService) Dir(project string) string {
 	return projectDir(s.composeDir, project)
 }
 
-// List 栈列表:按 compose label 统计容器,计算状态;外部 compose 不显示
+// List 栈列表:按 compose label 统计容器,计算状态;外部 compose 不显示。
+// 容器数据来自 Agent,面板数据目录校验在本地。
 func (s *ComposeService) List(ctx context.Context) ([]model.ComposeProject, error) {
-	filters := make(client.Filters)
-	filters.Add("label", "com.docker.compose.project")
-	items, err := docker.ListContainers(s.docker, ctx, client.ContainerListOptions{
-		All:     true,
-		Filters: filters,
-	})
+	if s.agent == nil {
+		return nil, agentUnavailable()
+	}
+	items, err := s.agent.ContainerList(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +89,7 @@ func (s *ComposeService) List(ctx context.Context) ([]model.ComposeProject, erro
 		}
 		entry := projects[name]
 		entry[0]++
-		if string(ctr.State) == "running" {
+		if ctr.State == "running" {
 			entry[1]++
 		}
 		projects[name] = entry
@@ -156,14 +126,18 @@ func (s *ComposeService) List(ctx context.Context) ([]model.ComposeProject, erro
 
 // Inspect 栈详情:容器列表(精简)+ 编排文件内容
 func (s *ComposeService) Inspect(ctx context.Context, project string) (model.ComposeInspect, error) {
-	filters := make(client.Filters)
-	filters.Add("label", "com.docker.compose.project="+project)
-	items, err := docker.ListContainers(s.docker, ctx, client.ContainerListOptions{
-		All:     true,
-		Filters: filters,
-	})
+	if s.agent == nil {
+		return model.ComposeInspect{}, agentUnavailable()
+	}
+	items, err := s.agent.ContainerList(ctx, true)
 	if err != nil {
 		return model.ComposeInspect{}, err
+	}
+	var matched []agent.ContainerSummary
+	for _, ctr := range items {
+		if ctr.Labels["com.docker.compose.project"] == project {
+			matched = append(matched, ctr)
+		}
 	}
 	var yaml *string
 	managed := false
@@ -175,7 +149,7 @@ func (s *ComposeService) Inspect(ctx context.Context, project string) (model.Com
 	return model.ComposeInspect{
 		Project:    project,
 		Managed:    managed,
-		Containers: model.ToContainerItems(items),
+		Containers: model.ToContainerItems(matched),
 		Yaml:       yaml,
 	}, nil
 }
@@ -193,8 +167,8 @@ func (s *ComposeService) SaveYaml(project, yaml string) error {
 }
 
 // Remove 停栈并删除编排目录
-func (s *ComposeService) Remove(project string) error {
-	_, _ = s.Run(project, "down")
+func (s *ComposeService) Remove(ctx context.Context, project string) error {
+	_, _ = s.Run(ctx, project, "down")
 	return os.RemoveAll(projectDir(s.composeDir, project))
 }
 
@@ -209,4 +183,85 @@ func (s *ComposeService) Adopt(project, yaml string) error {
 		return err
 	}
 	return os.WriteFile(composeFile(s.composeDir, project), []byte(yaml), 0o644)
+}
+
+// ---------- Agent 执行 ----------
+
+// collectFiles 收集项目目录附加文件(相对路径 → base64),docker-compose.yml 除外
+func (s *ComposeService) collectFiles(project string) map[string]string {
+	files := map[string]string{}
+	root := projectDir(s.composeDir, project)
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil || rel == "docker-compose.yml" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		files[filepath.ToSlash(rel)] = base64.StdEncoding.EncodeToString(raw)
+		return nil
+	})
+	return files
+}
+
+// Run 同步执行 compose 动作(start/stop/restart/down/build):面板保存 YAML → Agent 执行
+func (s *ComposeService) Run(ctx context.Context, project, action string, args ...string) (map[string]any, error) {
+	if s.agent == nil {
+		return nil, agentUnavailable()
+	}
+	yamlRaw, err := os.ReadFile(s.File(project))
+	if err != nil {
+		return nil, NewApiError(404, "compose.notManaged")
+	}
+	all := append([]string{action}, args...)
+	res, err := s.agent.ComposeRun(ctx, project, string(yamlRaw), s.collectFiles(project), all...)
+	if err != nil {
+		return nil, agentToApiError(err)
+	}
+	return map[string]any{"ok": res.OK, "output": res.Output}, nil
+}
+
+// UpStream 流式 compose up:面板保存 YAML → Agent 执行,返回 NDJSON 流
+func (s *ComposeService) UpStream(ctx context.Context, project, yaml, args string) (*agent.StreamBody, error) {
+	if s.agent == nil {
+		return nil, agentUnavailable()
+	}
+	if err := s.SaveYaml(project, yaml); err != nil {
+		return nil, err
+	}
+	return s.agent.ComposeUpStream(ctx, agent.ComposeStreamReq{
+		Project: project,
+		Yaml:    yaml,
+		Files:   s.collectFiles(project),
+	}, args)
+}
+
+// PullStream 流式 compose pull(应用商店安装预拉取)
+func (s *ComposeService) PullStream(ctx context.Context, project string) (*agent.StreamBody, error) {
+	if s.agent == nil {
+		return nil, agentUnavailable()
+	}
+	yamlRaw, err := os.ReadFile(s.File(project))
+	if err != nil {
+		return nil, NewApiError(404, "compose.notManaged")
+	}
+	return s.agent.ComposePullStream(ctx, agent.ComposeStreamReq{
+		Project: project,
+		Yaml:    string(yamlRaw),
+		Files:   s.collectFiles(project),
+	})
+}
+
+// agentToApiError Agent 错误 → 面板 ApiError(透传状态码与消息)
+func agentToApiError(err error) error {
+	var ae *agent.AgentError
+	if errors.As(err, &ae) {
+		return NewApiError(ae.Status, ae.Message)
+	}
+	return err
 }

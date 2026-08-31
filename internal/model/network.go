@@ -1,28 +1,19 @@
 package model
 
-import (
-	"github.com/moby/moby/api/types/network"
-)
+import "encoding/json"
 
 // ---- 网络列表(精简) ----
-// 新版 moby /networks 不返回容器端点信息;仅返回列表展示字段
 
 type NetworkListItem struct {
-	ID     string       `json:"Id"`
-	Name   string       `json:"Name"`
-	Driver string       `json:"Driver"`
-	Scope  string       `json:"Scope"`
-	IPAM   network.IPAM `json:"IPAM"`
+	ID     string          `json:"Id"`
+	Name   string          `json:"Name"`
+	Driver string          `json:"Driver"`
+	Scope  string          `json:"Scope"`
+	IPAM   json.RawMessage `json:"IPAM,omitempty"`
 }
 
-func ToNetworkItems(items []network.Summary) []NetworkListItem {
-	out := make([]NetworkListItem, 0, len(items))
-	for _, it := range items {
-		out = append(out, NetworkListItem{
-			ID: it.ID, Name: it.Name, Driver: it.Driver, Scope: it.Scope, IPAM: it.IPAM,
-		})
-	}
-	return out
+func ToNetworkItems(items []NetworkListItem) []NetworkListItem {
+	return items
 }
 
 // ---- 创建网络请求 ----

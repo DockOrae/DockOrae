@@ -8,16 +8,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/moby/moby/client"
-
+	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/appstore"
-	"github.com/DockOrae/DockOrae/internal/docker"
 	"github.com/DockOrae/DockOrae/internal/state"
 )
 
-// AppStoreService 应用商店业务:依赖注入(dataDir + docker client + license 检查)
+// AppStoreService 应用商店业务(渲染/参数/版本在面板;部署执行在 Agent)。
 type AppStoreService struct {
-	docker  *client.Client
+	agent   *agent.Client
 	dataDir string
 	license func() bool
 }
@@ -25,7 +23,7 @@ type AppStoreService struct {
 // NewAppStoreService 生产构造:从 AppState 提取实际依赖
 func NewAppStoreService(st *state.AppState) *AppStoreService {
 	return &AppStoreService{
-		docker:  st.Docker,
+		agent:   st.Agent,
 		dataDir: st.Cfg.DataDir,
 		license: func() bool { return LicenseFeatureActive(st, "appstore") },
 	}
@@ -126,7 +124,7 @@ func (s *AppStoreService) Preview(key string, params map[string]string) (string,
 	return appstore.Render(a, versionOf(a, params), params)
 }
 
-// Install 一键安装:渲染 compose → 保存到面板目录 → 复制附加文件 → compose up。
+// Install 一键安装:渲染 compose → 保存到面板目录 → 复制附加文件 → Agent 部署。
 func (s *AppStoreService) Install(ctx context.Context, key string, params map[string]string, yamlOverride string) error {
 	if !s.license() {
 		return NewApiError(403, "license.required")
@@ -153,7 +151,7 @@ func (s *AppStoreService) Install(ctx context.Context, key string, params map[st
 	if strings.TrimSpace(yamlOverride) != "" {
 		yaml = yamlOverride
 	}
-	cs := &ComposeService{docker: s.docker, composeDir: filepath.Join(s.dataDir, "compose"), license: s.license}
+	cs := s.composeService()
 	if err := cs.Adopt(key, yaml); err != nil {
 		return err
 	}
@@ -166,14 +164,16 @@ func (s *AppStoreService) Install(ctx context.Context, key string, params map[st
 		return err
 	}
 	// 确保 compose 引用的 external 网络存在(1Panel 同款 1panel-network)
-	if err := ensureExternalNetworks(s.docker, ctx, yaml); err != nil {
+	if err := s.ensureExternalNetworks(ctx, yaml); err != nil {
 		return err
 	}
 	// 启动前拉取镜像(默认开启,未显式关闭则执行)
 	if params["pull_first"] != "false" {
-		_, _ = cs.Run(key, "pull")
+		if _, err := cs.Run(ctx, key, "pull"); err != nil {
+			return err
+		}
 	}
-	if _, err := cs.Run(key, "up", "-d"); err != nil {
+	if _, err := cs.Run(ctx, key, "up", "-d"); err != nil {
 		return err
 	}
 	return nil
@@ -184,8 +184,8 @@ func (s *AppStoreService) Uninstall(key string) error {
 	if !appstore.ValidKey(key) {
 		return BadRequest("appstore.notFound")
 	}
-	cs := &ComposeService{docker: s.docker, composeDir: filepath.Join(s.dataDir, "compose"), license: s.license}
-	_, _ = cs.Run(key, "down")
+	cs := s.composeService()
+	_, _ = cs.Run(context.Background(), key, "down")
 	return os.RemoveAll(s.projectDir(key))
 }
 
@@ -214,11 +214,20 @@ func (s *AppStoreService) Upgrade(ctx context.Context, key string) error {
 			return err
 		}
 	}
-	cs := &ComposeService{docker: s.docker, composeDir: filepath.Join(s.dataDir, "compose"), license: s.license}
-	if _, err := cs.Run(key, "up", "-d", "--force-recreate", "--pull", "always"); err != nil {
+	cs := s.composeService()
+	if _, err := cs.Run(ctx, key, "up", "-d", "--force-recreate", "--pull", "always"); err != nil {
 		return err
 	}
 	return nil
+}
+
+// composeService 构造 ComposeService(共享 Agent 客户端 + compose 数据目录)
+func (s *AppStoreService) composeService() *ComposeService {
+	return &ComposeService{
+		agent:      s.agent,
+		composeDir: filepath.Join(s.dataDir, "compose"),
+		license:    s.license,
+	}
 }
 
 // ---------- 内部工具 ----------
@@ -282,8 +291,11 @@ func copyRecursive(src, dst string) error {
 
 var externalNetRe = regexp.MustCompile(`(?m)^\s{2}([a-zA-Z0-9_.-]+):\s*\n\s{4}external:\s*true`)
 
-// ensureExternalNetworks 确保 compose 引用的 external 网络存在(不存在则创建)
-func ensureExternalNetworks(cli *client.Client, ctx context.Context, yaml string) error {
+// ensureExternalNetworks 确保 compose 引用的 external 网络存在(不存在则创建;经 Agent)
+func (s *AppStoreService) ensureExternalNetworks(ctx context.Context, yaml string) error {
+	if s.agent == nil {
+		return agentUnavailable()
+	}
 	seen := map[string]bool{}
 	for _, m := range externalNetRe.FindAllStringSubmatch(yaml, -1) {
 		name := strings.TrimSpace(m[1])
@@ -291,13 +303,11 @@ func ensureExternalNetworks(cli *client.Client, ctx context.Context, yaml string
 			continue
 		}
 		seen[name] = true
-		_, _, err := docker.InspectNetwork(cli, ctx, name)
-		if err == nil {
+		if _, err := s.agent.NetworkInspectRaw(ctx, name); err == nil {
 			continue
 		}
-		_, err = docker.CreateNetwork(cli, ctx, name, client.NetworkCreateOptions{})
-		if err != nil {
-			return err
+		if _, err := s.agent.NetworkCreate(ctx, agent.NetworkCreateReq{Name: name}); err != nil {
+			return agentToApiError(err)
 		}
 	}
 	return nil

@@ -1,9 +1,6 @@
 package api
 
 import (
-	"bufio"
-	"encoding/json"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/DockOrae/DockOrae/internal/model"
@@ -20,15 +17,15 @@ func imagesList(c *gin.Context, d *Deps) error {
 }
 
 func imagesInspect(c *gin.Context, d *Deps) error {
-	insp, err := d.Images.Inspect(c.Request.Context(), c.Param("id"))
+	raw, err := d.Images.Inspect(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
-	c.JSON(200, insp)
+	c.Data(200, "application/json", raw)
 	return nil
 }
 
-// imagesPull 拉取镜像:响应为 application/x-ndjson 流(逐行进度 JSON)
+// imagesPull 拉取镜像:响应为 application/x-ndjson 流(Agent 进度逐行转发)
 func imagesPull(c *gin.Context, d *Deps) error {
 	var req model.PullImageReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -43,34 +40,11 @@ func imagesPull(c *gin.Context, d *Deps) error {
 	}
 	ref := service.ImagePullRef(req.FromImage, tag)
 
-	pullRes, err := d.Images.Pull(c.Request.Context(), ref)
+	stream, err := d.Images.PullStream(c.Request.Context(), ref)
 	if err != nil {
 		return err
 	}
-	defer pullRes.Close()
-
-	c.Header("Content-Type", "application/x-ndjson")
-	c.Status(200)
-	flusher, _ := c.Writer.(interface{ Flush() })
-	w := bufio.NewWriter(c.Writer)
-	for msg, err := range pullRes.JSONMessages(c.Request.Context()) {
-		if err != nil {
-			line, _ := json.Marshal(gin.H{"error": err.Error()})
-			_, _ = w.Write(append(line, '\n'))
-			_ = w.Flush()
-			if flusher != nil {
-				flusher.Flush()
-			}
-			break
-		}
-		line, _ := json.Marshal(msg)
-		_, _ = w.Write(append(line, '\n'))
-		_ = w.Flush()
-		if flusher != nil {
-			flusher.Flush()
-		}
-	}
-	return nil
+	return forwardNDJSON(c, stream)
 }
 
 func imagesRemove(c *gin.Context, d *Deps) error {

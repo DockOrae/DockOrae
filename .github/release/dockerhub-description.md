@@ -21,7 +21,7 @@ docker run -d --name dockorae \
   -p 8080:8080 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v dm-data:/data \
-  zhaoweiwen123/dockorae:latest
+  dockorae/dockorae:latest
 ```
 
 默认账号 `admin / 123456`(首次登录强制修改密码)。

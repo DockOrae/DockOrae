@@ -1,106 +1,40 @@
 package api
 
 import (
-	"bufio"
-	"context"
-	"encoding/json"
 	"io"
 	"os"
-	"os/exec"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/service"
 )
 
-func ndjsonLine(line string) string {
-	b, _ := json.Marshal(line)
-	return `{"type":"line","data":` + string(b) + "}\n"
-}
-
-// runComposeStream 以 NDJSON 流式执行 docker-compose 命令:每行输出一条
-// {"type":"line","data":...},结束时发送 {"type":"done","ok":bool,"error":?}
-func runComposeStream(c *gin.Context, d *Deps, project string, args ...string) error {
-	if _, err := exec.LookPath(service.ComposeBin()); err != nil {
-		_, _ = io.WriteString(c.Writer, `{"type":"done","ok":false,"error":"compose.binaryMissing"}`+"\n")
-		return nil
-	}
-
-	cmd := d.Compose.Command(project, args...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-	if err := cmd.Start(); err != nil {
-		c.Header("Content-Type", "application/x-ndjson")
-		c.Status(200)
-		_, _ = io.WriteString(c.Writer, `{"type":"done","ok":false,"error":"compose.binaryMissing"}`+"\n")
-		return nil
-	}
-
+// forwardNDJSON 把 Agent NDJSON 流逐行转发给浏览器(compose up / 镜像拉取共用)
+func forwardNDJSON(c *gin.Context, stream *agent.StreamBody) error {
+	defer stream.Close()
 	c.Header("Content-Type", "application/x-ndjson")
 	c.Status(200)
 	flusher, _ := c.Writer.(interface{ Flush() })
-	write := func(line string) {
-		_, _ = io.WriteString(c.Writer, line)
+	for {
+		raw, err := stream.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			_, _ = c.Writer.Write([]byte(`{"type":"done","ok":false,"error":"stream.failed"}` + "\n"))
+			if flusher != nil {
+				flusher.Flush()
+			}
+			return nil
+		}
+		_, _ = c.Writer.Write(append(raw, '\n'))
 		if flusher != nil {
 			flusher.Flush()
 		}
 	}
-
-	// 交错读取 stdout / stderr,保证进度实时可见
-	outLines := make(chan string, 64)
-	errLines := make(chan string, 64)
-	go scanLines(stdout, outLines)
-	go scanLines(stderr, errLines)
-
-	outOpen, errOpen := true, true
-	for outOpen || errOpen {
-		// GO-003:channel 关闭后置 nil,select 对其永远阻塞,避免空转 busy-wait
-		var outCh, errCh <-chan string
-		if outOpen {
-			outCh = outLines
-		}
-		if errOpen {
-			errCh = errLines
-		}
-		select {
-		case line, ok := <-outCh:
-			if !ok {
-				outOpen = false
-				continue
-			}
-			write(ndjsonLine(line))
-		case line, ok := <-errCh:
-			if !ok {
-				errOpen = false
-				continue
-			}
-			write(ndjsonLine(line))
-		}
-	}
-	err = cmd.Wait()
-	if err == nil {
-		write(`{"type":"done","ok":true}` + "\n")
-	} else {
-		write(`{"type":"done","ok":false,"error":"compose.failed"}` + "\n")
-	}
-	return nil
-}
-
-func scanLines(r io.Reader, ch chan<- string) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 64*1024), 1024*1024)
-	for sc.Scan() {
-		ch <- sc.Text()
-	}
-	close(ch)
 }
 
 func composeList(c *gin.Context, d *Deps) error {
@@ -137,10 +71,11 @@ func composeUp(c *gin.Context, d *Deps) error {
 	if err != nil {
 		return err
 	}
-	if err := d.Compose.SaveYaml(project, req.Yaml); err != nil {
+	stream, err := d.Compose.UpStream(c.Request.Context(), project, req.Yaml, "")
+	if err != nil {
 		return err
 	}
-	return runComposeStream(c, d, project, "up", "-d", "--remove-orphans")
+	return forwardNDJSON(c, stream)
 }
 
 func composeUpdate(c *gin.Context, d *Deps) error {
@@ -157,10 +92,11 @@ func composeUpdate(c *gin.Context, d *Deps) error {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return service.BadRequest("err.requestFailed")
 	}
-	if err := d.Compose.SaveYaml(project, req.Yaml); err != nil {
+	stream, err := d.Compose.UpStream(c.Request.Context(), project, req.Yaml, "")
+	if err != nil {
 		return err
 	}
-	return runComposeStream(c, d, project, "up", "-d", "--remove-orphans")
+	return forwardNDJSON(c, stream)
 }
 
 func composeStart(c *gin.Context, d *Deps) error {
@@ -168,7 +104,7 @@ func composeStart(c *gin.Context, d *Deps) error {
 	if err != nil {
 		return err
 	}
-	res, err := d.Compose.Run(project, "start")
+	res, err := d.Compose.Run(c.Request.Context(), project, "start")
 	if err != nil {
 		return err
 	}
@@ -181,7 +117,7 @@ func composeStop(c *gin.Context, d *Deps) error {
 	if err != nil {
 		return err
 	}
-	res, err := d.Compose.Run(project, "stop")
+	res, err := d.Compose.Run(c.Request.Context(), project, "stop")
 	if err != nil {
 		return err
 	}
@@ -194,7 +130,7 @@ func composeRestart(c *gin.Context, d *Deps) error {
 	if err != nil {
 		return err
 	}
-	res, err := d.Compose.Run(project, "restart")
+	res, err := d.Compose.Run(c.Request.Context(), project, "restart")
 	if err != nil {
 		return err
 	}
@@ -207,11 +143,11 @@ func composeDown(c *gin.Context, d *Deps) error {
 	if err != nil {
 		return err
 	}
-	args := []string{"down"}
+	args := []string{}
 	if parseBool(c.Query("volumes"), false) {
 		args = append(args, "-v")
 	}
-	res, err := d.Compose.Run(project, args...)
+	res, err := d.Compose.Run(c.Request.Context(), project, "down", args...)
 	if err != nil {
 		return err
 	}
@@ -224,7 +160,7 @@ func composeRemove(c *gin.Context, d *Deps) error {
 	if err != nil {
 		return err
 	}
-	if err := d.Compose.Remove(project); err != nil {
+	if err := d.Compose.Remove(c.Request.Context(), project); err != nil {
 		return err
 	}
 	c.JSON(200, gin.H{"ok": true})
@@ -250,7 +186,7 @@ func composeAdopt(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// composeLogsWS 日志流(WebSocket 实时)
+// composeLogsWS 日志流(浏览器 ↔ Agent 透传)
 func composeLogsWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
@@ -274,36 +210,12 @@ func composeLogsWS(c *gin.Context, d *Deps) error {
 			tail = t
 		}
 	}
-	cmd := d.Compose.Command(project, "logs", "-f", "--tail", tail)
-	stdout, err := cmd.StdoutPipe()
+	aconn, err := d.St.Agent.ComposeLogsWS(c.Request.Context(), project, tail)
 	if err != nil {
-		return err
-	}
-	cmd.Stderr = io.Discard
-	if err := cmd.Start(); err != nil {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("compose.logsFailed"))
 		_ = conn.WriteMessage(websocket.CloseMessage, nil)
 		return nil
 	}
-
-	ctx, cancel := context.WithCancel(c.Request.Context())
-	defer cancel()
-	go func() {
-		sc := bufio.NewScanner(stdout)
-		sc.Buffer(make([]byte, 64*1024), 1024*1024)
-		for sc.Scan() {
-			if conn.WriteMessage(websocket.TextMessage, []byte(sc.Text())) != nil {
-				break
-			}
-		}
-		cancel()
-	}()
-
-	wsPump(ctx, conn, func(mt int, data []byte) bool {
-		return mt != websocket.CloseMessage
-	})
-	_ = cmd.Process.Kill()
-	_ = cmd.Wait() // 回收子进程,避免僵尸
-	_ = conn.WriteMessage(websocket.CloseMessage, nil)
+	relayWS(c, conn, aconn)
 	return nil
 }

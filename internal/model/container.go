@@ -1,14 +1,14 @@
 // Package model 分层架构中的数据模型层:请求/响应结构体与类型映射。
-// 仅依赖 moby 类型,不含任何业务逻辑。
+// 数据来源为 Agent(不再依赖 moby SDK)。
 package model
 
 import (
-	"github.com/moby/moby/api/types/container"
+	"github.com/DockOrae/DockOrae/internal/agent"
 )
 
 // ---- 容器列表(精简) ----
-// moby 全量 Summary 携带 NetworkSettings/Mounts 等大字段,直传跨洋响应可达数百 KB;
-// 列表接口只返回前端实际使用的字段,响应体积缩小 5~10 倍。
+// Agent 返回 docker Summary JSON,本层只保留前端实际使用的字段,
+// 响应体积比全量 docker 对象缩小 5~10 倍。
 
 type ContainerMountItem struct {
 	Type string `json:"Type"`
@@ -16,28 +16,28 @@ type ContainerMountItem struct {
 }
 
 type ContainerListItem struct {
-	ID      string                  `json:"Id"`
-	Names   []string                `json:"Names"`
-	Image   string                  `json:"Image"`
-	State   string                  `json:"State"`
-	Ports   []container.PortSummary `json:"Ports"`
-	Created int64                   `json:"Created"`
-	Mounts  []ContainerMountItem    `json:"Mounts"`
-	Labels  map[string]string       `json:"Labels,omitempty"`
+	ID      string                `json:"Id"`
+	Names   []string              `json:"Names"`
+	Image   string                `json:"Image"`
+	State   string                `json:"State"`
+	Ports   []agent.ContainerPort `json:"Ports"`
+	Created int64                 `json:"Created"`
+	Mounts  []ContainerMountItem  `json:"Mounts"`
+	Labels  map[string]string     `json:"Labels,omitempty"`
 }
 
-func ToContainerItems(items []container.Summary) []ContainerListItem {
+func ToContainerItems(items []agent.ContainerSummary) []ContainerListItem {
 	out := make([]ContainerListItem, 0, len(items))
 	for _, it := range items {
 		mounts := make([]ContainerMountItem, 0, len(it.Mounts))
 		for _, m := range it.Mounts {
-			mounts = append(mounts, ContainerMountItem{Type: string(m.Type), Name: m.Name})
+			mounts = append(mounts, ContainerMountItem{Type: m.Type, Name: m.Name})
 		}
 		out = append(out, ContainerListItem{
 			ID:      it.ID,
 			Names:   it.Names,
 			Image:   it.Image,
-			State:   string(it.State),
+			State:   it.State,
 			Ports:   it.Ports,
 			Created: it.Created,
 			Mounts:  mounts,

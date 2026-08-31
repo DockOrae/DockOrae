@@ -5,21 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
-
 	"github.com/DockOrae/DockOrae/internal/model"
 )
-
-// portOf 解析端口字符串为 network.Port(测试辅助)
-func portOf(t *testing.T, s string) network.Port {
-	t.Helper()
-	p, err := network.ParsePort(s)
-	if err != nil {
-		t.Fatalf("parse port %s: %v", s, err)
-	}
-	return p
-}
 
 // ---- buildContainerConfig:参数转换(纯函数) ----
 
@@ -41,22 +28,22 @@ func TestBuildContainerConfigPorts(t *testing.T) {
 	}
 
 	// TCP 默认值:80 → 80/tcp
-	if _, ok := cfg.ExposedPorts[portOf(t, "80/tcp")]; !ok {
+	if _, ok := cfg.ExposedPorts["80/tcp"]; !ok {
 		t.Errorf("missing exposed 80/tcp, got %v", cfg.ExposedPorts)
 	}
-	if len(hc.PortBindings[portOf(t, "80/tcp")]) != 1 || hc.PortBindings[portOf(t, "80/tcp")][0].HostPort != "8080" {
-		t.Errorf("bad binding for 80/tcp: %v", hc.PortBindings[portOf(t, "80/tcp")])
+	if len(hc.PortBindings["80/tcp"]) != 1 || hc.PortBindings["80/tcp"][0].HostPort != "8080" {
+		t.Errorf("bad binding for 80/tcp: %v", hc.PortBindings["80/tcp"])
 	}
-	if hc.PortBindings[portOf(t, "80/tcp")][0].HostIP.String() != "0.0.0.0" {
-		t.Errorf("default HostIP should be 0.0.0.0, got %s", hc.PortBindings[portOf(t, "80/tcp")][0].HostIP)
+	if hc.PortBindings["80/tcp"][0].HostIP != "0.0.0.0" {
+		t.Errorf("default HostIP should be 0.0.0.0, got %s", hc.PortBindings["80/tcp"][0].HostIP)
 	}
 
 	// 显式协议 + HostIP
-	if _, ok := cfg.ExposedPorts[portOf(t, "443/tcp")]; !ok {
+	if _, ok := cfg.ExposedPorts["443/tcp"]; !ok {
 		t.Errorf("missing exposed 443/tcp")
 	}
-	if hc.PortBindings[portOf(t, "443/tcp")][0].HostIP.String() != ip {
-		t.Errorf("HostIP not applied: %s", hc.PortBindings[portOf(t, "443/tcp")][0].HostIP)
+	if hc.PortBindings["443/tcp"][0].HostIP != ip {
+		t.Errorf("HostIP not applied: %s", hc.PortBindings["443/tcp"][0].HostIP)
 	}
 
 	// 无效端口跳过:仅 4 个有效端口
@@ -65,16 +52,16 @@ func TestBuildContainerConfigPorts(t *testing.T) {
 	}
 
 	// UDP
-	if _, ok := cfg.ExposedPorts[portOf(t, "53/udp")]; !ok {
+	if _, ok := cfg.ExposedPorts["53/udp"]; !ok {
 		t.Errorf("missing exposed 53/udp")
 	}
-	if hc.PortBindings[portOf(t, "53/udp")][0].HostPort != "5353" {
-		t.Errorf("bad binding for 53/udp: %v", hc.PortBindings[portOf(t, "53/udp")])
+	if hc.PortBindings["53/udp"][0].HostPort != "5353" {
+		t.Errorf("bad binding for 53/udp: %v", hc.PortBindings["53/udp"])
 	}
 
 	// 主机端口 0:HostPort 应为 "0"
-	if hc.PortBindings[portOf(t, "8080/udp")][0].HostPort != "0" {
-		t.Errorf("host port 0 should map to \"0\", got %q", hc.PortBindings[portOf(t, "8080/udp")][0].HostPort)
+	if hc.PortBindings["8080/udp"][0].HostPort != "0" {
+		t.Errorf("host port 0 should map to \"0\", got %q", hc.PortBindings["8080/udp"][0].HostPort)
 	}
 }
 
@@ -125,12 +112,12 @@ func TestBuildContainerConfigVolumeSrcMissing(t *testing.T) {
 func TestBuildContainerConfigRestartPolicy(t *testing.T) {
 	cases := []struct {
 		policy string
-		want   container.RestartPolicyMode
+		want   string
 	}{
-		{"always", container.RestartPolicyAlways},
-		{"unless-stopped", container.RestartPolicyUnlessStopped},
-		{"on-failure", container.RestartPolicyOnFailure},
-		{"no", container.RestartPolicyDisabled},
+		{"always", "always"},
+		{"unless-stopped", "unless-stopped"},
+		{"on-failure", "on-failure"},
+		{"no", "no"},
 	}
 	for _, c := range cases {
 		p := c.policy
@@ -143,11 +130,11 @@ func TestBuildContainerConfigRestartPolicy(t *testing.T) {
 			t.Errorf("policy %s: got %s, want %s", c.policy, hc.RestartPolicy.Name, c.want)
 		}
 	}
-	// nil 策略 → disabled
+	// nil 策略 → no
 	req := model.CreateContainerReq{Image: "nginx"}
 	_, hc, _ := buildContainerConfig(req)
-	if hc.RestartPolicy.Name != container.RestartPolicyDisabled {
-		t.Errorf("nil policy: got %s, want disabled", hc.RestartPolicy.Name)
+	if hc.RestartPolicy.Name != "no" {
+		t.Errorf("nil policy: got %s, want no", hc.RestartPolicy.Name)
 	}
 }
 
@@ -171,7 +158,7 @@ func TestBuildContainerConfigFlags(t *testing.T) {
 	if !hc.Privileged {
 		t.Errorf("privileged not applied")
 	}
-	if string(hc.NetworkMode) != netName {
+	if hc.NetworkMode != netName {
 		t.Errorf("network mode: got %s, want %s", hc.NetworkMode, netName)
 	}
 	if len(cfg.Cmd) != 2 || cfg.Cmd[0] != "-g" {
@@ -195,17 +182,17 @@ func TestBuildContainerConfigEmptyNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if string(hc.NetworkMode) != "" {
+	if hc.NetworkMode != "" {
 		t.Errorf("empty network should leave NetworkMode empty, got %q", hc.NetworkMode)
 	}
 }
 
 // ---- ContainerService.Create:业务规则(license / image 校验,无需真实 docker) ----
 
-// newTestContainerService 构造可测实例:license 可注入,docker 为 nil(校验路径不会触达)
+// newTestContainerService 构造可测实例:license 可注入,agent 为 nil(校验路径不会触达)
 func newTestContainerService(license bool) *ContainerService {
 	return &ContainerService{
-		docker:  nil,
+		agent:   nil,
 		license: func() bool { return license },
 	}
 }
@@ -228,7 +215,7 @@ func TestContainerCreateImageEmpty(t *testing.T) {
 	}
 }
 
-// TestContainerCreateVolumeErrorPropagated 卷参数错误在调用 docker 前返回
+// TestContainerCreateVolumeErrorPropagated 卷参数错误在调用 Agent 前返回
 func TestContainerCreateVolumeErrorPropagated(t *testing.T) {
 	svc := newTestContainerService(true)
 	_, err := svc.Create(context.Background(), model.CreateContainerReq{

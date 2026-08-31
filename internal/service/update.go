@@ -2,7 +2,6 @@ package service
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -13,20 +12,15 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/moby/moby/api/pkg/stdcopy"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"golang.org/x/mod/semver"
 
-	"github.com/DockOrae/DockOrae/internal/docker"
+	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/model"
 	"github.com/DockOrae/DockOrae/internal/state"
 )
@@ -324,7 +318,7 @@ func DeploymentMode() string {
 var imageLineRe = regexp.MustCompile(`^\s*image:\s*(\S+)\s*$`)
 
 // findManagerImage 在 compose yaml 中查找 dockorae 的 image 值(第一个匹配)。
-// 返回 image 字段的完整值(如 zhaoweiwen123/dockorae:latest);
+// 返回 image 字段的完整值(如 dockorae/dockorae:latest);
 // 找不到(未使用该镜像 / 值带引号等)返回 false。
 // 只匹配镜像名(最后一段)为 dockorae 的条目,绝不误改 nginx/redis 等其他镜像。
 func findManagerImage(yaml string) (string, bool) {
@@ -351,7 +345,7 @@ func findManagerImage(yaml string) (string, bool) {
 
 // retagImageValue 把 image 值(可含 :tag 或 @digest)替换为指定 tag,保留 repository。
 //
-//	zhaoweiwen123/dockorae:latest      → zhaoweiwen123/dockorae:v1.3.0
+//	dockorae/dockorae:latest      → dockorae/dockorae:v1.3.0
 //	registry.example.com/docker-manager-go:v1.0.2 → registry.example.com/docker-manager-go:v1.3.0
 //	docker-manager-go@sha256:abc                 → docker-manager-go:v1.3.0
 func retagImageValue(val, tag string) string {
@@ -387,17 +381,9 @@ func buildHelperCmd(oldVal, newVal string) string {
 		oldVal, newVal)
 }
 
-// readHostFile 读取宿主路径文件:容器内宿主根经 /host 只读挂载,binary 模式直接宿主路径。
-func readHostFile(hostPath string) ([]byte, error) {
-	if b, err := os.ReadFile("/host" + hostPath); err == nil {
-		return b, nil
-	}
-	return os.ReadFile(hostPath)
-}
-
 // applyComposeUpdate compose 部署:独立 compose 容器代跑(面板容器重建期间执行者不受影响)。
 // 更新目标为明确版本 tag(禁止依赖 latest):helper 先备份并替换 compose 中的镜像 tag,再 pull+up。
-// 修复 UPD-001:等待 helper 退出并检查退出码,失败回传具体原因(不再"启动即成功")。
+// §5/§12:镜像拉取、容器生命周期全部经 Agent 执行(DockOrae 不直连 Docker)。
 func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) error {
 	dir, err := FindComposeDir(st)
 	if err != nil {
@@ -408,24 +394,22 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) err
 	// 用独立 context(5 分钟):拉镜像/建容器不随请求断开而中断
 	opCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
+	if st.Agent == nil {
+		return failUpdate("Agent 不可用,无法执行更新")
+	}
 
-	// 1. 拉取 compose 辅助镜像(读完进度流即等待拉取完成)
-	pullRes, err := docker.PullImage(st.Docker, opCtx, composeHelperImg, client.ImagePullOptions{})
-	if err != nil {
+	// 1. 拉取 compose 辅助镜像(读完进度流即等待拉取完成;经 Agent)
+	if err := agentPullImageDrain(st, opCtx, composeHelperImg); err != nil {
 		return failUpdate("拉取更新辅助镜像失败: %s", err.Error())
 	}
-	for range pullRes.JSONMessages(opCtx) {
-	}
-	_ = pullRes.Close()
 
 	// 2. 清理上次更新遗留的 helper 容器(幂等)
-	_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
+	_ = st.Agent.ContainerRemove(opCtx, updateHelperName, true, false)
 
 	setUpdatePhase(PhaseHelper)
 
-	// 3. 修复 UPD-002:读取宿主 compose 文件,精确识别 docker-manager-go 的 image 值并替换 tag。
-	//    旧实现 sed 只替换 :latest,用户写死版本 tag(如 v1.0.2)时更新不生效(更新假成功)。
-	yamlBytes, err := readHostFile(filepath.Join(dir, "docker-compose.yml"))
+	// 3. 读取宿主 compose 文件(经 Agent /v1/panel/compose),精确识别 dockorae 镜像并替换 tag
+	yamlBytes, err := agentReadPanelCompose(st, opCtx)
 	if err != nil {
 		return failUpdate("读取 docker-compose.yml 失败: %s", err.Error())
 	}
@@ -440,69 +424,91 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) err
 	helperCmd := buildHelperCmd(oldVal, newVal)
 
 	// 4. 创建并启动 helper:挂载 docker.sock + compose 目录(可写)。
-	//    面板容器对宿主 compose 目录只读(/:/host:ro),无法直接改文件,
-	//    由 helper(root) 先备份 compose 文件,再替换 image tag,然后 up。
-	//    不用 AutoRemove:失败后需要读取容器日志定位原因(见下方 WaitContainer 后取日志)。
-	_, err = docker.CreateContainer(st.Docker, opCtx, client.ContainerCreateOptions{
-		Config: &container.Config{
-			Image:      composeHelperImg,
-			Cmd:        []string{"sh", "-c", helperCmd},
-			WorkingDir: "/work",
-		},
-		HostConfig: &container.HostConfig{
-			Binds: []string{
-				"/var/run/docker.sock:/var/run/docker.sock",
-				dir + ":/work",
-			},
-		},
-		Name: updateHelperName,
+	//    helper(root) 先备份 compose 文件,再替换 image tag,然后 up。
+	//    不用 AutoRemove:失败后需要读取容器日志定位原因(见下方 Wait 后取日志)。
+	cfgRaw, _ := json.Marshal(map[string]any{
+		"Image":      composeHelperImg,
+		"Cmd":        []string{"sh", "-c", helperCmd},
+		"WorkingDir": "/work",
 	})
-	if err != nil {
+	hcRaw, _ := json.Marshal(map[string]any{
+		"Binds": []string{
+			"/var/run/docker.sock:/var/run/docker.sock",
+			dir + ":/work",
+		},
+	})
+	if _, err := st.Agent.ContainerCreate(opCtx, agent.ContainerCreateReq{
+		Name:       updateHelperName,
+		Config:     cfgRaw,
+		HostConfig: hcRaw,
+	}); err != nil {
 		return failUpdate("创建更新容器失败: %s", err.Error())
 	}
-	if err := docker.StartContainer(st.Docker, opCtx, updateHelperName); err != nil {
+	if err := st.Agent.ContainerStart(opCtx, updateHelperName); err != nil {
 		return failUpdate("启动更新容器失败: %s", err.Error())
 	}
 
-	// 4. 修复 UPD-001:等待 helper 真正执行完成(内部 pull 新镜像 + recreate 面板容器),
+	// 5. 等待 helper 真正执行完成(内部 pull 新镜像 + recreate 面板容器),
 	//    检查退出码——启动成功 ≠ 更新成功(镜像不存在/拉取失败/权限不足等都会让 helper 失败)。
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer waitCancel()
-	code, waitErr := docker.WaitContainer(st.Docker, waitCtx, updateHelperName)
+	code, waitErr := st.Agent.ContainerWait(waitCtx, updateHelperName)
 	if waitErr != nil {
-		_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
+		_ = st.Agent.ContainerRemove(opCtx, updateHelperName, true, false)
 		return failUpdate("等待更新容器退出失败: %s", waitErr.Error())
 	}
 	if code != 0 {
 		detail := helperLogsTail(st, updateHelperName, 80)
-		_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
+		_ = st.Agent.ContainerRemove(opCtx, updateHelperName, true, false)
 		return failUpdate("Compose 更新失败(exit code %d): %s", code, detail)
 	}
 	// 成功:清理 helper 容器(保持环境干净)
-	_ = docker.RemoveContainer(st.Docker, opCtx, updateHelperName, client.ContainerRemoveOptions{Force: true})
+	_ = st.Agent.ContainerRemove(opCtx, updateHelperName, true, false)
 
 	// helper 已确认执行成功(pull + up 完成,面板容器已重建),标记完成供前端转轮询版本接口
 	setUpdatePhase(PhaseDone)
 	return nil
 }
 
+// agentPullImageDrain 经 Agent 拉取镜像并耗尽进度流(等拉取完成)
+func agentPullImageDrain(st *state.AppState, ctx context.Context, ref string) error {
+	stream, err := st.Agent.PullImageStream(ctx, ref)
+	if err != nil {
+		return err
+	}
+	defer stream.Close()
+	for {
+		if _, err := stream.Next(); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+// agentReadPanelCompose 经 Agent 读取面板宿主 compose 文件内容
+func agentReadPanelCompose(st *state.AppState, ctx context.Context) ([]byte, error) {
+	_, yaml, err := st.Agent.PanelCompose(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(yaml), nil
+}
+
 // helperLogsTail 读取 helper 容器最近的日志行(尽力而为;容器已删除时返回空串)。
-// 供更新失败时定位原因(如 compose up 的具体报错)。
+// 供更新失败时定位原因(如 compose up 的具体报错);经 Agent。
 func helperLogsTail(st *state.AppState, id string, lines int) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	res, err := docker.ContainerLogs(st.Docker, ctx, id, client.ContainerLogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-		Tail:       strconv.Itoa(lines),
-	})
+	if st.Agent == nil {
+		return ""
+	}
+	out, err := st.Agent.ContainerLogsTail(ctx, id, lines)
 	if err != nil {
 		return ""
 	}
-	defer res.Close()
-	var buf bytes.Buffer
-	_, _ = stdcopy.StdCopy(&buf, &buf, res)
-	out := strings.TrimSpace(buf.String())
+	out = strings.TrimSpace(out)
 	if out == "" {
 		return "(无日志输出)"
 	}
@@ -738,27 +744,23 @@ func extractBinary(tarGz string) (string, error) {
 // FindComposeDir 探测宿主 docker-compose.yml 所在目录(**宿主路径**,供 bind 挂载):
 //  1. 从自身容器的 /data 挂载反推宿主 install 目录(install.sh: data 在 install 下)
 //  2. 默认安装目录 /opt/docker-manager(经 /host 只读挂载,去掉 /host 前缀还原宿主路径)
+//
+// FindComposeDir 定位面板宿主 compose 目录(经 Agent /v1/panel/compose;
+// 候选:AGENT_COMPOSE_DIR / 默认 /opt/docker-manager)
 func FindComposeDir(st *state.AppState) (string, error) {
-	var candidates []string
-	if id := SelfContainerID(); id != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if inj, err := docker.InspectContainer(st.Docker, ctx, id); err == nil {
-			for _, m := range inj.Mounts {
-				if m.Destination == "/data" && m.Source != "" {
-					candidates = append(candidates, filepath.Join(filepath.Dir(m.Source), "docker-compose.yml"))
-				}
-			}
-		}
+	if st.Agent == nil {
+		return "", fmt.Errorf("Agent 不可用,无法定位 compose 目录")
 	}
-	candidates = append(candidates, "/host/opt/docker-manager/docker-compose.yml")
-	for _, f := range candidates {
-		if _, err := os.Stat(f); err == nil {
-			// /host 挂载 = 宿主根,还原为宿主路径后才能作为 bind 挂载源传给 daemon
-			return filepath.Dir(strings.TrimPrefix(f, "/host/")), nil
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	dir, _, err := st.Agent.PanelCompose(ctx)
+	if err != nil {
+		return "", fmt.Errorf("未找到 docker-compose.yml: %v。请在宿主机执行 install.sh update 手动更新", err)
 	}
-	return "", fmt.Errorf("未找到 docker-compose.yml(已探测: %s)。请在宿主机执行 install.sh update 手动更新", strings.Join(candidates, "、"))
+	if dir == "" {
+		return "", fmt.Errorf("未找到 docker-compose.yml。请在宿主机执行 install.sh update 手动更新")
+	}
+	return dir, nil
 }
 
 // SelfContainerID 从 /proc/self/cgroup 解析当前容器 ID

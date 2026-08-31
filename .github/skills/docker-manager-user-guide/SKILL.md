@@ -51,7 +51,7 @@ disable-model-invocation: false
 - **存储**:SQLite(`data/` 目录,`DATA_DIR` 环境变量可覆盖)。设置存 `settings` 表 `main` 键(JSON)。
 - **默认账号**:`admin / 123456`(首次登录强制改密)。
 - **默认端口**:`8080`(`PORT` 环境变量可覆盖)。
-- **镜像**:Docker Hub `zhaoweiwen123/dockorae`(GitHub Actions 构建,只推 latest 标签)。
+- **镜像**:Docker Hub `dockorae/dockorae`(GitHub Actions 构建,只推 latest 标签)。
 - **仓库**:github.com/DockOrae/DockOrae(master 分支;发布含 ipk/apk 的仓库结构不同,本指南仅针对面板本体)。
 
 ---

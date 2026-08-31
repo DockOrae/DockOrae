@@ -11,14 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/moby/moby/api/types/events"
-	"github.com/moby/moby/client"
-
 	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/auth"
 	"github.com/DockOrae/DockOrae/internal/config"
 	"github.com/DockOrae/DockOrae/internal/db"
-	"github.com/DockOrae/DockOrae/internal/docker"
 	"github.com/DockOrae/DockOrae/internal/notify"
 	"github.com/DockOrae/DockOrae/internal/settings"
 )
@@ -65,28 +61,28 @@ func (s *AppState) SampleCPU(idle, total uint64) float64 {
 // EventHub Docker 事件广播(慢消费者直接丢弃,等价旧版 broadcast Lagged 语义)
 type EventHub struct {
 	mu   sync.Mutex
-	subs map[chan events.Message]struct{}
+	subs map[chan agent.EventMessage]struct{}
 }
 
 func NewEventHub() *EventHub {
-	return &EventHub{subs: make(map[chan events.Message]struct{})}
+	return &EventHub{subs: make(map[chan agent.EventMessage]struct{})}
 }
 
-func (h *EventHub) Subscribe() chan events.Message {
-	ch := make(chan events.Message, 512)
+func (h *EventHub) Subscribe() chan agent.EventMessage {
+	ch := make(chan agent.EventMessage, 512)
 	h.mu.Lock()
 	h.subs[ch] = struct{}{}
 	h.mu.Unlock()
 	return ch
 }
 
-func (h *EventHub) Unsubscribe(ch chan events.Message) {
+func (h *EventHub) Unsubscribe(ch chan agent.EventMessage) {
 	h.mu.Lock()
 	delete(h.subs, ch)
 	h.mu.Unlock()
 }
 
-func (h *EventHub) Publish(m events.Message) {
+func (h *EventHub) Publish(m agent.EventMessage) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for ch := range h.subs {
@@ -98,7 +94,6 @@ func (h *EventHub) Publish(m events.Message) {
 }
 
 type AppState struct {
-	Docker      *client.Client
 	Cfg         *config.Config
 	Settings    *settings.Store
 	DB          *db.DB // SQLite(users/settings/events)
@@ -114,12 +109,8 @@ type AppState struct {
 	done        chan struct{}
 }
 
-// New 创建 AppState:惰性连接(仅请求时真正访问 Docker),无 Docker 也能启动面板
+// New 创建 AppState:Agent 未部署时面板仍可启动(相关功能返回不可用)
 func New(cfg *config.Config) (*AppState, error) {
-	dockerClient, err := docker.NewClient()
-	if err != nil {
-		return nil, err
-	}
 	// SQLite 优先(仿 3x-ui:users/settings/events 全量入库);打开失败降级 JSON
 	var database *db.DB
 	if d, err := db.Open(cfg.DataDir); err == nil {
@@ -137,7 +128,6 @@ func New(cfg *config.Config) (*AppState, error) {
 	_ = os.MkdirAll(avatarDir, 0o755)
 
 	as := &AppState{
-		Docker:     dockerClient,
 		Cfg:        cfg,
 		Settings:   st,
 		DB:         database,
@@ -361,7 +351,9 @@ func (s *AppState) ResetAdminPasswordIfMarked() bool {
 	return true
 }
 
-// SpawnEventWatcher 轮询 Docker 事件流,断线 3s 后重连(无 Docker 时静默重试)
+// SpawnEventWatcher 经 Agent WebSocket 订阅 Docker 事件流,断线 3s 后重连。
+// 事件来源为 Agent /v1/docker/events(§5:Docker 全部由 Agent 执行);
+// Agent 未部署时静默重试(面板其余功能不受影响)。
 func (s *AppState) SpawnEventWatcher() {
 	go func() {
 		for {
@@ -370,28 +362,44 @@ func (s *AppState) SpawnEventWatcher() {
 				return
 			default:
 			}
-			res := s.Docker.Events(context.Background(), client.EventsListOptions{})
-			for {
+			if s.Agent == nil {
 				select {
-				case m, ok := <-res.Messages:
-					if !ok {
-						goto reconnect
-					}
-					s.Events.Publish(m)
-					// 通知:Docker 事件 → TG/邮件(按配置过滤;Notify 内部有界队列,风暴自动丢弃)
-					body := fmt.Sprintf("Action: %s\nTarget: %s", string(m.Action), m.Actor.ID)
-					if name := m.Actor.Attributes["name"]; name != "" {
-						body += "\nName: " + name
-					}
-					notify.Notify(s.Settings, notify.EventActionToType(string(m.Action)), "Docker Event: "+string(m.Action), body)
-				case err, ok := <-res.Err:
-					_ = err
-					if !ok || err != nil {
-						goto reconnect
-					}
+				case <-s.done:
+					return
+				case <-time.After(3 * time.Second):
 				}
+				continue
 			}
-		reconnect:
+			ctx, cancel := context.WithCancel(context.Background())
+			conn, err := s.Agent.DockerEventsWS(ctx)
+			if err != nil {
+				cancel()
+				select {
+				case <-s.done:
+					return
+				case <-time.After(3 * time.Second):
+				}
+				continue
+			}
+			for {
+				_, data, err := conn.ReadMessage()
+				if err != nil {
+					break
+				}
+				var m agent.EventMessage
+				if json.Unmarshal(data, &m) != nil {
+					continue
+				}
+				s.Events.Publish(m)
+				// 通知:Docker 事件 → TG/邮件(按配置过滤;Notify 内部有界队列,风暴自动丢弃)
+				body := fmt.Sprintf("Action: %s\nTarget: %s", m.Action, m.Actor.ID)
+				if name := m.Actor.Attributes["name"]; name != "" {
+					body += "\nName: " + name
+				}
+				notify.Notify(s.Settings, notify.EventActionToType(m.Action), "Docker Event: "+m.Action, body)
+			}
+			_ = conn.Close()
+			cancel()
 			log.Println("docker events stream disconnected, reconnecting in 3s")
 			select {
 			case <-s.done:
@@ -403,11 +411,11 @@ func (s *AppState) SpawnEventWatcher() {
 }
 
 // EventToValue 转成旧版前端约定的事件 JSON 结构
-func EventToValue(m events.Message) map[string]any {
+func EventToValue(m agent.EventMessage) map[string]any {
 	return map[string]any{
 		"time":             m.Time,
-		"action":           string(m.Action),
-		"type":             strings.ToLower(string(m.Type)),
+		"action":           m.Action,
+		"type":             strings.ToLower(m.Type),
 		"id":               m.Actor.ID,
 		"actor_attributes": m.Actor.Attributes,
 	}

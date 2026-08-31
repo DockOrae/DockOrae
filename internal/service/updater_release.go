@@ -1,8 +1,8 @@
 package service
 
 import (
+	"context"
 	"net/http"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -127,7 +127,7 @@ func findAsset(assets []model.ReleaseAsset, name string) *model.ReleaseAsset {
 }
 
 // defaultDockerRepo 默认镜像仓库(fallback:compose 文件未找到 image 时)
-const defaultDockerRepo = "zhaoweiwen123/dockorae"
+const defaultDockerRepo = "dockorae/dockorae"
 
 // dockerImageAvailable 检查镜像仓库是否存在指定 tag 的镜像(明确版本,不依赖 latest)。
 // 修复 UPD-006:优先读取实际 compose 文件的 image(自建 registry 不误判"未发布");
@@ -135,8 +135,8 @@ const defaultDockerRepo = "zhaoweiwen123/dockorae"
 func dockerImageAvailable(st *state.AppState, tag string) bool {
 	repo := defaultDockerRepo
 	if dir, err := FindComposeDir(st); err == nil {
-		if b, err := readHostFile(filepath.Join(dir, "docker-compose.yml")); err == nil {
-			if val, ok := findManagerImage(string(b)); ok {
+		if _, yaml, err := st.Agent.PanelCompose(context.Background()); err == nil && dir != "" {
+			if val, ok := findManagerImage(yaml); ok {
 				name := val
 				if i := strings.IndexAny(name, "@:"); i >= 0 {
 					name = name[:i]

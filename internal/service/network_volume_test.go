@@ -8,7 +8,7 @@ import (
 )
 
 func TestNetworkCreateNameEmpty(t *testing.T) {
-	svc := &NetworkService{docker: nil}
+	svc := &NetworkService{agent: nil}
 	_, err := svc.Create(context.Background(), model.CreateNetworkReq{})
 	ae, ok := err.(*ApiError)
 	if !ok || ae.Status != 400 || ae.Message != "network.nameEmpty" {
@@ -17,7 +17,7 @@ func TestNetworkCreateNameEmpty(t *testing.T) {
 }
 
 func TestVolumeCreateNameEmpty(t *testing.T) {
-	svc := &VolumeService{docker: nil}
+	svc := &VolumeService{agent: nil}
 	_, err := svc.Create(context.Background(), model.CreateVolumeReq{})
 	ae, ok := err.(*ApiError)
 	if !ok || ae.Status != 400 || ae.Message != "volume.nameEmpty" {

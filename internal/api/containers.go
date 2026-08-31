@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/moby/moby/api/pkg/stdcopy"
 
+	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/model"
 	"github.com/DockOrae/DockOrae/internal/service"
 )
@@ -31,11 +30,10 @@ func containersList(c *gin.Context, d *Deps) error {
 }
 
 func containersInspect(c *gin.Context, d *Deps) error {
-	insp, err := d.Containers.Inspect(c.Request.Context(), c.Param("id"))
+	raw, err := d.Containers.Inspect(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
-	raw, _ := json.Marshal(insp)
 	c.Data(200, "application/json", raw)
 	return nil
 }
@@ -146,7 +144,42 @@ func containersRename(c *gin.Context, d *Deps) error {
 }
 
 // ---------------- WebSocket:日志 / 统计 / 终端 ----------------
-// 只做:升级连接、解析 query 参数、调 service 业务、字节桥接;不直接接触 moby
+// §5/§7:执行在 Agent,面板只做浏览器 ↔ Agent 的双向透传(统计字段计算留在面板)。
+
+// relayWS 浏览器 WS ↔ Agent WS 全双工透传
+func relayWS(c *gin.Context, conn *websocket.Conn, aconn *websocket.Conn) {
+	ctx, cancel := context.WithCancel(c.Request.Context())
+	defer cancel()
+	defer aconn.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() { // Agent → 浏览器
+		defer wg.Done()
+		for {
+			mt, data, err := aconn.ReadMessage()
+			if err != nil {
+				cancel()
+				return
+			}
+			if conn.WriteMessage(mt, data) != nil {
+				cancel()
+				return
+			}
+		}
+	}()
+	wsPump(ctx, conn, func(mt int, data []byte) bool { // 浏览器 → Agent
+		if mt == websocket.CloseMessage {
+			return false
+		}
+		if aconn.WriteMessage(mt, data) != nil {
+			return false
+		}
+		return true
+	})
+	cancel()
+	wg.Wait()
+}
 
 func containersLogsWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
@@ -155,57 +188,20 @@ func containersLogsWS(c *gin.Context, d *Deps) error {
 	}
 	defer conn.Close()
 
-	tail := int64(500)
+	tail := "500"
 	if t := c.Query("tail"); t != "" {
-		if n, err := strconv.ParseInt(t, 10, 64); err == nil {
-			tail = n
+		if _, err := strconv.ParseInt(t, 10, 64); err == nil {
+			tail = t
 		}
 	}
-	ctx, cancel := context.WithCancel(c.Request.Context())
-	defer cancel()
-	logs, err := d.Containers.LogsStream(ctx, c.Param("id"), tail)
+	aconn, err := d.St.Agent.ContainerLogsWS(c.Request.Context(), c.Param("id"), tail)
 	if err != nil {
-		return err
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		_ = conn.WriteMessage(websocket.CloseMessage, nil)
+		return nil
 	}
-	defer logs.Close()
-
-	// 后台把 stdout/stderr 解复用后逐条发文本消息
-	w := wsTextWriter{conn: conn}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_, _ = stdcopy.StdCopy(w, w, logs)
-		cancel()
-	}()
-
-	wsPump(ctx, conn, func(mt int, data []byte) bool {
-		if mt == websocket.TextMessage && string(data) == "stop" {
-			return false
-		}
-		if mt == websocket.CloseMessage {
-			return false
-		}
-		return true
-	})
-	// 修复 GO-001:必须先取消 ctx 并关闭日志流,writer goroutine 的阻塞读才会退出;
-	// 否则客户端断开 + 容器无新日志时,wg.Wait() 会永久等待(goroutine + docker 连接泄漏)
-	cancel()
-	logs.Close()
-	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
-	_ = conn.WriteMessage(websocket.CloseMessage, nil)
+	relayWS(c, conn, aconn)
 	return nil
-}
-
-type wsTextWriter struct {
-	conn *websocket.Conn
-}
-
-func (w wsTextWriter) Write(p []byte) (int, error) {
-	if err := w.conn.WriteMessage(websocket.TextMessage, p); err != nil {
-		return 0, err
-	}
-	return len(p), nil
 }
 
 func containersStatsWS(c *gin.Context, d *Deps) error {
@@ -217,28 +213,63 @@ func containersStatsWS(c *gin.Context, d *Deps) error {
 
 	ctx, cancel := context.WithCancel(c.Request.Context())
 	defer cancel()
-	// 解码与字段计算在 service 层,回调仅负责发送
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_ = d.Containers.StatsPump(ctx, c.Param("id"), func(payload map[string]any) bool {
-			raw, _ := json.Marshal(payload)
-			if conn.WriteMessage(websocket.TextMessage, raw) != nil {
-				cancel()
-				return false
-			}
-			return true
-		})
-		cancel()
-	}()
+	aconn, err := d.St.Agent.ContainerStatsWS(ctx, c.Param("id"))
+	if err != nil {
+		_ = conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		_ = conn.WriteMessage(websocket.CloseMessage, nil)
+		return nil
+	}
+	defer aconn.Close()
 
-	wsPump(ctx, conn, func(mt int, data []byte) bool {
-		return mt != websocket.CloseMessage
-	})
-	// 修复 GO-001:先取消 ctx(关闭 stats 流)再等待 writer 退出,避免断开后死锁
-	cancel()
-	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
+	// Agent 原始帧 → 计算前端字段 → 浏览器(差分逻辑与原实现一致)
+	prev := [2]uint64{}
+	hasPrev := false
+	for {
+		_, data, err := aconn.ReadMessage()
+		if err != nil {
+			break
+		}
+		var st agent.StatsFrame
+		if json.Unmarshal(data, &st) != nil {
+			continue
+		}
+		cpuTotal := st.CPUStats.CPUUsage.TotalUsage
+		sys := st.CPUStats.SystemUsage
+		cpuPct := 0.0
+		if hasPrev {
+			d1 := cpuTotal - prev[0]
+			d2 := sys - prev[1]
+			if d2 > 0 {
+				cpuPct = float64(d1) / float64(d2) * float64(st.CPUStats.OnlineCPUs) * 100.0
+			}
+		}
+		prev = [2]uint64{cpuTotal, sys}
+		hasPrev = true
+
+		memUsage := st.MemoryStats.Usage
+		memLimit := st.MemoryStats.Limit
+		if memLimit < 1 {
+			memLimit = 1
+		}
+		var netRx, netTx uint64
+		for _, n := range st.Networks {
+			netRx += n.RxBytes
+			netTx += n.TxBytes
+		}
+		payload := map[string]any{
+			"cpu_pct":   service.Round2(cpuPct),
+			"mem_usage": memUsage,
+			"mem_limit": memLimit,
+			"mem_pct":   service.Round2(float64(memUsage) / float64(memLimit) * 100.0),
+			"net_rx":    netRx,
+			"net_tx":    netTx,
+			"pids":      st.PidsStats.Current,
+		}
+		raw, _ := json.Marshal(payload)
+		if conn.WriteMessage(websocket.TextMessage, raw) != nil {
+			break
+		}
+	}
 	_ = conn.WriteMessage(websocket.CloseMessage, nil)
 	return nil
 }
@@ -254,69 +285,11 @@ func containersTerminalWS(c *gin.Context, d *Deps) error {
 	if s := c.Query("shell"); s != "" {
 		shell = s
 	}
-	ctx, cancel := context.WithCancel(c.Request.Context())
-	defer cancel()
-	session, err := d.Containers.CreateTerminal(ctx, c.Param("id"), shell)
+	aconn, err := d.St.Agent.ContainerTerminalWS(c.Request.Context(), c.Param("id"), shell)
 	if err != nil {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("[exec failed: "+err.Error()+"]\r\n"))
 		return nil
 	}
-	defer session.Close()
-
-	// exec 输出 → ws 二进制
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		buf := make([]byte, 4096)
-		for {
-			n, err := session.Reader.Read(buf)
-			if n > 0 {
-				if conn.WriteMessage(websocket.BinaryMessage, buf[:n]) != nil {
-					cancel()
-					return
-				}
-			}
-			if err != nil {
-				cancel()
-				return
-			}
-		}
-	}()
-
-	// ws → exec 输入 + resize/stop 控制协议(单读方,避免并发读)
-	wsPump(ctx, conn, func(mt int, data []byte) bool {
-		switch mt {
-		case websocket.BinaryMessage:
-			if _, err := session.Stdin.Write(data); err != nil {
-				return false
-			}
-		case websocket.TextMessage:
-			text := string(data)
-			if strings.HasPrefix(text, "resize:") {
-				parts := strings.SplitN(strings.TrimPrefix(text, "resize:"), ",", 2)
-				if len(parts) == 2 {
-					w, err1 := strconv.Atoi(parts[0])
-					h, err2 := strconv.Atoi(parts[1])
-					if err1 == nil && err2 == nil {
-						_ = session.Resize(w, h)
-					}
-				}
-			} else if text == "stop" {
-				return false
-			} else {
-				_, _ = session.Stdin.Write(data)
-			}
-		case websocket.CloseMessage:
-			return false
-		}
-		return true
-	})
-	// 修复 GO-001:先取消 ctx 并关闭 exec 会话(解除 writer 的阻塞读),再等待退出;
-	// 否则客户端断开 + exec 进程静默时,wg.Wait() 会永久等待
-	cancel()
-	session.Close()
-	wg.Wait() // 等 writer goroutine 退出后再写 Close,避免 WebSocket 并发写
-	_ = conn.WriteMessage(websocket.CloseMessage, nil)
+	relayWS(c, conn, aconn)
 	return nil
 }

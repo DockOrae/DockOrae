@@ -2,24 +2,21 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/client"
-
-	"github.com/DockOrae/DockOrae/internal/appstore"
+	"github.com/DockOrae/DockOrae/internal/agent"
 )
 
 // ---- ContainerRecreate:正常流程(最小 ops fake) ----
 
-// fakeContainerOps 记录调用序列的容器操作 fake
-type fakeContainerOps struct {
+// fakeRecreateOps 记录调用序列的 Agent 操作 fake
+type fakeRecreateOps struct {
 	seq          []string
-	inspectResp  container.InspectResponse
+	inspectRaw   json.RawMessage
 	createID     string
-	createOpts   client.ContainerCreateOptions
+	createReq    agent.ContainerCreateReq
 	createErr    error
 	stopErr      error
 	removeErr    error
@@ -28,45 +25,61 @@ type fakeContainerOps struct {
 	removeCallID []string
 }
 
-func (f *fakeContainerOps) Inspect(_ context.Context, id string) (container.InspectResponse, error) {
+func (f *fakeRecreateOps) ContainerInspectRaw(_ context.Context, id string) (json.RawMessage, error) {
 	f.seq = append(f.seq, "inspect:"+id)
-	return f.inspectResp, nil
+	return f.inspectRaw, nil
 }
-func (f *fakeContainerOps) Create(_ context.Context, opts client.ContainerCreateOptions) (string, error) {
-	f.seq = append(f.seq, "create:"+opts.Name)
-	f.createOpts = opts
+func (f *fakeRecreateOps) ContainerCreate(_ context.Context, req agent.ContainerCreateReq) (string, error) {
+	f.seq = append(f.seq, "create:"+req.Name)
+	f.createReq = req
 	return f.createID, f.createErr
 }
-func (f *fakeContainerOps) Stop(_ context.Context, id string, _ client.ContainerStopOptions) error {
+func (f *fakeRecreateOps) ContainerStop(_ context.Context, id string, _ *int) error {
 	f.seq = append(f.seq, "stop:"+id)
 	return f.stopErr
 }
-func (f *fakeContainerOps) Remove(_ context.Context, id string, _ client.ContainerRemoveOptions) error {
+func (f *fakeRecreateOps) ContainerRemove(_ context.Context, id string, _ bool, _ bool) error {
 	f.seq = append(f.seq, "remove:"+id)
 	f.removeCallID = append(f.removeCallID, id)
 	return f.removeErr
 }
-func (f *fakeContainerOps) Rename(_ context.Context, id, newName string) error {
+func (f *fakeRecreateOps) ContainerRename(_ context.Context, id, newName string) error {
 	f.seq = append(f.seq, "rename:"+id+">"+newName)
 	return f.renameErr
 }
-func (f *fakeContainerOps) Start(_ context.Context, id string) error {
+func (f *fakeRecreateOps) ContainerStart(_ context.Context, id string) error {
 	f.seq = append(f.seq, "start:"+id)
 	return f.startErr
 }
 
-func TestContainerRecreateNormalFlow(t *testing.T) {
-	insp := container.InspectResponse{
-		Name: "/nginx",
-		Config: &container.Config{
-			Image: "nginx:latest",
+// inspectJSON 构造重建用 inspect 原始 JSON
+func inspectJSON(name, image string) json.RawMessage {
+	raw, _ := json.Marshal(map[string]any{
+		"Name": name,
+		"Config": map[string]any{
+			"Image":  image,
+			"Cmd":    []string{"nginx", "-g", "daemon off;"},
+			"Env":    []string{"A=1"},
+			"Tty":    true,
+			"Labels": map[string]string{"createdBy": "docker-manager"},
 		},
-		HostConfig:      &container.HostConfig{},
-		NetworkSettings: &container.NetworkSettings{Networks: map[string]*network.EndpointSettings{}},
-	}
-	fake := &fakeContainerOps{
-		inspectResp: insp,
-		createID:    "new-container-id",
+		"HostConfig": map[string]any{
+			"RestartPolicy": map[string]any{"Name": "always"},
+			"Privileged":    true,
+		},
+		"NetworkSettings": map[string]any{
+			"Networks": map[string]any{
+				"bridge": map[string]any{"IPAMConfig": nil},
+			},
+		},
+	})
+	return raw
+}
+
+func TestContainerRecreateNormalFlow(t *testing.T) {
+	fake := &fakeRecreateOps{
+		inspectRaw: inspectJSON("/nginx", "nginx:latest"),
+		createID:   "new-container-id",
 	}
 	svc := &ContainerService{ops: fake, license: func() bool { return true }}
 
@@ -75,125 +88,97 @@ func TestContainerRecreateNormalFlow(t *testing.T) {
 	}
 
 	// 调用顺序:Inspect → Create(临时名)→ Stop(旧)→ Remove(旧)→ Rename(临时名→原名)→ Start
-	want := []string{
-		"inspect:old-id",
-		"create:nginx-recreate-", // 临时名(随机后缀,前缀匹配)
-		"stop:old-id",
-		"remove:old-id",
-		"rename:new-container-id>nginx",
-		"start:new-container-id",
+	seq := strings.Join(fake.seq, ",")
+	if !strings.HasPrefix(seq, "inspect:old-id,create:nginx-recreate-") {
+		t.Fatalf("bad sequence start: %s", seq)
 	}
-	if len(fake.seq) != len(want) {
-		t.Fatalf("call sequence = %v, want %d calls", fake.seq, len(want))
-	}
-	for i, w := range want {
-		if !strings.HasPrefix(fake.seq[i], w) {
-			t.Errorf("call[%d] = %q, want prefix %q", i, fake.seq[i], w)
+	for _, want := range []string{"stop:old-id", "remove:old-id", "rename:new-container-id>nginx", "start:new-container-id"} {
+		if !strings.Contains(seq, want) {
+			t.Errorf("missing %q in sequence: %s", want, seq)
 		}
 	}
-	// 创建用临时名而非原名(旧容器占用原名,同名必然 409)
-	if fake.createOpts.Name == "nginx" {
-		t.Errorf("create must use temp name, got %q", fake.createOpts.Name)
+	// 重建配置:HostConfig 原样透传 + 原网络接入
+	if fake.createReq.Name == "" || !strings.HasPrefix(fake.createReq.Name, "nginx-recreate-") {
+		t.Errorf("create should use temp name, got %q", fake.createReq.Name)
 	}
-	// 删除的是旧容器(newID 不应被删)
-	if len(fake.removeCallID) != 1 || fake.removeCallID[0] != "old-id" {
-		t.Errorf("remove calls = %v, want only old-id", fake.removeCallID)
+	var hc map[string]any
+	if err := json.Unmarshal(fake.createReq.HostConfig, &hc); err != nil {
+		t.Fatalf("host_config invalid: %v", err)
+	}
+	if hc["Privileged"] != true {
+		t.Errorf("privileged not preserved: %v", hc)
+	}
+	var nc struct {
+		EndpointsConfig map[string]any `json:"EndpointsConfig"`
+	}
+	if err := json.Unmarshal(fake.createReq.NetworkingConfig, &nc); err != nil {
+		t.Fatalf("networking_config invalid: %v", err)
+	}
+	if _, ok := nc.EndpointsConfig["bridge"]; !ok {
+		t.Errorf("network endpoints not preserved: %v", nc)
 	}
 }
 
-// TestContainerRecreateRemoveFailedRollback 删旧失败 → 回滚删除临时容器,旧容器不受影响
-func TestContainerRecreateRemoveFailedRollback(t *testing.T) {
-	fake := &fakeContainerOps{
-		inspectResp: container.InspectResponse{
-			Name:            "/nginx",
-			Config:          &container.Config{Image: "nginx:latest"},
-			HostConfig:      &container.HostConfig{},
-			NetworkSettings: &container.NetworkSettings{Networks: map[string]*network.EndpointSettings{}},
-		},
-		createID:  "new-id",
-		removeErr: errFakeRemove,
+// TestContainerRecreateCreateFailureRollback 创建失败:不触碰旧容器
+func TestContainerRecreateCreateFailureRollback(t *testing.T) {
+	fake := &fakeRecreateOps{
+		inspectRaw: inspectJSON("/nginx", "nginx:latest"),
+		createErr:  jsonError("create failed"),
 	}
 	svc := &ContainerService{ops: fake, license: func() bool { return true }}
 	if err := svc.Recreate(context.Background(), "old-id"); err == nil {
-		t.Fatal("expected error when remove fails")
+		t.Fatal("expected error")
 	}
-	// 回滚:临时容器被删除(remove:new-id)
-	found := false
-	for _, id := range fake.removeCallID {
-		if id == "new-id" {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("rollback should remove temp container, remove calls = %v", fake.removeCallID)
+	seq := strings.Join(fake.seq, ",")
+	if strings.Contains(seq, "remove:old-id") {
+		t.Errorf("old container should not be touched on create failure: %s", seq)
 	}
 }
 
-// TestContainerRecreateCreateFailed 创建失败 → 旧容器完好(无后续操作)
-func TestContainerRecreateCreateFailed(t *testing.T) {
-	fake := &fakeContainerOps{
-		inspectResp: container.InspectResponse{
-			Name:            "/nginx",
-			Config:          &container.Config{Image: "nginx:latest"},
-			HostConfig:      &container.HostConfig{},
-			NetworkSettings: &container.NetworkSettings{Networks: map[string]*network.EndpointSettings{}},
-		},
-		createErr: errFakeCreate,
+// TestContainerRecreateRemoveFailureRollback 删旧失败:回滚删除新容器
+func TestContainerRecreateRemoveFailureRollback(t *testing.T) {
+	fake := &fakeRecreateOps{
+		inspectRaw: inspectJSON("/nginx", "nginx:latest"),
+		createID:   "new-container-id",
+		removeErr:  jsonError("remove failed"),
 	}
 	svc := &ContainerService{ops: fake, license: func() bool { return true }}
 	if err := svc.Recreate(context.Background(), "old-id"); err == nil {
-		t.Fatal("expected error when create fails")
+		t.Fatal("expected error")
 	}
-	if len(fake.seq) != 2 { // inspect + create
-		t.Errorf("after create failure only inspect+create expected, got %v", fake.seq)
-	}
-}
-
-var errFakeRemove = &ApiError{Status: 500, Message: "fake remove err"}
-var errFakeCreate = &ApiError{Status: 500, Message: "fake create err"}
-
-// ---- 纯函数:ValidKey / ValidateProject / ImagePullRef ----
-
-func TestAppKeyValidation(t *testing.T) {
-	valid := []string{"mysql", "nginx-proxy-manager", "portainer-ce", "2fauth", "a.b_c-1"}
-	for _, k := range valid {
-		if !appstore.ValidKey(k) {
-			t.Errorf("ValidKey(%q) = false, want true", k)
-		}
-	}
-	invalid := []string{"", "../etc", "a/b", "..", ".", "a b", "../x"}
-	for _, k := range invalid {
-		if appstore.ValidKey(k) {
-			t.Errorf("ValidKey(%q) = true, want false", k)
-		}
+	// 新容器被回滚删除(remove 第二次调用针对 new-container-id)
+	if len(fake.removeCallID) < 2 || fake.removeCallID[1] != "new-container-id" {
+		t.Errorf("rollback should remove new container, calls: %v", fake.removeCallID)
 	}
 }
 
-func TestValidateProject(t *testing.T) {
-	valid := []string{"gitea", "my-stack_1"}
-	for _, p := range valid {
-		if _, err := ValidateProject(p); err != nil {
-			t.Errorf("ValidateProject(%q) error: %v", p, err)
-		}
+// TestContainerRecreateRenameFailureStartsTmp 改名失败:启动临时名容器保证可用
+func TestContainerRecreateRenameFailureStartsTmp(t *testing.T) {
+	fake := &fakeRecreateOps{
+		inspectRaw: inspectJSON("/nginx", "nginx:latest"),
+		createID:   "new-container-id",
+		renameErr:  jsonError("name in use"),
 	}
-	invalid := []string{"", "../x", "a/b", "a b", strings.Repeat("x", 65)}
-	for _, p := range invalid {
-		if _, err := ValidateProject(p); err == nil {
-			t.Errorf("ValidateProject(%q) should fail", p)
-		}
+	svc := &ContainerService{ops: fake, license: func() bool { return true }}
+	if err := svc.Recreate(context.Background(), "old-id"); err == nil {
+		t.Fatal("expected error")
+	}
+	seq := strings.Join(fake.seq, ",")
+	if !strings.Contains(seq, "start:new-container-id") {
+		t.Errorf("tmp container should be started after rename failure: %s", seq)
 	}
 }
 
-func TestImagePullRef(t *testing.T) {
-	cases := []struct{ img, tag, want string }{
-		{"nginx", "latest", "nginx:latest"},
-		{"nginx:1.25", "latest", "nginx:1.25"}, // 已带 tag:不拼接
-		{"registry.local/x/y", "1.0", "registry.local/x/y:1.0"},
-		{"registry.local/x/y:2.0", "1.0", "registry.local/x/y:2.0"},
-	}
-	for _, c := range cases {
-		if got := ImagePullRef(c.img, c.tag); got != c.want {
-			t.Errorf("ImagePullRef(%q, %q) = %q, want %q", c.img, c.tag, got, c.want)
-		}
+// TestContainerRecreateUnavailable ops 为空:Agent 不可用
+func TestContainerRecreateUnavailable(t *testing.T) {
+	svc := &ContainerService{ops: nil, license: func() bool { return true }}
+	err := svc.Recreate(context.Background(), "old-id")
+	ae, ok := err.(*ApiError)
+	if !ok || ae.Status != 502 {
+		t.Errorf("expected 502 agent unavailable, got %v", err)
 	}
 }
+
+type jsonError string
+
+func (e jsonError) Error() string { return string(e) }

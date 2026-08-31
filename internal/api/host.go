@@ -40,8 +40,6 @@ var agentGetEndpoints = map[string]string{
 	"/agent/disk/devices":           "/v1/disk/devices",
 	"/agent/disk/mounts":            "/v1/disk/mounts",
 	"/agent/sysctl/get":             "/v1/sysctl/get",
-	"/agent/firewall/status":        "/v1/firewall/status",
-	"/agent/firewall/rules":         "/v1/firewall/rules",
 	"/agent/network/interfaces":     "/v1/network/interfaces",
 	"/agent/network/routes":         "/v1/network/routes",
 	"/agent/network/dns":            "/v1/network/dns",
@@ -65,8 +63,6 @@ var agentPostEndpoints = map[string]string{
 	"/agent/binary/install":   "/v1/binary/install",
 	"/agent/binary/rollback":  "/v1/binary/rollback",
 	"/agent/sysctl/set":       "/v1/sysctl/set",
-	"/agent/firewall/add":     "/v1/firewall/add",
-	"/agent/firewall/delete":  "/v1/firewall/delete",
 }
 
 // agentProxy GET 代理:透传 query string(如 project=xxx);直接返回 Agent 的 data(与面板 API 风格一致)

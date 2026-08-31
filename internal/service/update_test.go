@@ -243,18 +243,18 @@ func TestFindManagerImage(t *testing.T) {
   redis:
     image: redis:7-alpine
   docker-manager:
-    image: zhaoweiwen123/dockorae:latest
+    image: dockorae/dockorae:latest
   db:
     image: postgres:16
 `
 	got, ok := findManagerImage(yaml)
-	if !ok || got != "zhaoweiwen123/dockorae:latest" {
-		t.Fatalf("findManagerImage = %q, %v; want zhaoweiwen123/dockorae:latest, true", got, ok)
+	if !ok || got != "dockorae/dockorae:latest" {
+		t.Fatalf("findManagerImage = %q, %v; want dockorae/dockorae:latest, true", got, ok)
 	}
 
 	// 写死版本 tag 也能识别
-	yaml2 := strings.ReplaceAll(yaml, "zhaoweiwen123/dockorae:latest", "zhaoweiwen123/dockorae:v1.0.2")
-	if got, ok = findManagerImage(yaml2); !ok || got != "zhaoweiwen123/dockorae:v1.0.2" {
+	yaml2 := strings.ReplaceAll(yaml, "dockorae/dockorae:latest", "dockorae/dockorae:v1.0.2")
+	if got, ok = findManagerImage(yaml2); !ok || got != "dockorae/dockorae:v1.0.2" {
 		t.Fatalf("pinned tag: findManagerImage = %q, %v", got, ok)
 	}
 
@@ -270,9 +270,9 @@ func TestFindManagerImage(t *testing.T) {
 	// digest 形式
 	yaml4 := `services:
   app:
-    image: zhaoweiwen123/dockorae@sha256:abcdef1234567890
+    image: dockorae/dockorae@sha256:abcdef1234567890
 `
-	if got, ok = findManagerImage(yaml4); !ok || got != "zhaoweiwen123/dockorae@sha256:abcdef1234567890" {
+	if got, ok = findManagerImage(yaml4); !ok || got != "dockorae/dockorae@sha256:abcdef1234567890" {
 		t.Fatalf("digest: findManagerImage = %q, %v", got, ok)
 	}
 
@@ -295,13 +295,13 @@ func TestFindManagerImage(t *testing.T) {
 
 func TestRetagImageValue(t *testing.T) {
 	cases := []struct{ val, tag, want string }{
-		{"zhaoweiwen123/dockorae:latest", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
-		{"zhaoweiwen123/dockorae:v1.0.2", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
-		{"zhaoweiwen123/dockorae:v1.2.3", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
-		{"zhaoweiwen123/dockorae:v1.10.20", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
+		{"dockorae/dockorae:latest", "v1.3.0", "dockorae/dockorae:v1.3.0"},
+		{"dockorae/dockorae:v1.0.2", "v1.3.0", "dockorae/dockorae:v1.3.0"},
+		{"dockorae/dockorae:v1.2.3", "v1.3.0", "dockorae/dockorae:v1.3.0"},
+		{"dockorae/dockorae:v1.10.20", "v1.3.0", "dockorae/dockorae:v1.3.0"},
 		{"registry.example.com/docker-manager-go:v1.0.2", "v1.3.0", "registry.example.com/docker-manager-go:v1.3.0"},
 		{"docker-manager-go", "v1.3.0", "docker-manager-go:v1.3.0"},
-		{"zhaoweiwen123/dockorae@sha256:abc", "v1.3.0", "zhaoweiwen123/dockorae:v1.3.0"},
+		{"dockorae/dockorae@sha256:abc", "v1.3.0", "dockorae/dockorae:v1.3.0"},
 	}
 	for _, c := range cases {
 		if got := retagImageValue(c.val, c.tag); got != c.want {
@@ -311,7 +311,7 @@ func TestRetagImageValue(t *testing.T) {
 }
 
 func TestSafeImageValue(t *testing.T) {
-	valid := []string{"docker-manager-go:latest", "zhaoweiwen123/dockorae:v1.0.2", "registry.example.com/a/docker-manager-go@sha256:abc", "docker-manager-go"}
+	valid := []string{"docker-manager-go:latest", "dockorae/dockorae:v1.0.2", "registry.example.com/a/docker-manager-go@sha256:abc", "docker-manager-go"}
 	for _, v := range valid {
 		if !safeImageValue(v) {
 			t.Errorf("safeImageValue(%q) = false, want true", v)
@@ -326,12 +326,12 @@ func TestSafeImageValue(t *testing.T) {
 }
 
 func TestBuildHelperCmd(t *testing.T) {
-	cmd := buildHelperCmd("zhaoweiwen123/dockorae:latest", "zhaoweiwen123/dockorae:v1.3.0")
+	cmd := buildHelperCmd("dockorae/dockorae:latest", "dockorae/dockorae:v1.3.0")
 	// 包含精确替换(整行 image: 值)而不是脆弱的 :latest 全局替换
-	if !strings.Contains(cmd, "zhaoweiwen123/dockorae:latest") {
+	if !strings.Contains(cmd, "dockorae/dockorae:latest") {
 		t.Errorf("helper cmd 缺少旧值: %s", cmd)
 	}
-	if !strings.Contains(cmd, "zhaoweiwen123/dockorae:v1.3.0") {
+	if !strings.Contains(cmd, "dockorae/dockorae:v1.3.0") {
 		t.Errorf("helper cmd 缺少新值: %s", cmd)
 	}
 	// 新值只出现在替换目标中(不会再次匹配 image 行导致二次替换)

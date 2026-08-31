@@ -34,18 +34,8 @@ LABEL org.opencontainers.image.source="https://github.com/DockOrae/DockOrae"
 LABEL org.opencontainers.image.version=${VERSION}
 LABEL org.opencontainers.image.revision=${COMMIT}
 LABEL org.opencontainers.image.created=${BUILD_TIME}
-RUN apk add --no-cache ca-certificates tini curl \
-    && case "${TARGETARCH}${TARGETVARIANT}" in \
-         amd64) A=x86_64 ;; \
-         arm64) A=aarch64 ;; \
-         armv7) A=armv7 ;; \
-         armv6) A=armv6 ;; \
-         s390x) A=s390x ;; \
-         *) echo "unsupported arch: ${TARGETARCH}${TARGETVARIANT}" >&2; exit 1 ;; \
-       esac \
-    && curl -fsSL "https://github.com/docker/compose/releases/download/v5.5.0/docker-compose-linux-$A" -o /usr/local/bin/docker-compose \
-    && chmod +x /usr/local/bin/docker-compose \
-    && docker-compose version
+# 注:compose 执行已全部迁移 DockOrae-Agent,面板镜像不再内置 docker-compose
+RUN apk add --no-cache ca-certificates tini curl
 
 COPY --from=build /app/docker-manager /usr/local/bin/docker-manager
 
