@@ -88,6 +88,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Agent 资产:统一在 DockOrae 构建上传(Agent 仓库不跑工作流)
+      - name: 检出 DockOrae-Agent 源码
+        uses: actions/checkout@v7
+        with:
+          repository: DockOrae/DockOrae-Agent
+          path: agent-src
+          ref: master
+
+      - name: 构建 Agent release 资产 (make cross)
+        run: make -C agent-src cross VERSION=${{ needs.check.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 发布 Release
         uses: softprops/action-gh-release@v3.0.2
         with:
@@ -97,6 +110,8 @@ jobs:
           files: |
             dist/*.tar.gz
             dist/*.sha256
+            agent-src/dist/*.tar.gz
+            agent-src/dist/*.sha256
           body: |
             > ### ![](https://img.shields.io/badge/编译时间-${{ env.build_time }}-8267?logo=github&labelColor=需)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ env.TAG }}/total?label=下载次数&logo=github)
 
