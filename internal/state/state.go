@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/client"
 
+	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/auth"
 	"github.com/DockOrae/DockOrae/internal/config"
 	"github.com/DockOrae/DockOrae/internal/db"
@@ -109,6 +110,7 @@ type AppState struct {
 	TotpMu      sync.Mutex
 	TotpPending *TotpPending
 	Monitor     MonitorCache
+	Agent       *agent.Client // 宿主机控制平面客户端(Agent 未部署时为 nil 可用性检测)
 	done        chan struct{}
 }
 
@@ -148,8 +150,35 @@ func New(cfg *config.Config) (*AppState, error) {
 		return nil, err
 	}
 	as.ResetAdminPasswordIfMarked()
+	as.initAgentClient()
 	as.SpawnEventWatcher()
 	return as, nil
+}
+
+// initAgentClient 初始化 Agent 客户端:
+//   - token 未配置时自动生成并持久化(settings),同时写入共享目录 agent.token 供 Agent 读取
+//   - socket 路径:AGENT_SOCKET 环境变量 > settings.AgentSocket > 默认 /run/dockorae/agent.sock
+func (s *AppState) initAgentClient() {
+	sock := os.Getenv("AGENT_SOCKET")
+	if sock == "" {
+		sock = s.Settings.Get().AgentSocket
+	}
+	if sock == "" {
+		sock = agent.DefaultSocket
+	}
+	token := s.Settings.Get().AgentToken
+	if token == "" {
+		token = agent.GenerateToken()
+		_ = s.Settings.Update(map[string]any{"agentToken": token})
+	}
+	// 写共享 token 文件(尽力而为;Agent 与面板同宿主机时生效)
+	_ = agent.WriteTokenFile(token)
+	s.Agent = agent.New(sock, token)
+	if agent.SocketExists(sock) {
+		log.Printf("agent: connected to %s", sock)
+	} else {
+		log.Printf("agent: socket %s 不存在(Agent 未部署,相关功能将返回不可用)", sock)
+	}
 }
 
 // initUsers 从 SQLite 加载用户;库为空时迁移旧 users.json,再没有则创建默认 admin

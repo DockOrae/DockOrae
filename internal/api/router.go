@@ -73,6 +73,15 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.PUT("/system/registry-mirrors", H(monitorSaveRegistryMirrors).Handler(deps))
 	p.POST("/system/restart-docker", H(monitorRestartDocker).Handler(deps))
 
+	// ---------- Agent(宿主机控制平面,固定端点映射 §53) ----------
+	for panelPath := range agentGetEndpoints {
+		p.GET(panelPath, agentProxyGet(panelPath).Handler(deps))
+	}
+	for panelPath := range agentPostEndpoints {
+		p.POST(panelPath, agentProxyPost(panelPath).Handler(deps))
+	}
+	p.POST("/agent/swap", H(agentSwap).Handler(deps))
+
 	// ---------- 面板设置 / 日志 / 配置 / 备份恢复 / 重启(仿 3x-ui) ----------
 	p.GET("/system/settings", H(panelSettings).Handler(deps))
 	p.PUT("/system/settings", H(panelSettingsSave).Handler(deps))

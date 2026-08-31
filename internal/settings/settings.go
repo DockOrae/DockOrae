@@ -49,6 +49,9 @@ type Settings struct {
 	SmtpTo            string   `json:"smtpTo"`         // 收件人,逗号分隔(空 = 发给自己)
 	SmtpEncryption    string   `json:"smtpEncryption"` // SMTP 加密:none / ssl / starttls
 	EmailNotifyEvents []string `json:"emailNotifyEvents"`
+	// Agent(宿主机控制平面)
+	AgentSocket string `json:"agentSocket"` // Agent Unix socket 路径(默认 /run/dockorae/agent.sock)
+	AgentToken  string `json:"agentToken"`  // 共享认证 token(首次启动自动生成;Agent 从同目录 agent.token 读取)
 }
 
 type Store struct {

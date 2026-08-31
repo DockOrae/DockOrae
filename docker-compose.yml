@@ -42,6 +42,8 @@ services:
       - /:/host:ro
       # 宿主机 Docker 配置:面板「镜像加速」读写此文件(daemon.json)
       - /etc/docker:/host/etc/docker:ro
+      # Agent 共享目录(socket + token):与 dockorae-agent 容器共用
+      - /run/dockorae:/run/dockorae
       # Docker rootless 部署:注释掉上面标准 socket,改用下面这行
       # - /run/user/1000/docker.sock:/var/run/docker.sock
 
@@ -99,9 +101,41 @@ services:
           # config:
             # - subnet: 172.20.0.0/24
 
+  # ---- DockOrae-Agent 宿主机控制平面(§46:Agent 操作真实宿主) ----
+  # 必须:privileged + pid:host(经 nsenter -t 1 进入宿主命名空间)
+  # 共享卷 /run/dockorae:面板生成 token 写入 agent.token,Agent 启动时读取
+  dockorae-agent:
+    image: dockorae/dockorae-agent:latest
+    container_name: dockorae-agent
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    volumes:
+      # 共享 socket + token 目录(与面板容器共用)
+      - /run/dockorae:/run/dockorae
+      # Agent 自身容器内 Docker 操作(状态/清理);compose 操作经 nsenter 走宿主 docker CLI
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Agent 状态数据卷(更新记录/审计)
+      - agent-data:/var/lib/dockorae-agent
+    environment:
+      - TZ=Asia/Shanghai
+      - AGENT_SOCKET=/run/dockorae/agent.sock
+      - AGENT_TOKEN_FILE=/run/dockorae/agent.token
+      - AGENT_DATA_DIR=/var/lib/dockorae-agent
+      - AGENT_LOG_DIR=/var/log/dockorae
+      # 宿主 compose 文件目录(Agent 自身在线更新定位 compose 用;默认自动探测)
+      # - AGENT_COMPOSE_DIR=/opt/docker-manager
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 # ============================================================
 # 附加服务(可选,按需取消注释整段)
 # ============================================================
+volumes:
+  agent-data:
 
 # ---- Watchtower:面板容器镜像自动更新(默认每天 03:00 检查) ----
 # 注意:面板自身有「在线更新」功能(设置 → 更新),二选一即可;
