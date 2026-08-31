@@ -178,6 +178,10 @@ func relayWS(c *gin.Context, conn *websocket.Conn, aconn *websocket.Conn) {
 		return true
 	})
 	cancel()
+	// 浏览器已断开(wsPump 返回):先关闭 Agent 连接,解除对端 ReadMessage 的阻塞,
+	// 再等待转发协程退出 —— 否则 Agent 流不结束(如 docker logs -f)时 wg.Wait 永久阻塞,
+	// 协程 + Agent 连接随每次浏览器断开累积泄漏。
+	aconn.Close()
 	wg.Wait()
 }
 
