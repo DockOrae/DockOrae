@@ -14,7 +14,7 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
 </p>
 
-**DockOrae** 是一款使用 **Go** 语言编写的现代化、美观的 Docker 管理面板([gin](https://github.com/gin-gonic/gin) + 官方 [Moby Docker SDK](https://github.com/moby/moby)),前端采用 **Vue 3**。界面交互设计参考 1Panel,支持深色 / 浅色主题与粉色品牌色,系统状态页参照 3x-ui 设计。
+**DockOrae** 是一款使用 **Go** 语言编写的现代化、美观的 Docker 管理面板([gin](https://github.com/gin-gonic/gin)),前端采用 **Vue 3**。Docker 与宿主机级操作由宿主机上运行的配套代理 [DockOrae-Agent](https://github.com/DockOrae/DockOrae-Agent)(特权模式)执行,面板本身是轻量控制面,不直接连接 Docker 守护进程。界面交互设计参考 1Panel,支持深色 / 浅色主题与粉色品牌色,系统状态页参照 3x-ui 设计。
 
 > [!IMPORTANT]
 > 本项目仅限个人使用。请勿将其用于非法用途,或在未经适当授权的情况下用于生产环境。
@@ -28,9 +28,9 @@
 - **应用商店** — 260+ 个一键安装应用(数据源对齐 1Panel 应用商店:图标 / 参数表单 / 多版本);首次启动自动同步(无需手动操作),一键安装 / 升级,带「可升级」徽标。
 - **Compose 堆栈管理** — YAML 编辑器、一键部署(流式输出)、启动 / 停止与拆除。
 - **实时监控** — 3x-ui 风格状态页:CPU / 内存 / 交换分区 / 存储卡片(带迷你走势图)、网络吞吐与磁盘 I/O 曲线、容器 / 镜像 / 存储卷数量、面板进程统计,以及可切换可见性的公网 IP。
-- **许可证** — 在线授权(由 Docker_Manager_License 签发:Ed25519 签名 Key / 设备绑定 / 每 24h 周期验证 / 7 天宽限期 / 吊销即时生效);存量用户保留离线激活方式。
+- **许可证** — 在线授权(由 Docker_Manager_License 签发:Ed25519 签名 Key / 设备绑定 / SSE 事件驱动验证 / 72 小时宽限期 / 吊销即时生效)。
 - **镜像加速** — 直接在面板中配置 `daemon.json` 镜像加速源。
-- **多语言** — 14 种界面语言,支持深色与浅色主题。
+- **多语言** — 简体中文 / 繁體中文 / English 三种界面语言,支持深色与浅色主题。
 - **安全** — TOTP 双因素认证、JWT 会话、头像上传。
 - **面板设置(仿 1Panel)** — 安全入口(设置后仅可通过 `/入口` 访问面板)、未认证响应码(200 帮助页 / 400 / 401 / 403 / 404 / 408 / 416 / 444 / 500)、面板监听域名白名单(绑定域名后 IP 访问关闭)、面板 SSL 证书路径、密码过期与复杂度策略、出站代理服务器。
 - **工具箱** — 设备信息、Docker 磁盘清理(已停止容器 / 未使用镜像与卷 / 构建缓存)、Fail2ban 登录防护(自动封禁 / 封禁列表 / 解封)。
@@ -74,25 +74,26 @@ sudo bash install.sh info            # 查看安装信息
 
 ### Docker Compose(手动)
 
+仓库自带的 `docker-compose.yml` 会同时启动面板与必需的 `dockorae-agent`(特权宿主机代理,负责 Docker / 宿主操作):
+
 ```bash
-docker run -d --name docker-manager-go \
-  -p 8080:8080 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v docker-manager-data:/data \
-  dockorae/dockorae:latest
+docker compose up -d
 ```
 
-或使用仓库自带的 `docker-compose.yml`。远程 Docker 主机请设置 `DOCKER_HOST=tcp://<host>:2375`。
+> 快速单容器测试:`docker run -d --name dockorae -p 8080:8080 -v dockorae-data:/data dockorae/dockorae:latest`
+> —— 注意:没有 Agent 时 Docker 与宿主操作不可用。
 
 ### 二进制(手动)
 
-从 [Releases 页面](https://github.com/DockOrae/DockOrae/releases/latest) 下载 `docker-manager-go-linux-<arch>.tar.gz`,解压后运行:
+从 [Releases 页面](https://github.com/DockOrae/DockOrae/releases/latest) 下载 `dockorae-linux-<arch>.tar.gz`,解压后运行:
 
 ```bash
-tar xzf docker-manager-go-linux-amd64.tar.gz
-sudo mv docker-manager-go/docker-manager-go /usr/local/bin/
-DATA_DIR=/opt/docker-manager/data PORT=8080 docker-manager-go
+tar xzf dockorae-linux-amd64.tar.gz
+sudo mv dockorae/dockorae /usr/local/bin/
+DATA_DIR=/opt/docker-manager/data PORT=8080 dockorae
 ```
+
+> 二进制模式仅运行面板 — Docker / 宿主操作同样需要 Agent(可通过 compose 安装或 Agent 自身二进制部署)。
 
 ## 域名绑定(SSL)
 
@@ -106,7 +107,7 @@ sudo bash install.sh ssl
 
 ## 在线授权(Pro)
 
-Pro 功能(Compose 堆栈、容器创建、应用商店安装)由在线许可证门控:面板针对 License Server 验证 Ed25519 签名的 License Key,包含设备绑定、每 24h 周期验证、7 天宽限期与吊销即时生效。
+Pro 功能(Compose 堆栈、容器创建、应用商店安装)由在线许可证门控:面板针对 License Server 验证 Ed25519 签名的 License Key,包含设备绑定、SSE 事件驱动验证、72 小时宽限期与吊销即时生效。
 
 安全模型(V3):
 
@@ -128,11 +129,11 @@ Pro 功能(Compose 堆栈、容器创建、应用商店安装)由在线许可证
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `DM_LICENSE_SERVER_URL` | `https://manager.kejizero.xyz/license-api` | License Server 基础地址,如 `http://<ip>/license-api` 或 `https://license.example.com/license-api`。空字符串 = 离线模式(仅旧版 Key)。 |
+| `DM_LICENSE_SERVER_URL` | `https://manager.kejizero.xyz/license-api` | License Server 基础地址,如 `http://<ip>/license-api` 或 `https://license.example.com/license-api`。空字符串 = 离线模式(不进行服务器验证)。 |
 
 ### 3. 激活
 
-面板 → **设置 → 许可证** → **添加** → 粘贴由 License 管理面板签发的 License Key → **激活**。状态徽标显示在线验证状态;点击 **立即验证** 可即时生效吊销(否则最长 24h)。
+面板 → **设置 → 许可证** → **添加** → 粘贴由 License 管理面板签发的 License Key → **激活**。状态徽标显示在线验证状态;点击 **立即验证** 可即时生效吊销(吊销也会通过 SSE 事件流实时生效)。
 
 ## 环境变量
 
@@ -140,7 +141,6 @@ Pro 功能(Compose 堆栈、容器创建、应用商店安装)由在线许可证
 |---|---|---|
 | `DATA_DIR` | `./data` | 数据目录(SQLite 数据库、设置、用户) |
 | `PORT` | `8080` | 面板监听端口 |
-| `DOCKER_HOST` | `unix:///var/run/docker.sock`(Linux) | Docker daemon 地址 |
 | `TZ` | — | 容器时区 |
 
 ## 支持平台
@@ -151,7 +151,7 @@ Pro 功能(Compose 堆栈、容器创建、应用商店安装)由在线许可证
 
 ## 支持语言
 
-English、简体中文、繁體中文、日本語、한국어、Русский、Türkçe、Español、Português (Brasil)、Tiếng Việt、Indonesia、Українська、العربية、فارسی — 共 14 种语言,自动检测并一键切换。
+English、简体中文、繁體中文 — 自动检测并一键切换。
 
 ## License
 

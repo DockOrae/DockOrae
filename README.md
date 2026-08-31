@@ -14,7 +14,7 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
 </p>
 
-**Docker Manager Go** is a modern, beautiful Docker management panel written in **Go** ([gin](https://github.com/gin-gonic/gin) + official [Moby Docker SDK](https://github.com/moby/moby)) with a **Vue 3** frontend. The UI is inspired by 1Panel's interaction design, featuring dark/light themes with a pink brand color, and the system status page is modeled after 3x-ui.
+**DockOrae** is a modern, beautiful Docker management panel written in **Go** ([gin](https://github.com/gin-gonic/gin)) with a **Vue 3** frontend. Docker and host-level operations are executed by the companion agent [DockOrae-Agent](https://github.com/DockOrae/DockOrae-Agent) running on the host (privileged); the panel itself is a lightweight control plane and does not talk to the Docker daemon directly. The UI is inspired by 1Panel's interaction design, featuring dark/light themes with a pink brand color, and the system status page is modeled after 3x-ui.
 
 > [!IMPORTANT]
 > This project is intended for personal use only. Please do not use it for illegal purposes or in a production environment without proper authorization.
@@ -28,9 +28,9 @@
 - **App Store** — 260+ one-click apps from a 1Panel-compatible repository (icons, parameter forms, multi-version); auto-synced on first start (no manual step), one-click install / upgrade with an "updatable" badge.
 - **Compose stack management** — YAML editor, one-click deploy (streaming output), start/stop, and teardown.
 - **Real-time monitoring** — 3x-ui style status page: CPU / memory / swap / storage cards with sparklines, network throughput & disk I/O curves, container/image/volume counts, panel process stats, and public IP with visibility toggle.
-- **License** — online licensing powered by Docker_Manager_License (Ed25519 signed keys, device binding, 24h periodic verification, 7-day grace period, instant revocation); offline activation retained for existing users
+- **License** — online licensing powered by Docker_Manager_License (Ed25519 signed keys, device binding, SSE event-driven verification, 72-hour grace period, instant revocation).
 - **Registry mirror** — configure `daemon.json` registry-mirrors right from the panel.
-- **Multi-language** — 14 UI languages with dark and light themes.
+- **Multi-language** — English, 简体中文 and 繁體中文, with dark and light themes.
 - **Security** — TOTP two-factor authentication, JWT sessions, avatar upload.
 - **Panel settings (1Panel-inspired)** — security entrance path (panel accessible only via `/entrance`), unauthenticated response codes (200 help page / 400 / 401 / 403 / 404 / 408 / 416 / 444 / 500), panel domain whitelist (IP access disabled once a domain is bound), panel SSL certificate paths, password expiry & complexity policies, proxy server for outbound requests.
 - **Toolbox** — device info, Docker disk cleanup (stopped containers / unused images & volumes / build cache), Fail2ban login protection with auto-ban, ban list and unban.
@@ -74,25 +74,27 @@ sudo bash install.sh info            # Show installation info
 
 ### Docker Compose (manual)
 
+The bundled `docker-compose.yml` starts the panel **and** the required `dockorae-agent` (privileged host agent that performs Docker / host operations):
+
 ```bash
-docker run -d --name docker-manager-go \
-  -p 8080:8080 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v docker-manager-data:/data \
-  dockorae/dockorae:latest
+docker compose up -d
 ```
 
-Or use the bundled `docker-compose.yml`. For remote Docker hosts, set `DOCKER_HOST=tcp://<host>:2375`.
+> Quick single-container test: `docker run -d --name dockorae -p 8080:8080 -v dockorae-data:/data dockorae/dockorae:latest`
+> — note that without the agent, Docker and host operations are unavailable.
 
 ### Binary (manual)
 
-Download `docker-manager-go-linux-<arch>.tar.gz` from the [Releases page](https://github.com/DockOrae/DockOrae/releases/latest), extract it, and run:
+Download `dockorae-linux-<arch>.tar.gz` from the [Releases page](https://github.com/DockOrae/DockOrae/releases/latest), extract it, and run:
 
 ```bash
-tar xzf docker-manager-go-linux-amd64.tar.gz
-sudo mv docker-manager-go/docker-manager-go /usr/local/bin/
-DATA_DIR=/opt/docker-manager/data PORT=8080 docker-manager-go
+tar xzf dockorae-linux-amd64.tar.gz
+sudo mv dockorae/dockorae /usr/local/bin/
+DATA_DIR=/opt/docker-manager/data PORT=8080 dockorae
 ```
+
+> Binary mode runs the panel only — Docker / host operations also require the agent
+> (deployed via the compose install or the agent's own binary).
 
 ## Domain Binding (SSL)
 
@@ -108,7 +110,7 @@ The certificate paths are written into the panel settings automatically and HTTP
 
 Pro features (Compose stacks, container creation, App Store installs) are gated by an online license:
 the panel verifies a signed Ed25519 license key against a License Server, with device binding,
-24h periodic verification, a 7-day grace period, and instant revocation.
+SSE event-driven verification, a 72-hour grace period, and instant revocation.
 
 Security model (V3):
 - **License Key** is used only for first activation / re-activation (local Ed25519 verify)
@@ -136,13 +138,13 @@ By default the panel uses the official server `https://manager.kejizero.xyz/lice
 
 | Variable | Default | Description |
 |---|---|---|
-| `DM_LICENSE_SERVER_URL` | `https://manager.kejizero.xyz/license-api` | License Server base URL, e.g. `http://<ip>/license-api` or `https://license.example.com/license-api`. Empty string = offline mode (legacy keys only). |
+| `DM_LICENSE_SERVER_URL` | `https://manager.kejizero.xyz/license-api` | License Server base URL, e.g. `http://<ip>/license-api` or `https://license.example.com/license-api`. Empty string = offline mode (no server verification). |
 
 ### 3. Activate
 
 Panel → **Settings → Licensing** → **Add** → paste the License Key issued by the License admin
 panel → **Activate**. The status badge shows the online verification state; click **Verify now**
-to pick up a revocation instantly (otherwise within 24h).
+to pick up a revocation instantly (revocations are otherwise applied in real time via the SSE event stream).
 
 ## Environment Variables
 
@@ -150,7 +152,6 @@ to pick up a revocation instantly (otherwise within 24h).
 |---|---|---|
 | `DATA_DIR` | `./data` | Data directory (SQLite database, settings, users) |
 | `PORT` | `8080` | Panel listen port |
-| `DOCKER_HOST` | `unix:///var/run/docker.sock` (Linux) | Docker daemon address |
 | `TZ` | — | Time zone for the container |
 
 ## Supported Platforms
@@ -161,7 +162,7 @@ to pick up a revocation instantly (otherwise within 24h).
 
 ## Supported Languages
 
-English, 简体中文, 繁體中文, 日本語, 한국어, Русский, Türkçe, Español, Português (Brasil), Tiếng Việt, Indonesia, Українська, العربية, فارسی — 14 languages, auto-detected with one-click switching.
+English, 简体中文 and 繁體中文 — auto-detected with one-click switching.
 
 ## License
 
