@@ -1,9 +1,7 @@
-[English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md) | [Türkçe](/README.tr_TR.md)
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./media/docker-manager-dark.svg">
-    <img alt="Docker Manager Go" src="./media/docker-manager-light.svg" width="850">
+    <img alt="DockOrae" src="./media/docker-manager-light.svg" width="850">
   </picture>
 </p>
 
@@ -12,7 +10,7 @@
   <a href="https://github.com/DockOrae/DockOrae/actions"><img src="https://img.shields.io/github/actions/workflow/status/DockOrae/DockOrae/release.yml.svg" alt="Build"></a>
   <a href="https://github.com/DockOrae/DockOrae/blob/master/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DockOrae/DockOrae.svg" alt="Go Version"></a>
   <a href="https://github.com/DockOrae/DockOrae/releases/latest"><img src="https://img.shields.io/github/downloads/DockOrae/DockOrae/total.svg" alt="Downloads"></a>
-  <a href="https://hub.docker.com/r/zhaoweiwen123/dockorae"><img src="https://img.shields.io/docker/pulls/zhaoweiwen123/dockorae.svg" alt="Docker Pulls"></a>
+  <a href="https://hub.docker.com/r/dockorae/dockorae"><img src="https://img.shields.io/docker/pulls/dockorae/dockorae.svg" alt="Docker Pulls"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html"><img src="https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true" alt="License"></a>
 </p>
 
@@ -81,7 +79,7 @@ docker run -d --name docker-manager-go \
   -p 8080:8080 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v docker-manager-data:/data \
-  zhaoweiwen123/dockorae:latest
+  dockorae/dockorae:latest
 ```
 
 Or use the bundled `docker-compose.yml`. For remote Docker hosts, set `DOCKER_HOST=tcp://<host>:2375`.

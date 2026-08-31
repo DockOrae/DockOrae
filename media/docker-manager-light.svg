@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160" role="img" aria-label="Docker Manager Go">
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160" role="img" aria-label="DockOrae">
   <rect width="640" height="160" rx="26" fill="#ffffff"/>
-  <rect width="640" height="160" rx="26" fill="none" stroke="#f1f5f9" stroke-width="1.5"/>
+  <rect width="640" height="160" rx="26" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
   <!-- docker 集装箱图标(粉色) -->
   <g fill="#ec4899">
     <rect x="32" y="42" width="30" height="30" rx="6"/>
@@ -8,9 +8,9 @@
     <rect x="32" y="79" width="30" height="30" rx="6"/>
     <rect x="69" y="79" width="30" height="30" rx="6"/>
   </g>
-  <path d="M18 124h112a13 13 0 0 1-13 13H31a13 13 0 0 1-13-13z" fill="#ec4899" opacity="0.18"/>
+  <path d="M18 124h112a13 13 0 0 1-13 13H31a13 13 0 0 1-13-13z" fill="#ec4899" opacity="0.15"/>
   <!-- 标题 -->
-  <text x="130" y="90" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#0f172a">Docker Manager</text>
+  <text x="130" y="90" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#0f172a">DockOrae</text>
   <text x="130" y="130" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#ec4899">Go · Lightweight Docker Panel</text>
   <circle cx="596" cy="42" r="7" fill="#ec4899"/>
 </svg>
