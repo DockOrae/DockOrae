@@ -104,9 +104,9 @@ func containsAny(s string, subs ...string) bool {
 // ---------- 更新包可用性检查 ----------
 
 // 二进制发布资产名(与 Makefile cross / release.yml 产物一致)
-const binaryAssetPrefix = "docker-manager-go-linux-"
+const binaryAssetPrefix = "dockorae-linux-"
 
-// binaryAssetName 当前平台对应的发布资产名(docker-manager-go-linux-<arch>.tar.gz)
+// binaryAssetName 当前平台对应的发布资产名(dockorae-linux-<arch>.tar.gz)
 func binaryAssetName() string {
 	return binaryAssetPrefix + runtime.GOARCH + ".tar.gz"
 }

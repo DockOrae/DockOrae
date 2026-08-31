@@ -169,7 +169,7 @@ func TestValidReleaseTag(t *testing.T) {
 // ---------- SHA256 校验 ----------
 
 func TestVerifySHA256(t *testing.T) {
-	content := []byte("docker-manager-go binary content")
+	content := []byte("dockorae binary content")
 	sum := sha256.Sum256(content)
 	goodSum := hex.EncodeToString(sum[:])
 
@@ -181,7 +181,7 @@ func TestVerifySHA256(t *testing.T) {
 
 	// 1. 校验一致 → 通过
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "%s  docker-manager-go-linux-amd64.tar.gz\n", goodSum)
+		fmt.Fprintf(w, "%s  dockorae-linux-amd64.tar.gz\n", goodSum)
 	}))
 	defer srv.Close()
 	if err := verifySHA256(file, srv.URL, srv.Client()); err != nil {
@@ -212,14 +212,14 @@ func TestVerifySHA256(t *testing.T) {
 
 func TestAssetMatching(t *testing.T) {
 	assets := []model.ReleaseAsset{
-		{Name: "docker-manager-go-linux-amd64.tar.gz"},
-		{Name: "docker-manager-go-linux-amd64.tar.gz.sha256"},
-		{Name: "docker-manager-go-linux-arm64.tar.gz"},
+		{Name: "dockorae-linux-amd64.tar.gz"},
+		{Name: "dockorae-linux-amd64.tar.gz.sha256"},
+		{Name: "dockorae-linux-arm64.tar.gz"},
 	}
-	if findAsset(assets, "docker-manager-go-linux-amd64.tar.gz") == nil {
+	if findAsset(assets, "dockorae-linux-amd64.tar.gz") == nil {
 		t.Error("amd64 asset not found")
 	}
-	if findAsset(assets, "docker-manager-go-linux-s390x.tar.gz") != nil {
+	if findAsset(assets, "dockorae-linux-s390x.tar.gz") != nil {
 		t.Error("s390x asset should not exist")
 	}
 	if findAsset(nil, "x") != nil {

@@ -198,7 +198,7 @@ func UpdateCheck(st *state.AppState, ctx context.Context) (*model.UpdateInfo, er
 	req, err := http.NewRequestWithContext(checkCtx, http.MethodGet, UpdateCheckURL(), nil)
 	if err == nil {
 		req.Header.Set("Accept", "application/vnd.github+json")
-		req.Header.Set("User-Agent", "docker-manager-go/"+AppVersion)
+		req.Header.Set("User-Agent", "dockorae/"+AppVersion)
 		if resp, err := (&http.Client{}).Do(req); err == nil {
 			defer resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
@@ -346,8 +346,8 @@ func findManagerImage(yaml string) (string, bool) {
 // retagImageValue 把 image 值(可含 :tag 或 @digest)替换为指定 tag,保留 repository。
 //
 //	dockorae/dockorae:latest      → dockorae/dockorae:v1.3.0
-//	registry.example.com/docker-manager-go:v1.0.2 → registry.example.com/docker-manager-go:v1.3.0
-//	docker-manager-go@sha256:abc                 → docker-manager-go:v1.3.0
+//	registry.example.com/dockorae:v1.0.2 → registry.example.com/dockorae:v1.3.0
+//	dockorae@sha256:abc                 → dockorae:v1.3.0
 func retagImageValue(val, tag string) string {
 	if i := strings.IndexAny(val, "@:"); i >= 0 {
 		return val[:i] + ":" + tag
@@ -370,7 +370,7 @@ func safeImageValue(v string) bool {
 	return true
 }
 
-// buildHelperCmd 构造 helper 执行命令:备份 compose → 精确替换 docker-manager-go 的
+// buildHelperCmd 构造 helper 执行命令:备份 compose → 精确替换 dockorae 的
 // image 值(整行匹配,保留行内注释)→ compose up。
 // oldVal/newVal 均已通过 safeImageValue 校验,可安全嵌入 sed。
 func buildHelperCmd(oldVal, newVal string) string {
@@ -415,7 +415,7 @@ func applyComposeUpdate(st *state.AppState, ctx context.Context, tag string) err
 	}
 	oldVal, ok := findManagerImage(string(yamlBytes))
 	if !ok {
-		return failUpdate("docker-compose.yml 中未找到 docker-manager-go 镜像(image 字段),已中止更新。请检查镜像名或手动修改 compose 后重试")
+		return failUpdate("docker-compose.yml 中未找到 dockorae 镜像(image 字段),已中止更新。请检查镜像名或手动修改 compose 后重试")
 	}
 	newVal := retagImageValue(oldVal, tag)
 	if !safeImageValue(oldVal) || !safeImageValue(newVal) {
@@ -530,7 +530,7 @@ func applyBinaryUpdate(st *state.AppState, ctx context.Context, tag string) erro
 	if arch != "amd64" && arch != "arm64" {
 		return failUpdate("不支持的架构: %s", arch)
 	}
-	pkg := fmt.Sprintf("docker-manager-go-linux-%s.tar.gz", arch)
+	pkg := binaryAssetName()
 	// 修复 UPD-005:下载"已确认的版本"资产(tag 精确),不用 latest——
 	// 避免检查后 GitHub 发布新版本导致下载错版本
 	url := fmt.Sprintf("https://github.com/DockOrae/DockOrae/releases/download/%s/%s", tag, pkg)
@@ -696,7 +696,7 @@ func copyFile(src, dst string) error {
 	return out.Close()
 }
 
-// extractBinary 从发布 tar.gz 中解压出 docker-manager-go 可执行文件到临时目录
+// extractBinary 从发布 tar.gz 中解压出 dockorae 可执行文件到临时目录
 func extractBinary(tarGz string) (string, error) {
 	f, err := os.Open(tarGz)
 	if err != nil {
@@ -718,7 +718,7 @@ func extractBinary(tarGz string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if hdr.Typeflag != tar.TypeReg || !strings.HasSuffix(hdr.Name, "docker-manager-go") {
+		if hdr.Typeflag != tar.TypeReg || !strings.HasSuffix(hdr.Name, "dockorae") {
 			continue
 		}
 		// UPD-007:限制解压体积,防压缩包炸弹(源为官方 release,防御性限制)
@@ -738,7 +738,7 @@ func extractBinary(tarGz string) (string, error) {
 		out.Close()
 		return out.Name(), nil
 	}
-	return "", fmt.Errorf("压缩包中未找到 docker-manager-go")
+	return "", fmt.Errorf("压缩包中未找到 dockorae 可执行文件")
 }
 
 // FindComposeDir 探测宿主 docker-compose.yml 所在目录(**宿主路径**,供 bind 挂载):
