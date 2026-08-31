@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -168,7 +169,10 @@ func (s *ComposeService) SaveYaml(project, yaml string) error {
 
 // Remove 停栈并删除编排目录
 func (s *ComposeService) Remove(ctx context.Context, project string) error {
-	_, _ = s.Run(ctx, project, "down")
+	if _, err := s.Run(ctx, project, "down"); err != nil {
+		// down 失败(如容器已消失)不阻塞目录清理,但必须记录,便于排查潜在孤儿容器
+		log.Printf("compose: %s down 失败(继续清理目录): %v", project, err)
+	}
 	return os.RemoveAll(projectDir(s.composeDir, project))
 }
 

@@ -31,11 +31,6 @@ func (c *Client) SaveRegistryMirrors(ctx context.Context, mirrors []string) erro
 	return err
 }
 
-// DockerStatus Docker 引擎状态(daemon ping + systemd)
-func (c *Client) DockerStatus(ctx context.Context) (map[string]any, error) {
-	return c.Call(ctx, http.MethodGet, "/v1/docker/status", nil, "")
-}
-
 // DockerVersion Docker 引擎版本
 func (c *Client) DockerVersion(ctx context.Context) (map[string]any, error) {
 	return c.Call(ctx, http.MethodGet, "/v1/docker/version", nil, "")

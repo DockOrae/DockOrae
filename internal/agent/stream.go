@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 )
@@ -103,5 +102,3 @@ func (s *StreamBody) Close() error {
 	}
 	return nil
 }
-
-var _ = errors.Is

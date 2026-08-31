@@ -9,10 +9,6 @@ type ImageListItem struct {
 	Created  int64    `json:"Created"`
 }
 
-func ToImageItems(items []ImageListItem) []ImageListItem {
-	return items
-}
-
 // ---- 拉取镜像请求 ----
 
 type PullImageReq struct {

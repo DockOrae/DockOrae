@@ -57,10 +57,13 @@ func SocketExists(path string) bool {
 	return err == nil && st.Mode()&os.ModeSocket != 0
 }
 
-// GenerateToken 生成 32 字节随机 token(十六进制)
+// GenerateToken 生成 32 字节随机 token(十六进制)。
+// crypto/rand 失败时直接 panic:安全凭据生成失败,绝不以弱 token(零字节)启动。
 func GenerateToken() string {
 	b := make([]byte, 32)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }
 
@@ -133,16 +136,6 @@ func (c *Client) Call(ctx context.Context, method, path string, payload any, use
 		env.Data = map[string]any{}
 	}
 	return env.Data, nil
-}
-
-// Health 检测 Agent 连通性(尽力而为)
-func (c *Client) Health(ctx context.Context) map[string]any {
-	data, err := c.Call(ctx, http.MethodGet, "/v1/health", nil, "")
-	if err != nil {
-		return map[string]any{"available": false, "error": err.Error()}
-	}
-	data["available"] = true
-	return data
 }
 
 // statusForCode Agent 错误码 → HTTP 状态(与 Agent errs.StatusFor 对齐的镜像)

@@ -36,28 +36,6 @@ type TotpPending struct {
 	Secret   string
 }
 
-// MonitorCache 监控采样缓存(CPU 使用率需要两次 /proc/stat 采样做差值)
-type MonitorCache struct {
-	mu  sync.Mutex
-	cpu *[2]uint64 // (idle, total)
-}
-
-// SampleCPU 用当前 (idle,total) 采样计算 CPU 使用率并缓存(供 api 包调用)
-func (s *AppState) SampleCPU(idle, total uint64) float64 {
-	s.Monitor.mu.Lock()
-	defer s.Monitor.mu.Unlock()
-	pct := 0.0
-	if s.Monitor.cpu != nil {
-		dTotal := total - s.Monitor.cpu[1]
-		dIdle := idle - s.Monitor.cpu[0]
-		if dTotal > 0 {
-			pct = (1.0 - float64(dIdle)/float64(dTotal)) * 100.0
-		}
-	}
-	s.Monitor.cpu = &[2]uint64{idle, total}
-	return pct
-}
-
 // EventHub Docker 事件广播(慢消费者直接丢弃,等价旧版 broadcast Lagged 语义)
 type EventHub struct {
 	mu   sync.Mutex
@@ -104,7 +82,6 @@ type AppState struct {
 	AvatarDir   string
 	TotpMu      sync.Mutex
 	TotpPending *TotpPending
-	Monitor     MonitorCache
 	Agent       *agent.Client // 宿主机控制平面客户端(Agent 未部署时为 nil 可用性检测)
 	done        chan struct{}
 }
@@ -268,11 +245,6 @@ func (s *AppState) SaveUsers() error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(s.Cfg.DataDir, "users.json"), out, 0o600)
-}
-
-// ReloadUsers 从数据库重新加载用户(备份恢复后调用)
-func (s *AppState) ReloadUsers() error {
-	return s.initUsers()
 }
 
 // ReloadDB 关闭并重开 SQLite(备份恢复替换 db 文件前必须调用,

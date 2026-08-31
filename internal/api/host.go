@@ -98,7 +98,9 @@ func agentProxyPost(panelPath string) H {
 		if c.Request.Body != nil {
 			raw, _ := io.ReadAll(io.LimitReader(c.Request.Body, 1<<20))
 			if len(raw) > 0 && string(raw) != "null" {
-				_ = jsonUnmarshal(raw, &payload)
+				if err := jsonUnmarshal(raw, &payload); err != nil {
+					return service.BadRequest("err.requestFailed")
+				}
 			}
 		}
 		data, err := d.St.Agent.Call(c.Request.Context(), http.MethodPost, target, payload, c.GetString("username"))

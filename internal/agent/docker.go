@@ -229,16 +229,6 @@ func (c *Client) NetworkPrune(ctx context.Context) (PruneReport, error) {
 	return rep, nil
 }
 
-// NetworkConnect 容器接入网络
-func (c *Client) NetworkConnect(ctx context.Context, id, container string) error {
-	return c.simplePost(ctx, "/v1/docker/networks/"+id+"/connect", map[string]any{"container": container})
-}
-
-// NetworkDisconnect 容器断开网络
-func (c *Client) NetworkDisconnect(ctx context.Context, id, container string, force bool) error {
-	return c.simplePost(ctx, "/v1/docker/networks/"+id+"/disconnect", map[string]any{"container": container, "force": force})
-}
-
 // ---------- Volumes ----------
 
 // VolumeList 卷列表

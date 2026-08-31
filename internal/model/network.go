@@ -12,10 +12,6 @@ type NetworkListItem struct {
 	IPAM   json.RawMessage `json:"IPAM,omitempty"`
 }
 
-func ToNetworkItems(items []NetworkListItem) []NetworkListItem {
-	return items
-}
-
 // ---- 创建网络请求 ----
 
 type CreateNetworkReq struct {

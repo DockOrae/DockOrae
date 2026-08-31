@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/DockOrae/DockOrae/internal/agent"
 	"github.com/DockOrae/DockOrae/internal/appstore"
@@ -185,7 +187,11 @@ func (s *AppStoreService) Uninstall(key string) error {
 		return BadRequest("appstore.notFound")
 	}
 	cs := s.composeService()
-	_, _ = cs.Run(context.Background(), key, "down")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if _, err := cs.Run(ctx, key, "down"); err != nil {
+		log.Printf("appstore: %s down 失败(继续删除编排文件): %v", key, err)
+	}
 	return os.RemoveAll(s.projectDir(key))
 }
 
