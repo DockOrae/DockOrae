@@ -141,17 +141,17 @@ func (c *Client) Call(ctx context.Context, method, path string, payload any, use
 // statusForCode Agent 错误码 → HTTP 状态(与 Agent errs.StatusFor 对齐的镜像)
 func statusForCode(code string) int {
 	switch code {
-	case "INVALID_REQUEST", "SWAP_INVALID_SIZE", "INVALID_CONFIRM":
+	case "INVALID_REQUEST", "SWAP_INVALID_SIZE", "INVALID_CONFIRM", "PATH_INVALID", "FILE_TOO_LARGE", "UNSUPPORTED_ARCH":
 		return 400
 	case "UNAUTHORIZED":
 		return 401
-	case "PERMISSION_DENIED":
+	case "PERMISSION_DENIED", "DANGEROUS_PATH":
 		return 403
-	case "NOT_FOUND", "COMPOSE_PROJECT_NOT_FOUND":
+	case "NOT_FOUND", "COMPOSE_PROJECT_NOT_FOUND", "FILE_NOT_FOUND":
 		return 404
-	case "CONFLICT", "OPERATION_IN_PROGRESS":
+	case "CONFLICT", "OPERATION_IN_PROGRESS", "FILE_EXISTS":
 		return 409
-	case "AGENT_UNAVAILABLE", "DOCKER_UNAVAILABLE":
+	case "AGENT_UNAVAILABLE", "DOCKER_UNAVAILABLE", "PTY_UNAVAILABLE", "TERMINAL_SESSION":
 		return 502
 	default:
 		return 500

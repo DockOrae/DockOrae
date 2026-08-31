@@ -7,6 +7,8 @@ import (
 	"log"
 
 	cerrdefs "github.com/containerd/errdefs"
+
+	"github.com/DockOrae/DockOrae/internal/agent"
 )
 
 // ApiError 业务错误 → api 层转 {error: message} JSON
@@ -26,11 +28,16 @@ func BadRequest(message string) *ApiError {
 }
 
 // AsApiError 从 error 链中提取 ApiError;docker SDK 错误按 cerrdefs 映射;
+// Agent(宿主机控制平面)错误按 AgentError 自带 Status/Code 透传(§55 文件/终端错误码);
 // 其余普通错误统一按 500 处理
 func AsApiError(err error) *ApiError {
 	var ae *ApiError
 	if errors.As(err, &ae) {
 		return ae
+	}
+	var agErr *agent.AgentError
+	if errors.As(err, &agErr) {
+		return NewApiError(agErr.Status, agErr.Message)
 	}
 	switch {
 	case cerrdefs.IsNotFound(err):
