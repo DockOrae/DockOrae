@@ -31,6 +31,7 @@ type HostFile struct {
 type FileListResult struct {
 	Path    string     `json:"path"`
 	Entries []HostFile `json:"entries"`
+	Total   int        `json:"total"` // 过滤后总条目数(分页前)
 }
 
 // FileCompressResult 压缩结果
@@ -73,10 +74,25 @@ func (c *Client) callData(ctx context.Context, method, path string, payload any,
 	return json.Unmarshal(raw, out)
 }
 
-// FilesList 目录列表(showHidden 控制隐藏文件)
-func (c *Client) FilesList(ctx context.Context, path string, showHidden bool) (*FileListResult, error) {
+// FilesList 目录列表(showHidden 控制隐藏文件;limit/offset 分页;sortBy/sortDir 排序)
+func (c *Client) FilesList(ctx context.Context, path string, showHidden bool, limit, offset int, sortBy, sortDir string) (*FileListResult, error) {
 	var res FileListResult
-	if err := c.callData(ctx, http.MethodGet, "/v1/host/files/list?path="+url.QueryEscape(path)+"&show_hidden="+strconv.FormatBool(showHidden), nil, &res); err != nil {
+	q := url.Values{}
+	q.Set("path", path)
+	q.Set("show_hidden", strconv.FormatBool(showHidden))
+	if limit > 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		q.Set("offset", strconv.Itoa(offset))
+	}
+	if sortBy != "" {
+		q.Set("sort_by", sortBy)
+	}
+	if sortDir != "" {
+		q.Set("sort_dir", sortDir)
+	}
+	if err := c.callData(ctx, http.MethodGet, "/v1/host/files/list?"+q.Encode(), nil, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
