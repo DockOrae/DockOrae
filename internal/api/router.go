@@ -133,30 +133,30 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.GET("/containers/:id/stats", H(containersStatsWS).Handler(deps))
 	p.GET("/containers/:id/terminal", H(containersTerminalWS).Handler(deps))
 
-	// ---------- 宿主终端长轮询(KPanel 移植,2026-09-02) ----------
+	// ---------- 宿主终端长轮询(2026-09-02 移植) ----------
 	p.POST("/v1/terminal-sessions", H(terminalSessionsOpen).Handler(deps))
 	p.GET("/v1/terminal-sessions/:id/output", H(terminalSessionsOperation("output")).Handler(deps))
 	p.POST("/v1/terminal-sessions/:id/input", H(terminalSessionsOperation("input")).Handler(deps))
 	p.POST("/v1/terminal-sessions/:id/resize", H(terminalSessionsOperation("resize")).Handler(deps))
 	p.POST("/v1/terminal-sessions/:id/close", H(terminalSessionsOperation("close")).Handler(deps))
 
-	// ---------- 宿主文件(KPanel 移植,2026-09-02) ----------
-	p.GET("/v1/files", H(handleKFileList).Handler(deps))
-	p.GET("/v1/files/entry", H(handleKFileEntry).Handler(deps))
-	p.POST("/v1/files/entries", H(handleKFileEntries).Handler(deps))
-	p.GET("/v1/files/trash", H(handleKFileTrashList).Handler(deps))
-	p.GET("/v1/files/content", H(handleKFileContent).Handler(deps))
-	p.PUT("/v1/files/content", H(handleKFileContent).Handler(deps))
-	p.GET("/v1/files/archive", H(handleKFileArchive).Handler(deps))
-	p.GET("/v1/files/text", H(handleKFileText).Handler(deps))
-	p.GET("/v1/files/tail", H(handleKFileTail).Handler(deps))
-	p.POST("/v1/files/upload", H(handleKFileUpload).Handler(deps))
-	p.POST("/v1/files/actions", H(handleKFileAction).Handler(deps))
-	p.POST("/v1/files/download-tickets", H(handleKDownloadTicketCreate).Handler(deps))
-	p.POST("/v1/files/archive-download-tickets", H(handleKArchiveDownloadTicketCreate).Handler(deps))
-	p.GET("/v1/files/download/:token", H(handleKDownloadTicket).Handler(deps))
+	// ---------- 宿主文件(2026-09-02 移植) ----------
+	p.GET("/v1/files", H(handleFileList).Handler(deps))
+	p.GET("/v1/files/entry", H(handleFileEntry).Handler(deps))
+	p.POST("/v1/files/entries", H(handleFileEntries).Handler(deps))
+	p.GET("/v1/files/trash", H(handleFileTrashList).Handler(deps))
+	p.GET("/v1/files/content", H(handleFileContent).Handler(deps))
+	p.PUT("/v1/files/content", H(handleFileContent).Handler(deps))
+	p.GET("/v1/files/archive", H(handleFileArchive).Handler(deps))
+	p.GET("/v1/files/text", H(handleFileText).Handler(deps))
+	p.GET("/v1/files/tail", H(handleFileTail).Handler(deps))
+	p.POST("/v1/files/upload", H(handleFileUpload).Handler(deps))
+	p.POST("/v1/files/actions", H(handleFileAction).Handler(deps))
+	p.POST("/v1/files/download-tickets", H(handleDownloadTicketCreate).Handler(deps))
+	p.POST("/v1/files/archive-download-tickets", H(handleArchiveDownloadTicketCreate).Handler(deps))
+	p.GET("/v1/files/download/:token", H(handleDownloadTicket).Handler(deps))
 
-	// ---------- 宿主文件 + 终端(旧 §55/§56 端点已由上方 KPanel 移植端点取代,删除) ----------
+	// ---------- 宿主文件 + 终端(旧 §55/§56 端点已由上方移植端点取代,删除) ----------
 
 	p.GET("/images", H(imagesList).Handler(deps))
 	p.POST("/images/pull", H(imagesPull).Handler(deps))

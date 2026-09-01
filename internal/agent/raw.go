@@ -1,4 +1,4 @@
-// Agent Client 裸 JSON 接口:宿主终端长轮询 + KPanel 文件端点。
+// Agent Client 裸 JSON 接口:宿主终端长轮询 + 宿主文件端点。
 // 与 Call 的区别:Agent 端返回裸 JSON(非 {ok,data} 信封),透传状态码与响应体。
 package agent
 
@@ -54,7 +54,7 @@ func (c *Client) RawCall(ctx context.Context, method, path, query string, payloa
 		return nil, &AgentError{Status: 502, Code: "AGENT_UNAVAILABLE", Message: "读取 Agent 响应失败"}
 	}
 	if resp.StatusCode >= 400 {
-		// 尝试解析 Agent Problem 信封(与 KPanel 一致:{type,title,status,code,detail,requestId})
+		// 尝试解析 Agent Problem 信封({type,title,status,code,detail,requestId})
 		var problem struct {
 			Code    string `json:"code"`
 			Title   string `json:"title"`

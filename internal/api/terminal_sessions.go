@@ -1,5 +1,5 @@
-// 宿主终端长轮询 API(自 KPanel internal/panel/terminal.go 移植,2026-09-02)。
-// 端点(KPanel 同款契约):
+// 宿主终端长轮询 API(2026-09-02 移植重构)。
+// 端点契约:
 //
 //	POST /api/v1/terminal-sessions              → 打开会话 {rows, columns} → {sessionId, offset, ...}
 //	GET  /api/v1/terminal-sessions/{id}/output  → 长轮询输出 ?offset=&wait= → {data, nextOffset, ...}

@@ -1,5 +1,5 @@
-// 宿主文件管理 API(自 KPanel internal/panel/files.go 移植,2026-09-02)。
-// 端点(KPanel 同款契约):
+// 宿主文件管理 API(2026-09-02 移植重构)。
+// 端点契约:
 //
 //	GET  /api/v1/files                    → 目录列表(path/limit/offset/search)
 //	GET  /api/v1/files/entry              → 单条目属性(path)
@@ -16,7 +16,7 @@
 //	POST /api/v1/files/upload             → 上传(path/name/overwrite, octet-stream)
 //	POST /api/v1/files/actions            → 批量操作
 //
-// 全部经 Agent 透传;下载走内存 ticket(30 分钟过期,与 KPanel 同款)。
+// 全部经 Agent 透传;下载走内存 ticket(30 分钟过期)。
 package api
 
 import (
@@ -56,8 +56,8 @@ var (
 	downloadTickets  = map[string]fileDownloadTicket{}
 )
 
-// handleKFileList GET /api/v1/files
-func handleKFileList(c *gin.Context, d *Deps) error {
+// handleFileList GET /api/v1/files
+func handleFileList(c *gin.Context, d *Deps) error {
 	resp, err := d.St.Agent.RawCall(c.Request.Context(), http.MethodGet, "/v1/files", c.Request.URL.RawQuery, nil, c.GetString("username"))
 	if err != nil {
 		return agentErr(err)
@@ -66,8 +66,8 @@ func handleKFileList(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileEntry GET /api/v1/files/entry
-func handleKFileEntry(c *gin.Context, d *Deps) error {
+// handleFileEntry GET /api/v1/files/entry
+func handleFileEntry(c *gin.Context, d *Deps) error {
 	resp, err := d.St.Agent.RawCall(c.Request.Context(), http.MethodGet, "/v1/files/entry", c.Request.URL.RawQuery, nil, c.GetString("username"))
 	if err != nil {
 		return agentErr(err)
@@ -76,8 +76,8 @@ func handleKFileEntry(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileEntries POST /api/v1/files/entries
-func handleKFileEntries(c *gin.Context, d *Deps) error {
+// handleFileEntries POST /api/v1/files/entries
+func handleFileEntries(c *gin.Context, d *Deps) error {
 	var input struct {
 		Paths []string `json:"paths"`
 	}
@@ -95,8 +95,8 @@ func handleKFileEntries(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileTrashList GET /api/v1/files/trash
-func handleKFileTrashList(c *gin.Context, d *Deps) error {
+// handleFileTrashList GET /api/v1/files/trash
+func handleFileTrashList(c *gin.Context, d *Deps) error {
 	resp, err := d.St.Agent.RawCall(c.Request.Context(), http.MethodGet, "/v1/files/trash", "", nil, c.GetString("username"))
 	if err != nil {
 		return agentErr(err)
@@ -105,8 +105,8 @@ func handleKFileTrashList(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileContent GET/PUT /api/v1/files/content
-func handleKFileContent(c *gin.Context, d *Deps) error {
+// handleFileContent GET/PUT /api/v1/files/content
+func handleFileContent(c *gin.Context, d *Deps) error {
 	switch c.Request.Method {
 	case http.MethodGet, http.MethodHead:
 		// 流式下载:Agent 原始流 → 浏览器
@@ -152,8 +152,8 @@ func handleKFileContent(c *gin.Context, d *Deps) error {
 	}
 }
 
-// handleKFileArchive GET /api/v1/files/archive — 压缩下载
-func handleKFileArchive(c *gin.Context, d *Deps) error {
+// handleFileArchive GET /api/v1/files/archive — 压缩下载
+func handleFileArchive(c *gin.Context, d *Deps) error {
 	if c.Request.Method != http.MethodGet {
 		c.Header("Allow", http.MethodGet)
 		return service.NewApiError(http.StatusMethodNotAllowed, "请求方法不允许")
@@ -174,8 +174,8 @@ func handleKFileArchive(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileText GET /api/v1/files/text
-func handleKFileText(c *gin.Context, d *Deps) error {
+// handleFileText GET /api/v1/files/text
+func handleFileText(c *gin.Context, d *Deps) error {
 	resp, err := d.St.Agent.RawCall(c.Request.Context(), http.MethodGet, "/v1/files/text", c.Request.URL.RawQuery, nil, c.GetString("username"))
 	if err != nil {
 		return agentErr(err)
@@ -184,8 +184,8 @@ func handleKFileText(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileTail GET /api/v1/files/tail
-func handleKFileTail(c *gin.Context, d *Deps) error {
+// handleFileTail GET /api/v1/files/tail
+func handleFileTail(c *gin.Context, d *Deps) error {
 	resp, err := d.St.Agent.RawCall(c.Request.Context(), http.MethodGet, "/v1/files/tail", c.Request.URL.RawQuery, nil, c.GetString("username"))
 	if err != nil {
 		return agentErr(err)
@@ -194,8 +194,8 @@ func handleKFileTail(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileUpload POST /api/v1/files/upload — octet-stream 透传
-func handleKFileUpload(c *gin.Context, d *Deps) error {
+// handleFileUpload POST /api/v1/files/upload — octet-stream 透传
+func handleFileUpload(c *gin.Context, d *Deps) error {
 	rawQuery := c.Request.URL.RawQuery
 	resp, err := d.St.Agent.RawStream(c.Request.Context(), http.MethodPost, "/v1/files/upload", rawQuery, c.Request.Body, c.GetString("username"), c.Request.Header)
 	if err != nil {
@@ -207,8 +207,8 @@ func handleKFileUpload(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKFileAction POST /api/v1/files/actions
-func handleKFileAction(c *gin.Context, d *Deps) error {
+// handleFileAction POST /api/v1/files/actions
+func handleFileAction(c *gin.Context, d *Deps) error {
 	body, err := io.ReadAll(io.LimitReader(c.Request.Body, 1<<20))
 	if err != nil {
 		return service.BadRequest("err.requestFailed")
@@ -221,8 +221,8 @@ func handleKFileAction(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKDownloadTicketCreate POST /api/v1/files/download-tickets
-func handleKDownloadTicketCreate(c *gin.Context, d *Deps) error {
+// handleDownloadTicketCreate POST /api/v1/files/download-tickets
+func handleDownloadTicketCreate(c *gin.Context, d *Deps) error {
 	var input struct {
 		Path string `json:"path"`
 	}
@@ -243,8 +243,8 @@ func handleKDownloadTicketCreate(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKArchiveDownloadTicketCreate POST /api/v1/files/archive-download-tickets
-func handleKArchiveDownloadTicketCreate(c *gin.Context, d *Deps) error {
+// handleArchiveDownloadTicketCreate POST /api/v1/files/archive-download-tickets
+func handleArchiveDownloadTicketCreate(c *gin.Context, d *Deps) error {
 	var input struct {
 		Sources                  []string          `json:"sources"`
 		ExpectedResourceVersions map[string]string `json:"expectedResourceVersions"`
@@ -274,8 +274,8 @@ func handleKArchiveDownloadTicketCreate(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-// handleKDownloadTicket GET /api/v1/files/download/{token} — 消费 ticket 流式下载
-func handleKDownloadTicket(c *gin.Context, d *Deps) error {
+// handleDownloadTicket GET /api/v1/files/download/{token} — 消费 ticket 流式下载
+func handleDownloadTicket(c *gin.Context, d *Deps) error {
 	token := c.Param("token")
 	downloadTicketMu.Lock()
 	ticket, ok := downloadTickets[token]
