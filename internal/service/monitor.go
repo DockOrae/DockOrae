@@ -204,4 +204,3 @@ func SaveRegistryMirrors(st *state.AppState, mirrors []string) error {
 	}
 	return nil
 }
-

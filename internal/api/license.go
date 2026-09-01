@@ -63,4 +63,3 @@ func licenseDeactivate(c *gin.Context, d *Deps) error {
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
-

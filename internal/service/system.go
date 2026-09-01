@@ -451,4 +451,3 @@ func PublicConfig(st *state.AppState) map[string]any {
 	s := st.Settings.Get()
 	return map[string]any{"basePath": s.WebBasePath}
 }
-
