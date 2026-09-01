@@ -126,7 +126,9 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/containers/:id/rename", H(containersRename).Handler(deps))
 	p.GET("/containers/:id/logs", H(containersLogsWS).Handler(deps))
 	p.GET("/containers/:id/stats", H(containersStatsWS).Handler(deps))
-	p.GET("/containers/:id/terminal", H(containersTerminalWS).Handler(deps))
+	p.POST("/containers/:id/exec", H(containersExec).Handler(deps))
+	// Docker 事件流(容器列表实时刷新;事件 → 前端触发容器快照刷新)
+	p.GET("/docker-events", H(dockerEventsWS).Handler(deps))
 
 	// ---------- 宿主终端长轮询(2026-09-02 移植) ----------
 	p.POST("/v1/terminal-sessions", H(terminalSessionsOpen).Handler(deps))

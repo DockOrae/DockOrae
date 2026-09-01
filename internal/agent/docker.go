@@ -120,6 +120,33 @@ func (c *Client) ContainerWait(ctx context.Context, id string) (int64, error) {
 	return int64Of(data["status_code"]), nil
 }
 
+// ContainerExecResult 容器单次执行结果(Agent 契约)
+type ContainerExecResult struct {
+	Stdout     string `json:"stdout"`
+	Stderr     string `json:"stderr"`
+	ExitCode   int    `json:"exit_code"`
+	DurationMS int64  `json:"duration_ms"`
+	Truncated  bool   `json:"truncated"`
+}
+
+// ContainerExec 容器内执行单条命令(非交互;timeoutSeconds<=0 用 Agent 默认 30s)
+func (c *Client) ContainerExec(ctx context.Context, id, command string, timeoutSeconds int) (ContainerExecResult, error) {
+	var out ContainerExecResult
+	payload := map[string]any{"command": command}
+	if timeoutSeconds > 0 {
+		payload["timeout_seconds"] = timeoutSeconds
+	}
+	data, err := c.Call(ctx, http.MethodPost, "/v1/docker/containers/"+id+"/exec", payload, "")
+	if err != nil {
+		return out, err
+	}
+	raw, _ := json.Marshal(data)
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
 // ---------- Images ----------
 
 // ImageList 镜像列表

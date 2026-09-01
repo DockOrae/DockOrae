@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -17,9 +17,8 @@ import (
 
 // ContainerService 容器业务(§7:执行全部在 Agent,面板只管业务逻辑/权限/数据转换)。
 type ContainerService struct {
-	agent      *agent.Client
-	license    func() bool
-	composeDir string
+	agent   *agent.Client
+	license func() bool
 	// ops 容器重建所需的最小 Agent 操作集(测试可注入 fake)
 	ops recreateOps
 }
@@ -27,10 +26,9 @@ type ContainerService struct {
 // NewContainerService 生产构造:从 AppState 提取实际依赖
 func NewContainerService(st *state.AppState) *ContainerService {
 	return &ContainerService{
-		agent:      st.Agent,
-		license:    func() bool { return LicenseFeatureActive(st, "container_create") },
-		composeDir: st.ComposeDir,
-		ops:        agentRecreateOps{client: st.Agent},
+		agent:   st.Agent,
+		license: func() bool { return LicenseFeatureActive(st, "container_create") },
+		ops:     agentRecreateOps{client: st.Agent},
 	}
 }
 
@@ -114,7 +112,8 @@ type restartPolicyDocker struct {
 	Name string `json:"Name"`
 }
 
-// List 容器列表(精简字段,过滤外部容器)
+// List 容器列表(精简字段;2026-09-02 起显示全部容器 —— 外部 docker run /
+// docker compose up 的容器按 compose 标签实时分组展示,不再按面板管理范围过滤)
 func (s *ContainerService) List(ctx context.Context, all bool) ([]model.ContainerListItem, error) {
 	if s.agent == nil {
 		return nil, agentUnavailable()
@@ -123,27 +122,7 @@ func (s *ContainerService) List(ctx context.Context, all bool) ([]model.Containe
 	if err != nil {
 		return nil, err
 	}
-	return s.managedFilter(model.ToContainerItems(items)), nil
-}
-
-// managedFilter 只保留面板管理的容器(1Panel 同款:外部创建的隐藏):
-// 1) 有 createdBy 标签(面板创建 / 应用商店安装)
-// 2) compose 项目在面板数据目录(面板接管 / 面板编排的栈)
-func (s *ContainerService) managedFilter(items []model.ContainerListItem) []model.ContainerListItem {
-	kept := items[:0]
-	for _, c := range items {
-		if _, ok := c.Labels["createdBy"]; ok {
-			kept = append(kept, c)
-			continue
-		}
-		if proj := c.Labels["com.docker.compose.project"]; proj != "" {
-			if _, err := os.Stat(composeFile(s.composeDir, proj)); err == nil {
-				kept = append(kept, c)
-				continue
-			}
-		}
-	}
-	return kept
+	return model.ToContainerItems(items), nil
 }
 
 // Inspect 容器详情(原始 JSON 由 handler 透传)
@@ -331,6 +310,33 @@ func (s *ContainerService) Prune(ctx context.Context) (agent.PruneReport, error)
 		return agent.PruneReport{}, agentUnavailable()
 	}
 	return s.agent.ContainerPrune(ctx)
+}
+
+// ---------- 容器命令执行(2026-09-02 容器终端 Exec 重构) ----------
+
+// Exec 在容器内执行单条命令:浏览器不接触 Docker,全部经 Agent。
+// 命令退出码非 0 不视为错误(HTTP 200 + exit_code 字段,由前端展示)。
+// timeoutSeconds:1~300(0 = Agent 默认 30s)。
+func (s *ContainerService) Exec(ctx context.Context, id, command string, timeoutSeconds int) (agent.ContainerExecResult, error) {
+	if s.agent == nil {
+		return agent.ContainerExecResult{}, agentUnavailable()
+	}
+	if timeoutSeconds != 0 && (timeoutSeconds < 1 || timeoutSeconds > 300) {
+		return agent.ContainerExecResult{}, BadRequest("terminal.timeoutRange")
+	}
+	if command == "" {
+		return agent.ContainerExecResult{}, BadRequest("terminal.commandEmpty")
+	}
+	res, err := s.agent.ContainerExec(ctx, id, command, timeoutSeconds)
+	if err != nil {
+		var ae *agent.AgentError
+		if errors.As(err, &ae) {
+			// Agent 明确错误(容器未运行/超时/并发上限/离线)→ 转对应 HTTP 状态
+			return res, NewApiError(ae.Status, ae.Message)
+		}
+		return res, err
+	}
+	return res, nil
 }
 
 // ---------- 重建容器(业务逻辑在面板,底层原语走 Agent) ----------

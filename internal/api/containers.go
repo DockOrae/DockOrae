@@ -129,6 +129,24 @@ func containersUnpause(c *gin.Context, d *Deps) error {
 	return nil
 }
 
+// containersExec 容器内执行单条命令(2026-09-02 容器终端 Exec 重构)。
+// 命令退出码非 0 不视为 HTTP 错误:200 + {stdout, stderr, exit_code, duration_ms, truncated}。
+func containersExec(c *gin.Context, d *Deps) error {
+	var req struct {
+		Command        string `json:"command"`
+		TimeoutSeconds int    `json:"timeout_seconds"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return service.BadRequest("err.requestFailed")
+	}
+	res, err := d.Containers.Exec(c.Request.Context(), c.Param("id"), req.Command, req.TimeoutSeconds)
+	if err != nil {
+		return err
+	}
+	c.JSON(200, res)
+	return nil
+}
+
 func containersRename(c *gin.Context, d *Deps) error {
 	var req struct {
 		Name string `json:"name"`
@@ -278,20 +296,17 @@ func containersStatsWS(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-func containersTerminalWS(c *gin.Context, d *Deps) error {
+// dockerEventsWS Docker 事件流:浏览器 ↔ Agent 透传(容器生命周期事件实时刷新列表)
+func dockerEventsWS(c *gin.Context, d *Deps) error {
 	conn, err := upgradeWS(c)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	shell := "/bin/sh"
-	if s := c.Query("shell"); s != "" {
-		shell = s
-	}
-	aconn, err := d.St.Agent.ContainerTerminalWS(c.Request.Context(), c.Param("id"), shell)
+	aconn, err := d.St.Agent.DockerEventsWS(c.Request.Context())
 	if err != nil {
-		_ = conn.WriteMessage(websocket.TextMessage, []byte("[exec failed: "+err.Error()+"]\r\n"))
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("[docker events failed: "+err.Error()+"]"))
+		_ = conn.WriteMessage(websocket.CloseMessage, nil)
 		return nil
 	}
 	relayWS(c, conn, aconn)

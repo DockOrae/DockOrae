@@ -39,11 +39,6 @@ func (c *Client) ContainerStatsWS(ctx context.Context, id string) (*websocket.Co
 	return c.DialWS(ctx, "/v1/docker/containers/"+id+"/stats")
 }
 
-// ContainerTerminalWS 容器终端 WebSocket(id + shell)
-func (c *Client) ContainerTerminalWS(ctx context.Context, id, shell string) (*websocket.Conn, error) {
-	return c.DialWS(ctx, "/v1/docker/containers/"+id+"/terminal?shell="+shell)
-}
-
 // DockerEventsWS docker 事件 WebSocket(每帧一条 JSON TEXT 消息)
 func (c *Client) DockerEventsWS(ctx context.Context) (*websocket.Conn, error) {
 	return c.DialWS(ctx, "/v1/docker/events")
