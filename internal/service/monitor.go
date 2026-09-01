@@ -205,15 +205,3 @@ func SaveRegistryMirrors(st *state.AppState, mirrors []string) error {
 	return nil
 }
 
-// RestartDocker 重启 Docker 服务使镜像加速生效
-func RestartDocker(st *state.AppState) error {
-	if st.Agent == nil {
-		return NewApiError(502, "agent.unavailable")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if err := st.Agent.DockerServiceAction(ctx, "restart"); err != nil {
-		return agentToApiError(err)
-	}
-	return nil
-}

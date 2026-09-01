@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -453,41 +452,3 @@ func PublicConfig(st *state.AppState) map[string]any {
 	return map[string]any{"basePath": s.WebBasePath}
 }
 
-// DockerInfo Docker 守护进程信息(§6:数据来自 Agent /v1/docker/info;
-// 键名映射回 moby system.Info 形状,前端协议不变)
-func DockerInfo(st *state.AppState, ctx context.Context) (map[string]any, error) {
-	if st.Agent == nil {
-		return nil, NewApiError(502, "agent.unavailable")
-	}
-	data, err := st.Agent.Call(ctx, "GET", "/v1/docker/info", nil, "")
-	if err != nil {
-		return nil, agentToApiError(err)
-	}
-	// snake_case → moby PascalCase(docker system.Info JSON 形状)
-	keyMap := map[string]string{
-		"server_version":     "ServerVersion",
-		"containers":         "Containers",
-		"containers_running": "ContainersRunning",
-		"containers_paused":  "ContainersPaused",
-		"containers_stopped": "ContainersStopped",
-		"images":             "Images",
-		"storage_driver":     "Driver",
-		"memory":             "MemTotal",
-		"n_cpu":              "NCPU",
-		"name":               "Name",
-		"kernel_version":     "KernelVersion",
-		"operating_system":   "OperatingSystem",
-		"os_type":            "OSType",
-		"architecture":       "Architecture",
-		"cgroup_driver":      "CgroupDriver",
-	}
-	out := map[string]any{}
-	for k, v := range data {
-		if dst, ok := keyMap[k]; ok {
-			out[dst] = v
-		} else {
-			out[k] = v
-		}
-	}
-	return out, nil
-}

@@ -208,12 +208,3 @@ func systemTotpDisable(c *gin.Context, d *Deps) error {
 	c.JSON(200, gin.H{"ok": true})
 	return nil
 }
-
-func systemInfo(c *gin.Context, d *Deps) error {
-	info, err := service.DockerInfo(d.St, c.Request.Context())
-	if err != nil {
-		return err
-	}
-	c.JSON(200, info)
-	return nil
-}

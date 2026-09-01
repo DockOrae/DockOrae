@@ -64,9 +64,3 @@ func licenseDeactivate(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-func licenseDemoKey(c *gin.Context, d *Deps) error {
-	// V1 已完全移除:客户端无私钥,无法本地签发 V2 demo key。
-	// 开发调试请配置本地 License Server(DM_LICENSE_SERVER_URL=http://localhost:3000)
-	// 并用其签发的 License;正式使用向授权方购买。
-	return service.NewApiError(403, "license.demoUnavailable")
-}

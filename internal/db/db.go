@@ -267,24 +267,3 @@ func (d *DB) AddEvent(action, actor, detail, ip string) error {
 		time.Now().Unix(), action, actor, detail, ip)
 	return err
 }
-
-// RecentEvents 最近 N 条事件
-func (d *DB) RecentEvents(limit int) ([]Event, error) {
-	if limit <= 0 || limit > 500 {
-		limit = 100
-	}
-	rows, err := d.Query(`SELECT id, time, action, actor, detail, ip FROM events ORDER BY id DESC LIMIT ?`, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []Event
-	for rows.Next() {
-		var e Event
-		if err := rows.Scan(&e.ID, &e.Time, &e.Action, &e.Actor, &e.Detail, &e.IP); err != nil {
-			return nil, err
-		}
-		out = append(out, e)
-	}
-	return out, rows.Err()
-}

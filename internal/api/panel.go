@@ -38,15 +38,6 @@ func panelLogs(c *gin.Context, d *Deps) error {
 	return nil
 }
 
-func panelEvents(c *gin.Context, d *Deps) error {
-	list, err := service.PanelEvents(d.St, 200)
-	if err != nil {
-		return err
-	}
-	c.JSON(200, gin.H{"events": list})
-	return nil
-}
-
 func panelTestEmail(c *gin.Context, d *Deps) error {
 	if err := service.TestEmail(d.St); err != nil {
 		return service.BadRequest("邮件发送失败: " + err.Error())

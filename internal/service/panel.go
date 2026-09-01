@@ -85,22 +85,6 @@ func PanelLogs(lines int) []string {
 	return logger.LogRing.Lines(lines)
 }
 
-// PanelEvents 操作/登录事件记录
-func PanelEvents(st *state.AppState, limit int) ([]any, error) {
-	if st.DB == nil {
-		return []any{}, nil
-	}
-	list, err := st.DB.RecentEvents(limit)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]any, len(list))
-	for i := range list {
-		out[i] = list[i]
-	}
-	return out, nil
-}
-
 // TestEmail 发送测试邮件
 func TestEmail(st *state.AppState) error {
 	return notify.SendTestEmail(st.Settings)

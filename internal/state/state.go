@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -382,13 +381,3 @@ func (s *AppState) SpawnEventWatcher() {
 	}()
 }
 
-// EventToValue 转成旧版前端约定的事件 JSON 结构
-func EventToValue(m agent.EventMessage) map[string]any {
-	return map[string]any{
-		"time":             m.Time,
-		"action":           m.Action,
-		"type":             strings.ToLower(m.Type),
-		"id":               m.Actor.ID,
-		"actor_attributes": m.Actor.Attributes,
-	}
-}

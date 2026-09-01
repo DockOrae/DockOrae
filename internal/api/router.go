@@ -67,13 +67,10 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/totp/enable", H(systemTotpEnable).Handler(deps))
 	p.POST("/totp/disable", H(systemTotpDisable).Handler(deps))
 
-	p.GET("/system/info", H(systemInfo).Handler(deps))
 	p.GET("/system/host", H(monitorHost).Handler(deps))
 	p.GET("/system/monitor", H(monitorMonitor).Handler(deps))
-	p.GET("/system/public-ip", H(systemPublicIP).Handler(deps))
 	p.GET("/system/registry-mirrors", H(monitorRegistryMirrors).Handler(deps))
 	p.PUT("/system/registry-mirrors", H(monitorSaveRegistryMirrors).Handler(deps))
-	p.POST("/system/restart-docker", H(monitorRestartDocker).Handler(deps))
 
 	// ---------- Agent(宿主机控制平面,固定端点映射 §53) ----------
 	for panelPath := range agentGetEndpoints {
@@ -88,7 +85,6 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.GET("/system/settings", H(panelSettings).Handler(deps))
 	p.PUT("/system/settings", H(panelSettingsSave).Handler(deps))
 	p.GET("/system/logs", H(panelLogs).Handler(deps))
-	p.GET("/system/events", H(panelEvents).Handler(deps))
 	p.POST("/system/test-email", H(panelTestEmail).Handler(deps))
 	p.GET("/system/config", H(panelConfig).Handler(deps))
 	p.GET("/system/backup", H(panelBackup).Handler(deps))
@@ -100,15 +96,12 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/license/activate-file", H(licenseActivateFile).Handler(deps))
 	p.POST("/license/deactivate", H(licenseDeactivate).Handler(deps))
 	p.POST("/license/verify", H(licenseVerifyNow).Handler(deps))
-	p.GET("/license/demo", H(licenseDemoKey).Handler(deps))
 	p.GET("/ws/license", H(licenseEventsWS).Handler(deps)) // License 状态实时推送(Vue 自动更新)
 
 	// ---------- 在线更新 ----------
 	p.GET("/update/check", H(updateCheck).Handler(deps))
 	p.GET("/update/status", H(updateStatus).Handler(deps))
 	p.POST("/update/apply", H(updateApply).Handler(deps))
-
-	p.GET("/ws/events", H(systemEventsWS).Handler(deps))
 
 	p.GET("/apps", H(appstoreList).Handler(deps))
 	p.GET("/apps/:key", H(appstoreDetail).Handler(deps))
