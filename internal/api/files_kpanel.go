@@ -1,19 +1,21 @@
 // 宿主文件管理 API(自 KPanel internal/panel/files.go 移植,2026-09-02)。
 // 端点(KPanel 同款契约):
-//   GET  /api/v1/files                    → 目录列表(path/limit/offset/search)
-//   GET  /api/v1/files/entry              → 单条目属性(path)
-//   POST /api/v1/files/entries            → 批量属性(paths)
-//   GET  /api/v1/files/trash              → 回收站列表
-//   GET  /api/v1/files/content            → 读文件/下载(path/disposition/mode/version)
-//   PUT  /api/v1/files/content            → 写文件(path, JSON)
-//   GET  /api/v1/files/archive            → 压缩下载(selection JSON + name)
-//   GET  /api/v1/files/text               → 文本读取(≤64KiB)
-//   GET  /api/v1/files/tail               → 文本尾部(≤64KiB)
-//   POST /api/v1/files/download-tickets   → 下载 ticket(浏览器 <a> 无 header 场景)
-//   POST /api/v1/files/archive-download-tickets → 压缩下载 ticket
-//   GET  /api/v1/files/download/{token}   → ticket 消费(流式下载)
-//   POST /api/v1/files/upload             → 上传(path/name/overwrite, octet-stream)
-//   POST /api/v1/files/actions            → 批量操作
+//
+//	GET  /api/v1/files                    → 目录列表(path/limit/offset/search)
+//	GET  /api/v1/files/entry              → 单条目属性(path)
+//	POST /api/v1/files/entries            → 批量属性(paths)
+//	GET  /api/v1/files/trash              → 回收站列表
+//	GET  /api/v1/files/content            → 读文件/下载(path/disposition/mode/version)
+//	PUT  /api/v1/files/content            → 写文件(path, JSON)
+//	GET  /api/v1/files/archive            → 压缩下载(selection JSON + name)
+//	GET  /api/v1/files/text               → 文本读取(≤64KiB)
+//	GET  /api/v1/files/tail               → 文本尾部(≤64KiB)
+//	POST /api/v1/files/download-tickets   → 下载 ticket(浏览器 <a> 无 header 场景)
+//	POST /api/v1/files/archive-download-tickets → 压缩下载 ticket
+//	GET  /api/v1/files/download/{token}   → ticket 消费(流式下载)
+//	POST /api/v1/files/upload             → 上传(path/name/overwrite, octet-stream)
+//	POST /api/v1/files/actions            → 批量操作
+//
 // 全部经 Agent 透传;下载走内存 ticket(30 分钟过期,与 KPanel 同款)。
 package api
 

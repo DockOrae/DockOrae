@@ -1,10 +1,12 @@
 // 宿主终端长轮询 API(自 KPanel internal/panel/terminal.go 移植,2026-09-02)。
 // 端点(KPanel 同款契约):
-//   POST /api/v1/terminal-sessions              → 打开会话 {rows, columns} → {sessionId, offset, ...}
-//   GET  /api/v1/terminal-sessions/{id}/output  → 长轮询输出 ?offset=&wait= → {data, nextOffset, ...}
-//   POST /api/v1/terminal-sessions/{id}/input   → 输入 {data}
-//   POST /api/v1/terminal-sessions/{id}/resize  → 调整尺寸 {rows, columns}
-//   POST /api/v1/terminal-sessions/{id}/close   → 关闭会话
+//
+//	POST /api/v1/terminal-sessions              → 打开会话 {rows, columns} → {sessionId, offset, ...}
+//	GET  /api/v1/terminal-sessions/{id}/output  → 长轮询输出 ?offset=&wait= → {data, nextOffset, ...}
+//	POST /api/v1/terminal-sessions/{id}/input   → 输入 {data}
+//	POST /api/v1/terminal-sessions/{id}/resize  → 调整尺寸 {rows, columns}
+//	POST /api/v1/terminal-sessions/{id}/close   → 关闭会话
+//
 // 面板仅做会话簿记(publicID ↔ backendID)+ 用户归属;数据经 Agent 长轮询透传。
 package api
 
