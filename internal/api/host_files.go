@@ -289,7 +289,7 @@ func handleDownloadTicket(c *gin.Context, d *Deps) error {
 	if ticket.ArchiveSelection != "" {
 		query := url.Values{}
 		query.Set("name", ticket.ArchiveName)
-		resp, err := d.St.Agent.RawStream(c.Request.Context(), http.MethodGet, "/v1/files/archive?selection="+url.QueryEscape(ticket.ArchiveSelection)+"&name="+url.QueryEscape(ticket.ArchiveName), "", http.NoBody, c.GetString("username"), nil)
+		resp, err := d.St.Agent.RawStream(c.Request.Context(), http.MethodGet, "/v1/files/archive?selection="+url.QueryEscape(ticket.ArchiveSelection)+"&name="+url.QueryEscape(ticket.ArchiveName), "", http.NoBody, "", nil)
 		if err != nil {
 			return agentErr(err)
 		}
@@ -306,7 +306,7 @@ func handleDownloadTicket(c *gin.Context, d *Deps) error {
 	query := url.Values{}
 	query.Set("path", ticket.Path)
 	query.Set("disposition", "attachment")
-	resp, err := d.St.Agent.RawStream(c.Request.Context(), http.MethodGet, "/v1/files/content", query.Encode(), http.NoBody, c.GetString("username"), nil)
+	resp, err := d.St.Agent.RawStream(c.Request.Context(), http.MethodGet, "/v1/files/content", query.Encode(), http.NoBody, "", nil)
 	if err != nil {
 		return agentErr(err)
 	}

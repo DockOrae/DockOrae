@@ -50,6 +50,8 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	api.POST("/login/totp", H(systemLoginTotp).Handler(deps))
 	// 应用图标:公开(1Panel 同款,<img> 无 header 可带 token)
 	api.GET("/apps/icon/:key", H(appstoreIcon).Handler(deps))
+	// 文件下载 ticket:公开(ticket 即一次性凭证,浏览器 <a> 无 header 场景)
+	api.GET("/v1/files/download/:token", H(handleDownloadTicket).Handler(deps))
 
 	// ---------- protected ----------
 	p := api.Group("")
@@ -154,7 +156,6 @@ func Router(st *state.AppState, basePath string, static gin.HandlerFunc) *gin.En
 	p.POST("/v1/files/actions", H(handleFileAction).Handler(deps))
 	p.POST("/v1/files/download-tickets", H(handleDownloadTicketCreate).Handler(deps))
 	p.POST("/v1/files/archive-download-tickets", H(handleArchiveDownloadTicketCreate).Handler(deps))
-	p.GET("/v1/files/download/:token", H(handleDownloadTicket).Handler(deps))
 
 	// ---------- 宿主文件 + 终端(旧 §55/§56 端点已由上方移植端点取代,删除) ----------
 
